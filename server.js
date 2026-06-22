@@ -89,6 +89,18 @@ app.delete('/api/owners/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── Google Sheets — fire and forget ─── */
+function logToSheets(entry) {
+  const url = process.env.GOOGLE_SCRIPT_URL;
+  if (!url) return;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(entry),
+    signal: AbortSignal.timeout(6000),
+  }).catch(() => {});
+}
+
 /* ─── LOGS ─── */
 app.get('/api/logs', (req, res) => {
   const logs = (load().logs || []).slice().reverse().slice(0, 80);
@@ -102,6 +114,7 @@ app.post('/api/logs', (req, res) => {
   db.logs.push(entry);
   if (db.logs.length > 300) db.logs = db.logs.slice(-300);
   save(db);
+  logToSheets(entry);   // → Google Sheets
   res.json(entry);
 });
 
