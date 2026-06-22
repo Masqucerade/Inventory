@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Telegram Mini App — учёт наличия вещей",
   "scripts": {
-    "start": "serve . --listen $PORT --single"
+    "start": "serve . -l $PORT -s"
   },
   "dependencies": {
     "serve": "^14.2.4"
