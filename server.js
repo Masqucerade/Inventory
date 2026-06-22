@@ -89,14 +89,28 @@ app.delete('/api/owners/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-/* ─── Google Sheets — fire and forget ─── */
-function logToSheets(entry) {
-  const url = process.env.GOOGLE_SCRIPT_URL;
-  if (!url) return;
-  fetch(url, {
+/* ─── Telegram log notifications — fire and forget ─── */
+const TG_ICONS = {
+  item_add:     '➕', item_edit:    '✏️', item_delete:  '🗑',
+  owner_add:    '👤', owner_edit:   '✏️', owner_delete: '🗑',
+  backup:       '💾', restore:      '📂', clear:        '🧹',
+};
+
+function logToTelegram(entry) {
+  const token  = process.env.TG_LOG_TOKEN;
+  const chatId = process.env.TG_LOG_CHAT;
+  if (!token || !chatId) return;
+
+  const icon = TG_ICONS[entry.type] || '•';
+  const date = new Date(entry.ts).toLocaleString('ru-RU', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+  const text = `${icon} <b>${entry.desc}</b>\n<i>${date}</i>`;
+
+  fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(entry),
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
     signal: AbortSignal.timeout(6000),
   }).catch(() => {});
 }
@@ -114,7 +128,7 @@ app.post('/api/logs', (req, res) => {
   db.logs.push(entry);
   if (db.logs.length > 300) db.logs = db.logs.slice(-300);
   save(db);
-  logToSheets(entry);   // → Google Sheets
+  logToTelegram(entry); // → Telegram
   res.json(entry);
 });
 
