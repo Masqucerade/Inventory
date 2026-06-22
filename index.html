@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Склад</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="app" class="app">
+
+  <!-- ===== INVENTORY VIEW ===== -->
+  <div id="view-inventory" class="view active">
+    <div class="view-header inv-header">
+      <div class="header-row">
+        <h1 class="view-title">📦 Склад</h1>
+        <div class="header-actions">
+          <button class="icon-btn" id="saveBtn" title="Сохранить бэкап">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Поиск по названию, типу…">
+        <button class="search-clear hidden" id="searchClear">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="chips-scroll" id="ownerFilterChips"></div>
+      <div class="chips-scroll" id="statusFilterChips">
+        <button class="chip active" data-status="">Все</button>
+        <button class="chip" data-status="in_stock">В наличии</button>
+        <button class="chip" data-status="on_order">Под заказ</button>
+        <button class="chip" data-status="in_transit">В пути</button>
+        <button class="chip" data-status="received">Получен</button>
+        <button class="chip" data-status="reserved">Резерв</button>
+        <button class="chip" data-status="sold">Продан</button>
+        <button class="chip" data-status="cancelled">Отменён</button>
+      </div>
+    </div>
+    <div class="view-body" id="inventoryList">
+      <div class="skeleton-wrap">
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STATS VIEW ===== -->
+  <div id="view-stats" class="view">
+    <div class="view-header simple-header">
+      <h1 class="view-title">📊 Статистика</h1>
+    </div>
+    <div class="view-body" id="statsContent"></div>
+  </div>
+
+  <!-- ===== OWNERS VIEW ===== -->
+  <div id="view-owners" class="view">
+    <div class="view-header simple-header">
+      <div class="header-row">
+        <h1 class="view-title">👥 Владельцы</h1>
+        <button class="icon-btn" id="addOwnerBtn">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="view-body" id="ownersList"></div>
+  </div>
+
+  <!-- ===== SETTINGS VIEW ===== -->
+  <div id="view-settings" class="view">
+    <div class="view-header simple-header">
+      <h1 class="view-title">⚙️ Настройки</h1>
+    </div>
+    <div class="view-body" id="settingsContent"></div>
+  </div>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="inventory">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      <span class="nav-label">Товары</span>
+    </button>
+    <button class="nav-btn" data-view="stats">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="nav-label">Статистика</span>
+    </button>
+    <button class="nav-btn" data-view="owners">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span class="nav-label">Владельцы</span>
+    </button>
+    <button class="nav-btn" data-view="settings">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="nav-label">Настройки</span>
+    </button>
+  </nav>
+
+  <!-- FAB -->
+  <button class="fab" id="fabBtn">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+</div>
+
+<!-- ===== MODAL: ITEM ADD/EDIT ===== -->
+<div class="modal" id="itemModal">
+  <div class="modal-header">
+    <button class="modal-close" id="itemModalClose">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </button>
+    <span class="modal-title" id="itemModalTitle">Новый товар</span>
+    <button class="modal-action-btn" id="itemModalSave">Сохранить</button>
+  </div>
+  <div class="modal-body">
+    <form id="itemForm" novalidate>
+
+      <!-- Photo -->
+      <div class="photo-section" id="photoPicker">
+        <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+        <div class="photo-placeholder" id="photoPlaceholder">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Нажмите чтобы<br>добавить фото</span>
+        </div>
+        <img id="photoPreview" class="photo-preview hidden" src="" alt="Фото товара">
+        <button type="button" class="photo-remove hidden" id="photoRemove">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="form-card">
+        <div class="form-group">
+          <label class="form-label">Тип товара <span class="required">*</span></label>
+          <input type="text" id="fieldType" class="form-input" placeholder="Одежда, Обувь, Аксессуары…" list="typesList" autocomplete="off">
+          <datalist id="typesList"></datalist>
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-group">
+          <label class="form-label">Наименование <span class="required">*</span></label>
+          <input type="text" id="fieldName" class="form-input" placeholder="Название товара" autocomplete="off">
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-group">
+          <label class="form-label">Размер</label>
+          <input type="text" id="fieldSize" class="form-input" placeholder="S, M, L, 42, 43…" list="sizesList" autocomplete="off">
+          <datalist id="sizesList">
+            <option value="XS"><option value="S"><option value="M"><option value="L">
+            <option value="XL"><option value="XXL"><option value="XXXL">
+            <option value="36"><option value="37"><option value="38"><option value="39">
+            <option value="40"><option value="41"><option value="42"><option value="43">
+            <option value="44"><option value="45"><option value="46"><option value="One size">
+          </datalist>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-row-inline">
+          <div class="form-group flex-1">
+            <label class="form-label">Количество <span class="required">*</span></label>
+            <div class="qty-row">
+              <button type="button" class="qty-btn" id="qtyMinus">−</button>
+              <input type="number" id="fieldQuantity" class="form-input qty-input" value="1" min="0" inputmode="numeric">
+              <button type="button" class="qty-btn" id="qtyPlus">+</button>
+            </div>
+          </div>
+          <div class="form-group flex-1">
+            <label class="form-label">Стоимость (₽)</label>
+            <input type="number" id="fieldPrice" class="form-input" placeholder="0" min="0" step="0.01" inputmode="decimal">
+          </div>
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-group total-row">
+          <span class="form-label">Итого</span>
+          <span class="total-amount" id="totalDisplay">0 ₽</span>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-group">
+          <label class="form-label">Владелец</label>
+          <div class="owner-chips" id="ownerSelect"></div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-group">
+          <label class="form-label">Статус заказа</label>
+          <div class="status-chips" id="statusSelect"></div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-group">
+          <label class="form-label">Заметки</label>
+          <textarea id="fieldNotes" class="form-input form-textarea" placeholder="Дополнительная информация…" rows="3"></textarea>
+        </div>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<!-- ===== MODAL: ITEM DETAIL ===== -->
+<div class="modal" id="detailModal">
+  <div class="modal-header">
+    <button class="modal-close" id="detailModalClose">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </button>
+    <span class="modal-title" id="detailModalTitle">Товар</span>
+    <button class="modal-action-btn" id="detailModalEdit">Изменить</button>
+  </div>
+  <div class="modal-body" id="detailModalBody"></div>
+</div>
+
+<!-- ===== MODAL: OWNER ===== -->
+<div class="modal" id="ownerModal">
+  <div class="modal-header">
+    <button class="modal-close" id="ownerModalClose">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </button>
+    <span class="modal-title" id="ownerModalTitle">Новый владелец</span>
+    <button class="modal-action-btn" id="ownerModalSave">Сохранить</button>
+  </div>
+  <div class="modal-body">
+    <div class="owner-avatar-center">
+      <div class="owner-avatar-xl" id="ownerAvatarPreview">А</div>
+    </div>
+    <div class="form-card">
+      <div class="form-group">
+        <label class="form-label">Имя <span class="required">*</span></label>
+        <input type="text" id="ownerName" class="form-input" placeholder="Имя владельца" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-card">
+      <div class="form-group">
+        <label class="form-label">Цвет аватара</label>
+        <div class="color-grid" id="colorPicker"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TOAST ===== -->
+<div class="toast hidden" id="toast"></div>
+
+<!-- ===== CONFIRM ===== -->
+<div class="confirm-overlay hidden" id="confirmOverlay">
+  <div class="confirm-box">
+    <p class="confirm-msg" id="confirmMsg">Вы уверены?</p>
+    <div class="confirm-btns">
+      <button class="btn-confirm-cancel" id="confirmCancel">Отмена</button>
+      <button class="btn-confirm-ok" id="confirmOk">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/backup.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
