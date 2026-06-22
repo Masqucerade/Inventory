@@ -794,19 +794,27 @@ class App {
 
       <div class="section-title">Резервная копия</div>
       <div class="settings-section">
-        <div class="settings-row" id="sBtnBackup">
-          <div class="settings-row-icon blue">💾</div>
+        <div class="settings-row" id="sBtnTgBackup">
+          <div class="settings-row-icon blue">✈️</div>
           <div class="settings-row-info">
-            <div class="settings-row-title">Сохранить сейчас</div>
-            <div class="settings-row-sub">Скачать JSON-файл с данными</div>
+            <div class="settings-row-title">Отправить в Telegram</div>
+            <div class="settings-row-sub">Файл с данными — прямо в чат</div>
           </div>${arrow}
         </div>
-        <div class="settings-row" id="sBtnAutoToggle">
+        <div class="settings-row" style="cursor:default">
           <div class="settings-row-icon green">🔄</div>
           <div class="settings-row-info">
             <div class="settings-row-title">Авто-бэкап каждые 24 ч</div>
-            <div class="settings-row-sub">${autoOn ? 'Включён ✓' : 'Выключен'}</div>
-          </div>${toggle(autoOn)}
+            <div class="settings-row-sub">Отправляется в Telegram автоматически</div>
+          </div>
+          <div style="font-size:11px;color:var(--s-in_stock);font-weight:600">ON</div>
+        </div>
+        <div class="settings-row" id="sBtnBackup">
+          <div class="settings-row-icon gray">💾</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Скачать JSON</div>
+            <div class="settings-row-sub">Сохранить файл локально</div>
+          </div>${arrow}
         </div>
         <div class="settings-row" id="sBtnRestore">
           <div class="settings-row-icon orange">📂</div>
@@ -847,12 +855,16 @@ class App {
       this.renderSettings();
     });
 
-    document.getElementById('sBtnBackup').addEventListener('click', () => this.doManualSave());
-
-    document.getElementById('sBtnAutoToggle').addEventListener('click', () => {
-      this.backup.setAutoEnabled(!this.backup.isAutoEnabled());
-      this.renderSettings();
+    document.getElementById('sBtnTgBackup').addEventListener('click', async () => {
+      this.toast('Отправляю в Telegram…');
+      try {
+        const r = await fetch('/api/backup/send', { method: 'POST' });
+        const d = await r.json();
+        this.toast(d.ok ? '✓ Бэкап отправлен в Telegram' : '✗ Не удалось — настройте TG_LOG_TOKEN');
+      } catch { this.toast('✗ Ошибка отправки'); }
     });
+
+    document.getElementById('sBtnBackup').addEventListener('click', () => this.doManualSave());
 
     document.getElementById('sBtnRestore').addEventListener('click', () =>
       document.getElementById('restoreFileInput').click()

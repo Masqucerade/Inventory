@@ -151,5 +151,69 @@ app.post('/api/import', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── Telegram backup — sends JSON file every 24h ─── */
+const BACKUP_INTERVAL = 24 * 60 * 60 * 1000;
+
+async function sendBackupToTelegram() {
+  const token  = process.env.TG_LOG_TOKEN;
+  const chatId = process.env.TG_LOG_CHAT;
+  if (!token || !chatId) return false;
+
+  const db   = load();
+  const data = { version: 2, exportedAt: new Date().toISOString(), items: db.items || [], owners: db.owners || [] };
+  const json = JSON.stringify(data, null, 2);
+  const date = new Date().toLocaleDateString('ru-RU').replace(/\./g, '-');
+
+  const form = new FormData();
+  form.append('chat_id', chatId);
+  form.append('caption',
+    `💾 <b>Авто-бэкап Masqucerade INC.</b>\n` +
+    `📦 Товаров: ${data.items.length}\n` +
+    `👥 Владельцев: ${data.owners.length}\n` +
+    `🕐 ${new Date().toLocaleString('ru-RU')}`
+  );
+  form.append('parse_mode', 'HTML');
+  form.append('document', new Blob([json], { type: 'application/json' }), `masqucerade-${date}.json`);
+
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+      method: 'POST', body: form,
+      signal: AbortSignal.timeout(20000),
+    });
+    if (r.ok) {
+      const d = load(); if (!d.meta) d.meta = {};
+      d.meta.lastBackup = new Date().toISOString(); save(d);
+      console.log('Telegram backup sent');
+      return true;
+    }
+  } catch (err) { console.error('Backup failed:', err.message); }
+  return false;
+}
+
+/* Manual trigger via API */
+app.post('/api/backup/send', async (req, res) => {
+  const ok = await sendBackupToTelegram();
+  res.json({ ok });
+});
+
+/* Smart scheduler — survives restarts */
+function scheduleBackup() {
+  const db        = load();
+  const lastBackup = db.meta?.lastBackup;
+  const elapsed   = lastBackup ? Date.now() - new Date(lastBackup).getTime() : Infinity;
+  const delay     = elapsed >= BACKUP_INTERVAL ? 0 : BACKUP_INTERVAL - elapsed;
+
+  setTimeout(async () => {
+    await sendBackupToTelegram();
+    setInterval(sendBackupToTelegram, BACKUP_INTERVAL);
+  }, delay);
+
+  if (delay === 0) console.log('Backup overdue — sending now');
+  else console.log(`Next backup in ${Math.round(delay / 3600000)}h`);
+}
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Masqucerade INC. on :${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Masqucerade INC. on :${PORT}`);
+  scheduleBackup();
+});
