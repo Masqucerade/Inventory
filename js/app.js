@@ -5,13 +5,10 @@
 
 /* ── Constants ── */
 const STATUSES = [
-  { id: 'in_stock',   label: 'В наличии', icon: '✅', color: '#30d158' },
-  { id: 'on_order',   label: 'Под заказ', icon: '📋', color: '#ff9f0a' },
-  { id: 'in_transit', label: 'В пути',    icon: '🚚', color: '#60a5fa' },
-  { id: 'received',   label: 'Получен',   icon: '📦', color: '#a78bfa' },
-  { id: 'reserved',   label: 'Резерв',    icon: '🔒', color: '#38bdf8' },
-  { id: 'sold',       label: 'Продан',    icon: '💰', color: '#6b7280' },
-  { id: 'cancelled',  label: 'Отменён',   icon: '❌', color: '#f87171' },
+  { id: 'ordered',    label: 'Заказано',  icon: '📋', color: 'rgba(255,255,255,0.40)' },
+  { id: 'in_stock',   label: 'В наличии', icon: '●',  color: '#4ade80' },
+  { id: 'processing', label: 'В заказе',  icon: '○',  color: '#93c5fd' },
+  { id: 'done',       label: 'Завершено', icon: '✓',  color: 'rgba(255,255,255,0.22)' },
 ];
 
 const OWNER_COLORS = [
@@ -57,7 +54,7 @@ class App {
     this.currentPhoto   = null;
 
     this._selOwner  = null;
-    this._selStatus = 'in_stock';
+    this._selStatus = 'ordered';
     this._selColor  = DEFAULT_COLOR;
 
     this._detailItemId = null;
