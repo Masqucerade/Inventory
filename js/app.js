@@ -1,39 +1,42 @@
 /* =============================================
-   Main Application — Inventory Telegram Mini App
+   Main Application  —  Inventory Telegram Mini App
+   Web3 Minimalism edition with full action logging
    ============================================= */
 
-/* ---- Constants ---- */
+/* ── Constants ── */
 const STATUSES = [
-  { id: 'in_stock',   label: 'В наличии', icon: '✅', color: '#34c759' },
-  { id: 'on_order',   label: 'Под заказ', icon: '📋', color: '#ff9500' },
-  { id: 'in_transit', label: 'В пути',    icon: '🚚', color: '#007aff' },
-  { id: 'received',   label: 'Получен',   icon: '📦', color: '#5856d6' },
-  { id: 'reserved',   label: 'Резерв',    icon: '🔒', color: '#32ade6' },
-  { id: 'sold',       label: 'Продан',    icon: '💰', color: '#8e8e93' },
-  { id: 'cancelled',  label: 'Отменён',   icon: '❌', color: '#ff3b30' },
+  { id: 'in_stock',   label: 'В наличии', icon: '✅', color: '#30d158' },
+  { id: 'on_order',   label: 'Под заказ', icon: '📋', color: '#ff9f0a' },
+  { id: 'in_transit', label: 'В пути',    icon: '🚚', color: '#60a5fa' },
+  { id: 'received',   label: 'Получен',   icon: '📦', color: '#a78bfa' },
+  { id: 'reserved',   label: 'Резерв',    icon: '🔒', color: '#38bdf8' },
+  { id: 'sold',       label: 'Продан',    icon: '💰', color: '#6b7280' },
+  { id: 'cancelled',  label: 'Отменён',   icon: '❌', color: '#f87171' },
 ];
 
 const OWNER_COLORS = [
-  '#ff6b6b','#ff9500','#ffcd02','#34c759','#00c7be',
-  '#007aff','#5856d6','#af52de','#ff2d55','#8e8e93',
+  '#ff6b6b','#ff9500','#ffd60a','#30d158','#00c7be',
+  '#7c6dfa','#5856d6','#af52de','#ff375f','#8e8e93',
 ];
 
-const DEFAULT_COLOR = '#007aff';
+const LOG_META = {
+  item_add:     { icon: '➕', color: 'rgba(48,209,88,.15)' },
+  item_edit:    { icon: '✏️', color: 'rgba(124,109,250,.15)' },
+  item_delete:  { icon: '🗑', color: 'rgba(248,113,113,.15)' },
+  owner_add:    { icon: '👤', color: 'rgba(48,209,88,.15)' },
+  owner_edit:   { icon: '✏️', color: 'rgba(124,109,250,.15)' },
+  owner_delete: { icon: '🗑', color: 'rgba(248,113,113,.15)' },
+  backup:       { icon: '💾', color: 'rgba(59,130,246,.15)' },
+  restore:      { icon: '📂', color: 'rgba(255,159,10,.15)' },
+  clear:        { icon: '🧹', color: 'rgba(248,113,113,.15)' },
+};
 
-function statusById(id) {
-  return STATUSES.find(s => s.id === id) || STATUSES[0];
-}
-function fmt(n) {
-  if (n == null || n === '') return '';
-  return Number(n).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-function fmtMoney(n) {
-  return (n == null ? 0 : n) === 0 ? '0 ₽' : fmt(n) + ' ₽';
-}
-function debounce(fn, ms = 300) {
-  let t;
-  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
-}
+const DEFAULT_COLOR = '#7c6dfa';
+
+const statusById = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
+const fmtNum = (n) => n == null ? '' : Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
+const fmtMoney = (n) => (!n && n !== 0) ? '0 ₽' : fmtNum(n) + ' ₽';
+const debounce = (fn, ms = 280) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
 /* ============================================= */
 class App {
@@ -44,34 +47,34 @@ class App {
     this.items  = [];
     this.owners = [];
 
-    this.currentView    = 'inventory';
-    this.filterOwnerId  = null;
-    this.filterStatus   = '';
-    this.searchQuery    = '';
+    this.currentView   = 'inventory';
+    this.filterOwnerId = null;
+    this.filterStatus  = '';
+    this.searchQuery   = '';
 
     this.editingItemId  = null;
     this.editingOwnerId = null;
     this.currentPhoto   = null;
 
-    this._selOwner  = null;    // selected owner in item form
+    this._selOwner  = null;
     this._selStatus = 'in_stock';
     this._selColor  = DEFAULT_COLOR;
 
-    this._detailItemId  = null;
-    this._confirmRes    = null;
-    this._confirmRej    = null;
-    this._toastTimer    = null;
+    this._detailItemId = null;
+    this._confirmRes   = null;
+    this._confirmRej   = null;
+    this._toastTimer   = null;
   }
 
-  /* =============================================
+  /* ──────────────────────────────────────────
      INIT
-     ============================================= */
+     ────────────────────────────────────────── */
   async init() {
     try {
       await this.db.init();
       await this.loadData();
       this.initTelegram();
-      this.bindGlobal();     // one-time event bindings
+      this.bindGlobal();
       this.renderView('inventory');
       this.backup.checkAutoBackup();
     } catch (err) {
@@ -91,14 +94,15 @@ class App {
     if (!tg) return;
     tg.ready();
     tg.expand();
-    try { tg.setHeaderColor(tg.themeParams?.bg_color || '#f2f2f7'); } catch (_) {}
+    try { tg.setHeaderColor('#07070f'); } catch (_) {}
+    try { tg.setBackgroundColor('#07070f'); } catch (_) {}
   }
 
-  /* =============================================
+  /* ──────────────────────────────────────────
      GLOBAL (ONE-TIME) EVENT BINDINGS
-     ============================================= */
+     ────────────────────────────────────────── */
   bindGlobal() {
-    /* Bottom nav */
+    /* Nav */
     document.querySelectorAll('.nav-btn').forEach(b =>
       b.addEventListener('click', () => this.renderView(b.dataset.view))
     );
@@ -106,8 +110,13 @@ class App {
     /* FAB */
     document.getElementById('fabBtn').addEventListener('click', () => this.openItemModal());
 
-    /* Save button */
+    /* Save */
     document.getElementById('saveBtn').addEventListener('click', () => this.doManualSave());
+
+    /* History */
+    document.getElementById('historyBtn').addEventListener('click', () => this.openModal('historyModal'));
+    document.getElementById('historyModalClose').addEventListener('click', () => this.closeModal('historyModal'));
+    document.getElementById('clearLogsBtn').addEventListener('click', () => this.clearLogs());
 
     /* Search */
     const inp = document.getElementById('searchInput');
@@ -116,14 +125,14 @@ class App {
       this.searchQuery = inp.value.trim();
       clr.classList.toggle('hidden', !this.searchQuery);
       this.renderInventoryList();
-    }, 250));
+    }));
     clr.addEventListener('click', () => {
       inp.value = this.searchQuery = '';
       clr.classList.add('hidden');
       this.renderInventoryList();
     });
 
-    /* Status filter chips (static HTML) */
+    /* Status filter chips (static) */
     document.getElementById('statusFilterChips').addEventListener('click', (e) => {
       const chip = e.target.closest('[data-status]');
       if (!chip) return;
@@ -134,7 +143,7 @@ class App {
       this.renderInventoryList();
     });
 
-    /* Owner filter chips (dynamic — event delegation on container) */
+    /* Owner filter chips (dynamic, delegated) */
     document.getElementById('ownerFilterChips').addEventListener('click', (e) => {
       const chip = e.target.closest('[data-owner]');
       if (!chip) return;
@@ -143,7 +152,7 @@ class App {
       this.renderInventoryList();
     });
 
-    /* Inventory list item click (event delegation) */
+    /* Inventory list item click (delegated) */
     document.getElementById('inventoryList').addEventListener('click', (e) => {
       const card = e.target.closest('.item-card');
       if (card) this.openDetailModal(card.dataset.id);
@@ -153,7 +162,7 @@ class App {
     document.getElementById('itemModalClose').addEventListener('click', () => this.closeModal('itemModal'));
     document.getElementById('itemModalSave').addEventListener('click', () => this.saveItem());
 
-    /* Qty buttons */
+    /* Qty */
     document.getElementById('qtyPlus').addEventListener('click', () => {
       const el = document.getElementById('fieldQuantity');
       el.value = Math.max(0, (parseInt(el.value) || 0) + 1);
@@ -178,9 +187,8 @@ class App {
       try {
         const b64 = await resizeImage(file);
         this.currentPhoto = b64;
-        const prev = document.getElementById('photoPreview');
-        prev.src = b64;
-        prev.classList.remove('hidden');
+        document.getElementById('photoPreview').src = b64;
+        document.getElementById('photoPreview').classList.remove('hidden');
         document.getElementById('photoPlaceholder').classList.add('hidden');
         document.getElementById('photoRemove').classList.remove('hidden');
       } catch (_) { this.toast('Ошибка загрузки фото'); }
@@ -195,18 +203,17 @@ class App {
       document.getElementById('photoRemove').classList.add('hidden');
     });
 
-    /* Owner chips in item form (event delegation on container) */
+    /* Owner chips in item form (delegated) */
     document.getElementById('ownerSelect').addEventListener('click', (e) => {
       const btn = e.target.closest('.owner-chip');
       if (!btn) return;
-      const oid = btn.dataset.ownerId;
-      this._selOwner = this._selOwner === oid ? null : oid;
+      this._selOwner = this._selOwner === btn.dataset.ownerId ? null : btn.dataset.ownerId;
       document.querySelectorAll('#ownerSelect .owner-chip').forEach(c =>
         c.classList.toggle('selected', c.dataset.ownerId === this._selOwner)
       );
     });
 
-    /* Status chips in item form (event delegation on container) */
+    /* Status chips in item form (delegated) */
     document.getElementById('statusSelect').addEventListener('click', (e) => {
       const btn = e.target.closest('.status-chip');
       if (!btn) return;
@@ -233,7 +240,7 @@ class App {
       document.getElementById('ownerAvatarPreview').textContent = v ? v[0].toUpperCase() : 'А';
     });
 
-    /* Color picker (event delegation) */
+    /* Color picker (delegated — rendered once inside openOwnerModal, but listener is here) */
     document.getElementById('colorPicker').addEventListener('click', (e) => {
       const dot = e.target.closest('.color-dot');
       if (!dot) return;
@@ -244,14 +251,14 @@ class App {
       document.getElementById('ownerAvatarPreview').style.background = this._selColor;
     });
 
-    /* Confirm dialog */
+    /* Confirm */
     document.getElementById('confirmCancel').addEventListener('click', () => this._confirmRej?.());
     document.getElementById('confirmOk').addEventListener('click', () => this._confirmRes?.());
   }
 
-  /* =============================================
+  /* ──────────────────────────────────────────
      VIEW ROUTING
-     ============================================= */
+     ────────────────────────────────────────── */
   renderView(view) {
     this.currentView = view;
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -268,24 +275,25 @@ class App {
     }
   }
 
-  /* =============================================
-     INVENTORY VIEW
-     ============================================= */
+  /* ──────────────────────────────────────────
+     INVENTORY
+     ────────────────────────────────────────── */
   renderInventoryView() {
     this.renderOwnerFilterChips();
     this.renderInventoryList();
   }
 
   renderOwnerFilterChips() {
-    const el  = document.getElementById('ownerFilterChips');
-    const all = `<button class="chip ${!this.filterOwnerId ? 'active' : ''}" data-owner="">Все</button>`;
-    el.innerHTML = all + this.owners.map(o => {
-      const active = this.filterOwnerId === o.id;
-      return `<button class="chip ${active ? 'active' : ''}" data-owner="${o.id}"
-        style="${active ? `background:${o.color};color:#fff` : ''}">
-        ${this.esc(o.name)}
-      </button>`;
-    }).join('');
+    const el = document.getElementById('ownerFilterChips');
+    el.innerHTML =
+      `<button class="chip ${!this.filterOwnerId ? 'active' : ''}" data-owner="">Все</button>` +
+      this.owners.map(o => {
+        const a = this.filterOwnerId === o.id;
+        return `<button class="chip ${a ? 'active' : ''}" data-owner="${o.id}"
+          ${a ? `style="background:${o.color};border-color:transparent;color:#fff"` : ''}>
+          ${this.esc(o.name)}
+        </button>`;
+      }).join('');
   }
 
   async renderInventoryList() {
@@ -301,10 +309,9 @@ class App {
     if (!items.length) {
       list.innerHTML = `
         <div class="empty-state">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <svg width="68" height="68" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".9">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
           </svg>
           <h3>${this.searchQuery ? 'Ничего не найдено' : 'Нет товаров'}</h3>
           <p>${this.searchQuery ? 'Попробуйте другой запрос' : 'Нажмите + чтобы добавить первый товар'}</p>
@@ -313,20 +320,19 @@ class App {
     }
 
     const ownerMap = Object.fromEntries(this.owners.map(o => [o.id, o]));
-
     list.innerHTML = `<div class="items-list">${items.map((item, idx) => {
       const st    = statusById(item.orderStatus);
       const owner = ownerMap[item.ownerId];
       const thumb = item.photo
         ? `<img src="${item.photo}" loading="lazy" alt="">`
         : `<div class="item-thumb-placeholder">
-             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
                <polyline points="21 15 16 10 5 21"/>
              </svg>
            </div>`;
 
-      return `<div class="item-card" data-id="${item.id}" style="animation-delay:${Math.min(idx * 30, 200)}ms">
+      return `<div class="item-card" data-id="${item.id}" style="animation-delay:${Math.min(idx*28,200)}ms">
         <div class="item-thumb">${thumb}</div>
         <div class="item-info">
           <div class="item-top">
@@ -349,9 +355,9 @@ class App {
     }).join('')}</div>`;
   }
 
-  /* =============================================
-     ITEM DETAIL MODAL
-     ============================================= */
+  /* ──────────────────────────────────────────
+     ITEM DETAIL
+     ────────────────────────────────────────── */
   async openDetailModal(id) {
     const item = await this.db.getItem(id);
     if (!item) return;
@@ -361,22 +367,22 @@ class App {
     const owner = this.owners.find(o => o.id === item.ownerId);
 
     const rows = [
-      ['Тип',       item.type     || '—'],
-      ['Размер',    item.size     || '—'],
-      ['Кол-во',    item.quantity + ' шт'],
-      ['Цена/шт',   item.price    ? fmtMoney(item.price) : '—'],
-      ['Итого',     fmtMoney(item.total), 'big'],
-      ['Статус',    `<span class="status-badge ${item.orderStatus}">${st.label}</span>`],
-      ['Владелец',  owner
+      ['Тип',     item.type     || '—'],
+      ['Размер',  item.size     || '—'],
+      ['Кол-во',  item.quantity + ' шт'],
+      ['Цена/шт', item.price    ? fmtMoney(item.price) : '—'],
+      ['Итого',   fmtMoney(item.total), 'big'],
+      ['Статус',  `<span class="status-badge ${item.orderStatus}">${st.label}</span>`],
+      ['Владелец', owner
         ? `<span style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
-             <span style="width:10px;height:10px;border-radius:50%;background:${owner.color};display:inline-block"></span>
+             <span style="width:10px;height:10px;border-radius:50%;background:${owner.color};display:inline-block;flex-shrink:0"></span>
              ${this.esc(owner.name)}
            </span>`
         : '—'],
-      ['Создан',    this.fmtDate(item.createdAt)],
-      ['Обновлён',  this.fmtDate(item.updatedAt)],
-    ].map(([k, v, cls]) =>
-      `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val ${cls||''}">${v}</span></div>`
+      ['Создан',   this.fmtDate(item.createdAt)],
+      ['Обновлён', this.fmtDate(item.updatedAt)],
+    ].map(([k,v,c]) =>
+      `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val ${c||''}">${v}</span></div>`
     ).join('');
 
     document.getElementById('detailModalTitle').textContent = item.name;
@@ -386,44 +392,42 @@ class App {
       ${item.notes ? `<div class="detail-notes">${this.esc(item.notes)}</div>` : ''}
       <button class="detail-delete-btn" id="detailDeleteBtn">🗑 Удалить товар</button>
     `;
-
     document.getElementById('detailDeleteBtn').addEventListener('click', () => this.deleteItem(id));
     this.openModal('detailModal');
   }
 
   async deleteItem(id) {
-    const ok = await this.confirm('Удалить этот товар? Это действие нельзя отменить.');
+    const item = await this.db.getItem(id);
+    const ok   = await this.confirm('Удалить этот товар? Действие нельзя отменить.');
     if (!ok) return;
     await this.db.deleteItem(id);
+    await this.db.logAction('item_delete', `Удалён товар: «${item?.name || id}»`, { id, name: item?.name });
     await this.loadData();
     this.closeModal('detailModal');
     this.renderInventoryList();
     this.toast('Товар удалён');
   }
 
-  /* =============================================
-     ITEM FORM MODAL
-     ============================================= */
+  /* ──────────────────────────────────────────
+     ITEM FORM
+     ────────────────────────────────────────── */
   async openItemModal(id = null) {
     this.editingItemId = id;
     this.currentPhoto  = null;
-    this._selOwner  = null;
-    this._selStatus = 'in_stock';
+    this._selOwner     = null;
+    this._selStatus    = 'in_stock';
 
-    /* Reset form */
-    document.getElementById('fieldType').value     = '';
-    document.getElementById('fieldName').value     = '';
-    document.getElementById('fieldSize').value     = '';
+    /* Reset */
+    ['fieldType','fieldName','fieldSize','fieldNotes'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('fieldQuantity').value = '1';
     document.getElementById('fieldPrice').value    = '';
-    document.getElementById('fieldNotes').value    = '';
     document.getElementById('totalDisplay').textContent = '0 ₽';
     document.getElementById('photoPreview').src = '';
     document.getElementById('photoPreview').classList.add('hidden');
     document.getElementById('photoPlaceholder').classList.remove('hidden');
     document.getElementById('photoRemove').classList.add('hidden');
 
-    /* Populate type datalist */
+    /* Type datalist */
     const types = [...new Set(this.items.map(i => i.type).filter(Boolean))];
     document.getElementById('typesList').innerHTML = types.map(t => `<option value="${this.esc(t)}">`).join('');
 
@@ -435,13 +439,12 @@ class App {
         document.getElementById('fieldType').value     = item.type     || '';
         document.getElementById('fieldName').value     = item.name     || '';
         document.getElementById('fieldSize').value     = item.size     || '';
-        document.getElementById('fieldQuantity').value = item.quantity != null ? item.quantity : 1;
+        document.getElementById('fieldQuantity').value = item.quantity ?? 1;
         document.getElementById('fieldPrice').value    = item.price    || '';
         document.getElementById('fieldNotes').value    = item.notes    || '';
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'in_stock';
         this.updateTotal();
-
         if (item.photo) {
           this.currentPhoto = item.photo;
           document.getElementById('photoPreview').src = item.photo;
@@ -460,7 +463,7 @@ class App {
   refreshOwnerChips() {
     const wrap = document.getElementById('ownerSelect');
     if (!this.owners.length) {
-      wrap.innerHTML = `<span style="font-size:13px;color:var(--hint)">Добавьте владельцев на вкладке "Владельцы"</span>`;
+      wrap.innerHTML = `<span style="font-size:13px;color:var(--hint)">Добавьте владельцев во вкладке «Владельцы»</span>`;
       return;
     }
     wrap.innerHTML = this.owners.map(o =>
@@ -473,9 +476,8 @@ class App {
 
   refreshStatusChips() {
     document.getElementById('statusSelect').innerHTML = STATUSES.map(s =>
-      `<button type="button" class="status-chip ${this._selStatus === s.id ? 'selected' : ''}"
-        data-status="${s.id}" style="color:${s.color}">
-        <span>${s.icon}</span> ${s.label}
+      `<button type="button" class="status-chip ${this._selStatus === s.id ? 'selected' : ''}" data-status="${s.id}">
+         <span>${s.icon}</span> ${s.label}
        </button>`
     ).join('');
   }
@@ -492,8 +494,9 @@ class App {
     if (!name) { this.toast('Укажите наименование товара'); return; }
     if (!type) { this.toast('Укажите тип товара'); return; }
 
-    const item = {
-      ...(this.editingItemId ? { id: this.editingItemId } : {}),
+    const isNew = !this.editingItemId;
+    const item  = {
+      ...(isNew ? {} : { id: this.editingItemId }),
       type,
       name,
       size:        document.getElementById('fieldSize').value.trim(),
@@ -505,20 +508,24 @@ class App {
       photo:       this.currentPhoto || null,
     };
 
-    await this.db.saveItem(item);
+    const saved = await this.db.saveItem(item);
+    await this.db.logAction(
+      isNew ? 'item_add' : 'item_edit',
+      isNew ? `Добавлен товар: «${name}»` : `Изменён товар: «${name}»`,
+      { id: saved.id, name, type, quantity: item.quantity, price: item.price }
+    );
     await this.loadData();
     this.closeModal('itemModal');
     this.renderInventoryList();
-    this.toast(this.editingItemId ? 'Товар обновлён ✓' : 'Товар добавлен ✓');
+    this.toast(isNew ? 'Товар добавлен ✓' : 'Товар обновлён ✓');
   }
 
-  /* =============================================
+  /* ──────────────────────────────────────────
      OWNERS VIEW
-     ============================================= */
+     ────────────────────────────────────────── */
   async renderOwners() {
-    const list = document.getElementById('ownersList');
+    const list  = document.getElementById('ownersList');
     const items = await this.db.getItems();
-
     const cntMap = {}, valMap = {};
     items.forEach(i => {
       if (!i.ownerId) return;
@@ -529,10 +536,9 @@ class App {
     if (!this.owners.length) {
       list.innerHTML = `
         <div class="empty-state">
-          <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".9">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
           <h3>Нет владельцев</h3>
@@ -542,7 +548,7 @@ class App {
     }
 
     list.innerHTML = `<div class="owners-grid">${this.owners.map((o, idx) => `
-      <div class="owner-card" style="animation-delay:${idx * 40}ms">
+      <div class="owner-card" style="animation-delay:${idx*40}ms">
         <div class="owner-avatar" style="background:${o.color}">${o.name[0].toUpperCase()}</div>
         <div class="owner-info">
           <div class="owner-name">${this.esc(o.name)}</div>
@@ -562,9 +568,9 @@ class App {
     );
   }
 
-  /* =============================================
+  /* ──────────────────────────────────────────
      OWNER FORM
-     ============================================= */
+     ────────────────────────────────────────── */
   async openOwnerModal(id = null) {
     this.editingOwnerId = id;
     this._selColor      = DEFAULT_COLOR;
@@ -574,7 +580,6 @@ class App {
     document.getElementById('ownerAvatarPreview').style.background = DEFAULT_COLOR;
     document.getElementById('ownerModalTitle').textContent         = id ? 'Изменить владельца' : 'Новый владелец';
 
-    /* Render color dots */
     document.getElementById('colorPicker').innerHTML = OWNER_COLORS.map(c =>
       `<div class="color-dot ${c === DEFAULT_COLOR ? 'selected' : ''}" data-color="${c}" style="background:${c}"></div>`
     ).join('');
@@ -591,45 +596,48 @@ class App {
         );
       }
     }
-
     this.openModal('ownerModal');
   }
 
   async saveOwner() {
     const name = document.getElementById('ownerName').value.trim();
     if (!name) { this.toast('Введите имя владельца'); return; }
-
+    const isNew = !this.editingOwnerId;
     const owner = {
-      ...(this.editingOwnerId ? { id: this.editingOwnerId } : {}),
+      ...(isNew ? {} : { id: this.editingOwnerId }),
       name,
       color: this._selColor,
     };
-
-    await this.db.saveOwner(owner);
+    const saved = await this.db.saveOwner(owner);
+    await this.db.logAction(
+      isNew ? 'owner_add' : 'owner_edit',
+      isNew ? `Добавлен владелец: «${name}»` : `Изменён владелец: «${name}»`,
+      { id: saved.id, name }
+    );
     await this.loadData();
     this.closeModal('ownerModal');
     this.renderOwners();
-    this.toast(this.editingOwnerId ? 'Владелец обновлён ✓' : 'Владелец добавлен ✓');
+    this.toast(isNew ? 'Владелец добавлен ✓' : 'Владелец обновлён ✓');
   }
 
   async deleteOwner(id) {
     const owner = this.owners.find(o => o.id === id);
-    const ok = await this.confirm(`Удалить владельца "${owner?.name}"?\nТовары останутся без владельца.`);
+    const ok    = await this.confirm(`Удалить владельца «${owner?.name}»?\nТовары останутся без владельца.`);
     if (!ok) return;
 
     const owned = await this.db.getItems({ ownerId: id });
-    for (const item of owned) {
-      await this.db.saveItem({ ...item, ownerId: null });
-    }
+    for (const item of owned) await this.db.saveItem({ ...item, ownerId: null });
+
     await this.db.deleteOwner(id);
+    await this.db.logAction('owner_delete', `Удалён владелец: «${owner?.name || id}»`, { id, name: owner?.name });
     await this.loadData();
     this.renderOwners();
     this.toast('Владелец удалён');
   }
 
-  /* =============================================
-     STATS VIEW
-     ============================================= */
+  /* ──────────────────────────────────────────
+     STATS
+     ────────────────────────────────────────── */
   async renderStats() {
     const el    = document.getElementById('statsContent');
     const items = await this.db.getItems();
@@ -637,11 +645,10 @@ class App {
     if (!items.length) {
       el.innerHTML = `
         <div class="empty-state">
-          <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".9">
             <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
           </svg>
-          <h3>Нет данных</h3>
-          <p>Добавьте товары для просмотра статистики</p>
+          <h3>Нет данных</h3><p>Добавьте товары для просмотра статистики</p>
         </div>`;
       return;
     }
@@ -650,27 +657,19 @@ class App {
     const totalVal = items.reduce((s, i) => s + (i.total    || 0), 0);
     const avgPrice = totalQty ? totalVal / totalQty : 0;
 
-    /* by status */
-    const byStatus = {};
-    items.forEach(i => { byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + 1; });
-
-    /* by owner */
-    const byOwner = {};
+    const byStatus = {}, byOwner = {}, byType = {};
     items.forEach(i => {
+      byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + 1;
       const k = i.ownerId || '__none__';
       if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0 };
       byOwner[k].qty += (i.quantity || 0);
       byOwner[k].val += (i.total    || 0);
       byOwner[k].cnt++;
-    });
-
-    /* by type */
-    const byType = {};
-    items.forEach(i => {
-      if (!i.type) return;
-      if (!byType[i.type]) byType[i.type] = { cnt: 0, val: 0 };
-      byType[i.type].cnt++;
-      byType[i.type].val += (i.total || 0);
+      if (i.type) {
+        if (!byType[i.type]) byType[i.type] = { cnt: 0, val: 0 };
+        byType[i.type].cnt++;
+        byType[i.type].val += (i.total || 0);
+      }
     });
 
     const maxSt  = Math.max(...Object.values(byStatus), 1);
@@ -684,39 +683,39 @@ class App {
         <div class="bar-track"><div class="bar-fill" style="width:${Math.round(cnt/maxSt*100)}%;background:${s.color}"></div></div>
         <span class="bar-count">${cnt}</span>
       </div>`;
-    }).join('') || '<span style="color:var(--hint);font-size:14px">Нет данных</span>';
+    }).join('') || noData;
 
     const ownerRows = Object.entries(byOwner)
       .sort((a, b) => b[1].val - a[1].val)
       .map(([oid, v]) => {
-        const o    = this.owners.find(o => o.id === oid);
-        const name = o ? o.name : 'Без владельца';
-        const col  = o ? o.color : '#8e8e93';
+        const o = this.owners.find(o => o.id === oid);
+        const n = o ? o.name : 'Без владельца';
+        const c = o ? o.color : '#6b7280';
         return `<div class="owner-stat-row">
-          <div class="owner-stat-avatar" style="background:${col}">${name[0].toUpperCase()}</div>
+          <div class="owner-stat-avatar" style="background:${c}">${n[0].toUpperCase()}</div>
           <div class="owner-stat-info">
-            <div class="owner-stat-name">${this.esc(name)}</div>
-            <div class="bar-track" style="margin-top:4px">
-              <div class="bar-fill" style="width:${Math.round(v.val/maxOwV*100)}%;background:${col}"></div>
+            <div class="owner-stat-name">${this.esc(n)}</div>
+            <div class="bar-track" style="margin-top:5px">
+              <div class="bar-fill" style="width:${Math.round(v.val/maxOwV*100)}%;background:${c}"></div>
             </div>
           </div>
-          <div style="text-align:right">
-            <div class="owner-stat-total">${fmtMoney(v.val)}</div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${fmtMoney(v.val)}</div>
             <div style="font-size:11px;color:var(--hint)">${v.qty} шт · ${v.cnt} поз</div>
           </div>
         </div>`;
-      }).join('') || '<span style="color:var(--hint);font-size:14px">Нет данных</span>';
+      }).join('') || noData;
 
     const typeSorted = Object.entries(byType).sort((a, b) => b[1].cnt - a[1].cnt);
-    const typeRows = typeSorted.map(([t, v]) =>
+    const typeRows   = typeSorted.map(([t, v]) =>
       `<div class="bar-row">
         <span class="bar-label">${this.esc(t)}</span>
-        <div class="bar-track">
-          <div class="bar-fill" style="width:${Math.round(v.cnt/maxTyC*100)}%;background:var(--accent)"></div>
-        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v.cnt/maxTyC*100)}%;background:var(--a1)"></div></div>
         <span class="bar-count">${v.cnt} / ${fmtMoney(v.val)}</span>
       </div>`
     ).join('');
+
+    const noData = '<span style="font-size:14px;color:var(--hint)">Нет данных</span>';
 
     el.innerHTML = `
       <div class="stats-grid">
@@ -737,33 +736,34 @@ class App {
           <div class="stat-label">Средняя цена</div>
         </div>
       </div>
-
       <div class="section-title">По статусам</div>
       <div class="stats-section">${statusBars}</div>
-
       <div class="section-title">По владельцам</div>
       <div class="stats-section">${ownerRows}</div>
-
-      ${typeSorted.length
-        ? `<div class="section-title">По типам товаров</div>
-           <div class="stats-section">${typeRows}</div>`
-        : ''}
+      ${typeSorted.length ? `<div class="section-title">По типам</div><div class="stats-section">${typeRows}</div>` : ''}
     `;
   }
 
-  /* =============================================
-     SETTINGS VIEW
-     ============================================= */
+  /* ──────────────────────────────────────────
+     SETTINGS
+     ────────────────────────────────────────── */
   renderSettings() {
     const el     = document.getElementById('settingsContent');
     const lastBk = this.backup.getLastTimeStr();
     const autoOn = this.backup.isAutoEnabled();
     const hasCld = !!window.Telegram?.WebApp?.CloudStorage;
 
+    const toggle = (on) => `
+      <div class="toggle-track" style="background:${on ? 'var(--a1)' : 'rgba(255,255,255,0.12)'}">
+        <div class="toggle-thumb" style="transform:translateX(${on ? 18 : 0}px)"></div>
+      </div>`;
+
+    const arrow = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="settings-row-arrow"><polyline points="9 18 15 12 9 6"/></svg>`;
+
     el.innerHTML = `
       <div class="backup-info-card">
         <div class="backup-last">💾 Последний бэкап: <strong>${lastBk}</strong></div>
-        ${hasCld ? '<div class="backup-last" style="margin-top:4px">☁️ Telegram CloudStorage: подключён</div>' : ''}
+        ${hasCld ? '<div class="backup-last">☁️ Telegram CloudStorage: подключён</div>' : ''}
       </div>
 
       <div class="section-title">Резервная копия</div>
@@ -773,35 +773,29 @@ class App {
           <div class="settings-row-info">
             <div class="settings-row-title">Сохранить сейчас</div>
             <div class="settings-row-sub">Скачать JSON-файл с данными</div>
-          </div>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="settings-row-arrow"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>${arrow}
         </div>
         <div class="settings-row" id="sBtnAutoToggle">
           <div class="settings-row-icon green">🔄</div>
           <div class="settings-row-info">
             <div class="settings-row-title">Авто-бэкап каждые 24 ч</div>
             <div class="settings-row-sub">${autoOn ? 'Включён ✓' : 'Выключен'}</div>
-          </div>
-          <div style="width:46px;height:28px;border-radius:14px;background:${autoOn ? 'var(--accent)' : '#ccc'};display:flex;align-items:center;padding:3px;transition:background .2s;flex-shrink:0">
-            <div style="width:22px;height:22px;border-radius:50%;background:#fff;transform:translateX(${autoOn ? '18' : '0'}px);transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,0.25)"></div>
-          </div>
+          </div>${toggle(autoOn)}
         </div>
         <div class="settings-row" id="sBtnRestore">
           <div class="settings-row-icon orange">📂</div>
           <div class="settings-row-info">
             <div class="settings-row-title">Восстановить из файла</div>
             <div class="settings-row-sub">Загрузить JSON-бэкап</div>
-          </div>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="settings-row-arrow"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>${arrow}
         </div>
         ${hasCld ? `
         <div class="settings-row" id="sBtnCloudRestore">
-          <div class="settings-row-icon purple">☁️</div>
+          <div class="settings-row-icon teal">☁️</div>
           <div class="settings-row-info">
             <div class="settings-row-title">Восстановить из облака</div>
             <div class="settings-row-sub">Telegram Cloud Storage</div>
-          </div>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="settings-row-arrow"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>${arrow}
         </div>` : ''}
       </div>
 
@@ -819,10 +813,10 @@ class App {
       <div class="section-title">О приложении</div>
       <div class="settings-section">
         <div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon" style="background:#f0f0f5">📦</div>
+          <div class="settings-row-icon" style="background:rgba(124,109,250,.15)">📦</div>
           <div class="settings-row-info">
             <div class="settings-row-title">Склад</div>
-            <div class="settings-row-sub">Версия 1.0 · Telegram Mini App</div>
+            <div class="settings-row-sub">Версия 1.1 · Telegram Mini App</div>
           </div>
         </div>
       </div>
@@ -831,94 +825,134 @@ class App {
     `;
 
     document.getElementById('sBtnBackup').addEventListener('click', () => this.doManualSave());
-
     document.getElementById('sBtnAutoToggle').addEventListener('click', () => {
       this.backup.setAutoEnabled(!this.backup.isAutoEnabled());
       this.renderSettings();
     });
-
     document.getElementById('sBtnRestore').addEventListener('click', () =>
       document.getElementById('restoreFileInput').click()
     );
-
     document.getElementById('restoreFileInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const ok = await this.confirm('Восстановить данные из файла? Текущие данные будут заменены.');
+      const ok = await this.confirm('Восстановить данные из файла?\nТекущие данные будут заменены.');
       if (!ok) { e.target.value = ''; return; }
       try {
         await this.backup.restoreFromFile(file);
+        await this.db.logAction('restore', `Восстановлено из файла: ${file.name}`);
         await this.loadData();
         this.renderSettings();
         this.toast('Данные восстановлены ✓');
-      } catch (err) {
-        this.toast('Ошибка: ' + err.message);
-      }
+      } catch (err) { this.toast('Ошибка: ' + err.message); }
       e.target.value = '';
     });
-
     document.getElementById('sBtnCloudRestore')?.addEventListener('click', async () => {
-      const ok = await this.confirm('Восстановить из Telegram Cloud? Текущие данные будут заменены.');
+      const ok = await this.confirm('Восстановить из Telegram Cloud?\nТекущие данные будут заменены.');
       if (!ok) return;
       try {
         const data = await this.backup.restoreFromCloud();
         if (!data) { this.toast('Нет данных в облаке'); return; }
         await this.db.importAll(data);
+        await this.db.logAction('restore', 'Восстановлено из Telegram CloudStorage');
         await this.loadData();
         this.renderSettings();
         this.toast('Восстановлено из облака ✓');
-      } catch (err) {
-        this.toast('Ошибка: ' + err.message);
-      }
+      } catch (err) { this.toast('Ошибка: ' + err.message); }
     });
-
     document.getElementById('sBtnClear').addEventListener('click', async () => {
-      const ok = await this.confirm('Удалить ВСЕ данные? Это нельзя отменить!');
+      const ok = await this.confirm('Удалить ВСЕ данные?\nЭто нельзя отменить!');
       if (!ok) return;
       await this.db.importAll({ items: [], owners: [] });
+      await this.db.logAction('clear', 'Удалены все данные');
       await this.loadData();
       this.renderSettings();
       this.toast('Все данные удалены');
     });
   }
 
-  /* =============================================
+  /* ──────────────────────────────────────────
+     HISTORY / LOGS MODAL
+     ────────────────────────────────────────── */
+  async openHistoryModal() {
+    await this.renderLogs();
+    this.openModal('historyModal');
+  }
+
+  async renderLogs() {
+    const el   = document.getElementById('logsContainer');
+    const logs = await this.db.getLogs(80);
+
+    if (!logs.length) {
+      el.innerHTML = `
+        <div class="empty-state" style="padding:40px 20px">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".9">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <h3>История пуста</h3>
+          <p>Здесь будут записи всех изменений</p>
+        </div>`;
+      return;
+    }
+
+    el.innerHTML = `<div class="log-list">${logs.map((entry, idx) => {
+      const m = LOG_META[entry.type] || { icon: '•', color: 'var(--surface2)' };
+      return `<div class="log-entry" style="animation-delay:${Math.min(idx*15,200)}ms">
+        <div class="log-icon" style="background:${m.color}">${m.icon}</div>
+        <div class="log-info">
+          <div class="log-desc">${this.esc(entry.desc)}</div>
+          <div class="log-time">${this.fmtDate(entry.ts)}</div>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  async clearLogs() {
+    const ok = await this.confirm('Очистить всю историю изменений?');
+    if (!ok) return;
+    await this.db.clearLogs();
+    await this.renderLogs();
+    this.toast('История очищена');
+  }
+
+  /* ──────────────────────────────────────────
      BACKUP
-     ============================================= */
+     ────────────────────────────────────────── */
   async doManualSave() {
     const btn = document.getElementById('saveBtn');
-    btn.style.opacity = '0.5';
+    btn.style.opacity = '0.45';
     const ok = await this.backup.manualSave(true);
+    if (ok) await this.db.logAction('backup', 'Создан бэкап вручную');
     btn.style.opacity = '';
     this.toast(ok ? '💾 Бэкап сохранён' : '❌ Ошибка бэкапа');
   }
 
-  /* =============================================
+  /* ──────────────────────────────────────────
      MODAL HELPERS
-     ============================================= */
+     ────────────────────────────────────────── */
   openModal(id) {
     const el = document.getElementById(id);
     el.style.display = 'flex';
-    // Force reflow then animate
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('open')));
+
+    /* Auto-load logs when history modal opens */
+    if (id === 'historyModal') this.renderLogs();
   }
 
   closeModal(id) {
-    const el = document.getElementById(id);
+    const el   = document.getElementById(id);
     el.classList.remove('open');
     const hide = () => { el.style.display = ''; el.removeEventListener('transitionend', hide); };
     el.addEventListener('transitionend', hide);
   }
 
-  /* =============================================
+  /* ──────────────────────────────────────────
      TOAST
-     ============================================= */
+     ────────────────────────────────────────── */
   toast(msg, ms = 2200) {
     const el = document.getElementById('toast');
     el.textContent = msg;
     el.classList.remove('hidden');
     clearTimeout(this._toastTimer);
-    // micro-delay so hidden→show transition fires
     requestAnimationFrame(() => el.classList.add('show'));
     this._toastTimer = setTimeout(() => {
       el.classList.remove('show');
@@ -926,9 +960,9 @@ class App {
     }, ms);
   }
 
-  /* =============================================
-     CONFIRM DIALOG
-     ============================================= */
+  /* ──────────────────────────────────────────
+     CONFIRM
+     ────────────────────────────────────────── */
   confirm(msg) {
     return new Promise((resolve) => {
       document.getElementById('confirmMsg').textContent = msg;
@@ -938,14 +972,14 @@ class App {
     });
   }
 
-  /* =============================================
+  /* ──────────────────────────────────────────
      UTILS
-     ============================================= */
+     ────────────────────────────────────────── */
   esc(str) {
     if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const d = document.createElement('div');
+    d.textContent = String(str);
+    return d.innerHTML;
   }
 
   fmtDate(iso) {
@@ -956,8 +990,8 @@ class App {
   }
 }
 
-/* =============================================
+/* ──────────────────────────────────────────
    BOOT
-   ============================================= */
+   ────────────────────────────────────────── */
 const app = new App();
 document.addEventListener('DOMContentLoaded', () => app.init());
