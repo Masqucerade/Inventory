@@ -71,6 +71,7 @@ class App {
      ────────────────────────────────────────── */
   async init() {
     try {
+      this.initTheme();             // apply before render
       await this.db.init();
       await this.loadData();
       this.initTelegram();
@@ -79,6 +80,21 @@ class App {
       this.backup.checkAutoBackup();
     } catch (err) {
       console.error('Init error:', err);
+    }
+  }
+
+  initTheme() {
+    const saved = localStorage.getItem('inv_theme') || 'dark';
+    this.applyTheme(saved);
+  }
+
+  applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('inv_theme', theme);
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      const bg = theme === 'light' ? '#f0f0f0' : '#0a0a0a';
+      try { tg.setHeaderColor(bg); tg.setBackgroundColor(bg); } catch (_) {}
     }
   }
 
@@ -94,8 +110,6 @@ class App {
     if (!tg) return;
     tg.ready();
     tg.expand();
-    try { tg.setHeaderColor('#07070f'); } catch (_) {}
-    try { tg.setBackgroundColor('#07070f'); } catch (_) {}
   }
 
   /* ──────────────────────────────────────────
@@ -748,22 +762,37 @@ class App {
      SETTINGS
      ────────────────────────────────────────── */
   renderSettings() {
-    const el     = document.getElementById('settingsContent');
-    const lastBk = this.backup.getLastTimeStr();
-    const autoOn = this.backup.isAutoEnabled();
-    const hasCld = !!window.Telegram?.WebApp?.CloudStorage;
+    const el      = document.getElementById('settingsContent');
+    const lastBk  = this.backup.getLastTimeStr();
+    const autoOn  = this.backup.isAutoEnabled();
+    const hasCld  = !!window.Telegram?.WebApp?.CloudStorage;
+    const theme   = localStorage.getItem('inv_theme') || 'dark';
 
     const toggle = (on) => `
-      <div class="toggle-track" style="background:${on ? 'var(--a1)' : 'rgba(255,255,255,0.12)'}">
+      <div class="toggle-track" style="background:${on ? 'var(--a1)' : 'var(--muted)'}">
         <div class="toggle-thumb" style="transform:translateX(${on ? 18 : 0}px)"></div>
       </div>`;
 
-    const arrow = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="settings-row-arrow"><polyline points="9 18 15 12 9 6"/></svg>`;
+    const arrow = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="settings-row-arrow"><polyline points="9 18 15 12 9 6"/></svg>`;
 
     el.innerHTML = `
       <div class="backup-info-card">
         <div class="backup-last">💾 Последний бэкап: <strong>${lastBk}</strong></div>
         ${hasCld ? '<div class="backup-last">☁️ Telegram CloudStorage: подключён</div>' : ''}
+      </div>
+
+      <div class="section-title">Внешний вид</div>
+      <div class="settings-section">
+        <div class="settings-row" style="cursor:default">
+          <div class="settings-row-icon gray">🎨</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Тема</div>
+          </div>
+          <div class="theme-toggle" id="themeToggle">
+            <button class="theme-btn ${theme === 'dark'  ? 'active' : ''}" data-t="dark">🌙 Тёмная</button>
+            <button class="theme-btn ${theme === 'light' ? 'active' : ''}" data-t="light">☀️ Светлая</button>
+          </div>
+        </div>
       </div>
 
       <div class="section-title">Резервная копия</div>
@@ -799,23 +828,12 @@ class App {
         </div>` : ''}
       </div>
 
-      <div class="section-title">Данные</div>
-      <div class="settings-section">
-        <div class="settings-row" id="sBtnClear">
-          <div class="settings-row-icon red">🗑</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title" style="color:var(--s-cancelled)">Очистить все данные</div>
-            <div class="settings-row-sub">Удалить все товары и владельцев</div>
-          </div>
-        </div>
-      </div>
-
       <div class="section-title">О приложении</div>
       <div class="settings-section">
         <div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon" style="background:rgba(124,109,250,.15)">📦</div>
+          <div class="settings-row-icon" style="background:rgba(124,109,250,.12)">🏢</div>
           <div class="settings-row-info">
-            <div class="settings-row-title">Склад</div>
+            <div class="settings-row-title">Masqucerade INC.</div>
             <div class="settings-row-sub">Версия 1.1 · Telegram Mini App</div>
           </div>
         </div>
@@ -824,14 +842,25 @@ class App {
       <input type="file" id="restoreFileInput" accept=".json" hidden>
     `;
 
+    /* Theme toggle */
+    document.getElementById('themeToggle').addEventListener('click', (e) => {
+      const btn = e.target.closest('.theme-btn');
+      if (!btn) return;
+      this.applyTheme(btn.dataset.t);
+      this.renderSettings();
+    });
+
     document.getElementById('sBtnBackup').addEventListener('click', () => this.doManualSave());
+
     document.getElementById('sBtnAutoToggle').addEventListener('click', () => {
       this.backup.setAutoEnabled(!this.backup.isAutoEnabled());
       this.renderSettings();
     });
+
     document.getElementById('sBtnRestore').addEventListener('click', () =>
       document.getElementById('restoreFileInput').click()
     );
+
     document.getElementById('restoreFileInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -846,6 +875,7 @@ class App {
       } catch (err) { this.toast('Ошибка: ' + err.message); }
       e.target.value = '';
     });
+
     document.getElementById('sBtnCloudRestore')?.addEventListener('click', async () => {
       const ok = await this.confirm('Восстановить из Telegram Cloud?\nТекущие данные будут заменены.');
       if (!ok) return;
@@ -858,15 +888,6 @@ class App {
         this.renderSettings();
         this.toast('Восстановлено из облака ✓');
       } catch (err) { this.toast('Ошибка: ' + err.message); }
-    });
-    document.getElementById('sBtnClear').addEventListener('click', async () => {
-      const ok = await this.confirm('Удалить ВСЕ данные?\nЭто нельзя отменить!');
-      if (!ok) return;
-      await this.db.importAll({ items: [], owners: [] });
-      await this.db.logAction('clear', 'Удалены все данные');
-      await this.loadData();
-      this.renderSettings();
-      this.toast('Все данные удалены');
     });
   }
 
@@ -920,7 +941,7 @@ class App {
   async doManualSave() {
     const btn = document.getElementById('saveBtn');
     btn.style.opacity = '0.45';
-    const ok = await this.backup.manualSave(true);
+    const ok = await this.backup.manualSave();   // no arg needed
     if (ok) await this.db.logAction('backup', 'Создан бэкап вручную');
     btn.style.opacity = '';
     this.toast(ok ? '💾 Бэкап сохранён' : '❌ Ошибка бэкапа');
