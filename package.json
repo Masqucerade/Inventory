@@ -2,11 +2,13 @@
   "name": "inventory-tg-miniapp",
   "version": "1.0.0",
   "description": "Telegram Mini App — учёт наличия вещей",
+  "main": "server.js",
   "scripts": {
-    "start": "serve . -l $PORT -s"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "dependencies": {
-    "serve": "^14.2.4"
+    "express": "^4.18.2"
   },
   "engines": {
     "node": ">=18"
