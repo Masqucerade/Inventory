@@ -247,7 +247,7 @@ class App {
     document.getElementById('detailModalEdit').addEventListener('click', () => {
       const id = this._detailItemId;
       this.closeModal('detailModal');
-      setTimeout(() => this.openItemModal(id), 150);
+      this.openItemModal(id);
     });
 
     /* Owner modal */
@@ -383,7 +383,7 @@ class App {
      ITEM DETAIL
      ────────────────────────────────────────── */
   async openDetailModal(id) {
-    const item = await this.db.getItem(id);
+    const item = this.items.find(i => i.id === id) || await this.db.getItem(id);
     if (!item) return;
     this._detailItemId = id;
 
@@ -465,7 +465,7 @@ class App {
     document.getElementById('itemModalTitle').textContent = id ? 'Изменить товар' : 'Новый товар';
 
     if (id) {
-      const item = await this.db.getItem(id);
+      const item = this.items.find(i => i.id === id) || await this.db.getItem(id);
       if (item) {
         document.getElementById('fieldType').value  = item.type  || '';
         document.getElementById('fieldName').value  = item.name  || '';
