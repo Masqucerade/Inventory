@@ -23,6 +23,14 @@
       <div class="header-row">
         <h1 class="brand-name">Masqucerade<span class="brand-inc">INC.</span></h1>
         <div class="header-actions">
+          <button class="icon-btn" id="deliveryBtn" title="Стоимость доставки">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect x="1" y="3" width="15" height="13" rx="1"/>
+              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+              <circle cx="5.5" cy="18.5" r="2.5"/>
+              <circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
+          </button>
           <button class="icon-btn" id="saveBtn" title="Сохранить бэкап">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -194,6 +202,11 @@
         </div>
         <div class="form-divider"></div>
         <div class="form-group">
+          <label class="form-label">Доставка (₽)</label>
+          <input type="number" id="fieldDeliveryCost" class="form-input" placeholder="0" min="0" step="0.01" inputmode="decimal">
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-group">
           <label class="form-label">Цена продажи / шт (₽)</label>
           <input type="number" id="fieldPrice" class="form-input" placeholder="0" min="0" step="0.01" inputmode="decimal">
         </div>
@@ -286,6 +299,38 @@
   </div>
 </div>
 
+
+<!-- Delivery selection bar -->
+<div class="delivery-bar hidden" id="deliveryBar">
+  <span id="deliveryBarCount" class="delivery-bar-count">Выберите товары</span>
+  <button id="deliveryBarApply" class="delivery-bar-apply" disabled>🚚 Установить</button>
+  <button id="deliveryBarCancel" class="delivery-bar-cancel">✕</button>
+</div>
+
+<!-- Delivery Modal -->
+<div class="modal" id="deliveryModal">
+  <div class="modal-header">
+    <button class="modal-close" id="deliveryModalClose">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+      </svg>
+    </button>
+    <span class="modal-title">Стоимость доставки</span>
+    <button class="modal-action-btn" id="deliveryModalSave">Применить</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-card">
+      <div class="form-group">
+        <label class="form-label">Сумма доставки (₽)</label>
+        <input type="number" id="deliveryCostInput" class="form-input" placeholder="0" min="0" inputmode="decimal">
+      </div>
+      <div class="form-divider"></div>
+      <div class="form-group" style="padding:2px 0">
+        <span id="deliveryModalDesc" style="font-size:13px;color:var(--text2)"></span>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Toast -->
 <div class="toast hidden" id="toast"></div>

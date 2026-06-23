@@ -108,6 +108,7 @@ function logToTelegram(entry) {
   const icon = TG_ICONS[entry.type] || '•';
   const date = new Date(entry.ts).toLocaleString('ru-RU', {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+    timeZone: 'Europe/Moscow',
   });
   const text = `${icon} <b>${entry.desc}</b>\n<i>${date}</i>`;
 
@@ -214,7 +215,7 @@ async function sendBackupToTelegram() {
   const db   = load();
   const data = { version: 2, exportedAt: new Date().toISOString(), items: db.items || [], owners: db.owners || [] };
   const json = JSON.stringify(data, null, 2);
-  const date = new Date().toLocaleDateString('ru-RU').replace(/\./g, '-');
+  const date = new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' }).replace(/\./g, '-');
 
   const form = new FormData();
   form.append('chat_id', chatId);
@@ -222,7 +223,7 @@ async function sendBackupToTelegram() {
     `💾 <b>Авто-бэкап Masqucerade INC.</b>\n` +
     `📦 Товаров: ${data.items.length}\n` +
     `👥 Владельцев: ${data.owners.length}\n` +
-    `🕐 ${new Date().toLocaleString('ru-RU')}`
+    `🕐 ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })} МСК`
   );
   form.append('parse_mode', 'HTML');
   form.append('document', new Blob([json], { type: 'application/json' }), `masqucerade-${date}.json`);

@@ -63,6 +63,9 @@ class App {
     this._confirmRes   = null;
     this._confirmRej   = null;
     this._toastTimer   = null;
+
+    this._selectMode   = false;
+    this._selectedIds  = new Set();
   }
 
   /* ──────────────────────────────────────────
@@ -163,8 +166,17 @@ class App {
     /* Inventory list item click (delegated) */
     document.getElementById('inventoryList').addEventListener('click', (e) => {
       const card = e.target.closest('.item-card');
-      if (card) this.openDetailModal(card.dataset.id);
+      if (!card) return;
+      if (this._selectMode) this.toggleSelectItem(card.dataset.id);
+      else this.openDetailModal(card.dataset.id);
     });
+
+    /* Delivery */
+    document.getElementById('deliveryBtn').addEventListener('click', () => this.enterSelectMode());
+    document.getElementById('deliveryBarApply').addEventListener('click', () => this.openDeliveryModal());
+    document.getElementById('deliveryBarCancel').addEventListener('click', () => this.exitSelectMode());
+    document.getElementById('deliveryModalClose').addEventListener('click', () => this.closeModal('deliveryModal'));
+    document.getElementById('deliveryModalSave').addEventListener('click', () => this.applyDelivery());
 
     /* Item modal */
     document.getElementById('itemModalClose').addEventListener('click', () => this.closeModal('itemModal'));
@@ -374,7 +386,7 @@ class App {
       const sizePills = sizesArr.filter(s => s.qty > 0 || s.size)
         .map(s => `<span class="size-pill">${this.esc(s.size||'?')}${s.qty !== 1 ? ' ×'+s.qty : ''}</span>`).join('');
 
-      return `<div class="item-card" data-id="${item.id}" style="animation-delay:${Math.min(idx*28,200)}ms">
+      return `<div class="item-card${this._selectMode && this._selectedIds.has(item.id) ? ' selected' : ''}" data-id="${item.id}" style="animation-delay:${Math.min(idx*28,200)}ms">
         <div class="item-thumb">${thumb}</div>
         <div class="item-info">
           <div class="item-top">
@@ -391,9 +403,10 @@ class App {
           ${item.notes ? `<div class="item-notes-preview">${this.esc(item.notes)}</div>` : ''}
           ${item.price ? `
           <div class="item-bottom">
-            <span class="item-price-unit">${fmtMoney(item.price)}${item.buyPrice ? ` <span class="item-buy-price">← ${fmtMoney(item.buyPrice)}</span>` : ''}</span>
+            <span class="item-price-unit">${fmtMoney(item.price)}${item.buyPrice ? ` <span class="item-buy-price">← ${fmtMoney(item.buyPrice)}${item.deliveryCost ? ` + ${fmtMoney(item.deliveryCost)}` : ''}</span>` : (item.deliveryCost ? ` <span class="item-buy-price">+ ${fmtMoney(item.deliveryCost)} дост.</span>` : '')}</span>
             <span class="item-total-dim">${fmtMoney(item.total)}</span>
           </div>` : ''}
+          ${this._selectMode ? '<div class="select-check"></div>' : ''}
         </div>
       </div>`;
     }).join('')}</div>`;
@@ -426,9 +439,10 @@ class App {
       : '—';
 
     const rows = [
-      ['Тип',           item.type     || '—'],
-      ['Цена закупа',   item.buyPrice ? fmtMoney(item.buyPrice) : '—'],
-      ['Цена продажи',  item.price    ? fmtMoney(item.price)    : '—'],
+      ['Тип',           item.type          || '—'],
+      ['Цена закупа',   item.buyPrice      ? fmtMoney(item.buyPrice)      : '—'],
+      ['Доставка',      item.deliveryCost  ? fmtMoney(item.deliveryCost)  : '—'],
+      ['Цена продажи',  item.price         ? fmtMoney(item.price)         : '—'],
       ['Маржа / шт',    marginStr],
       ['Итого',         fmtMoney(item.total), 'big'],
       ['Статус',   `<span class="status-badge ${item.orderStatus}">${st.label}</span>`],
@@ -477,7 +491,7 @@ class App {
     this._sizes        = [{ size: '', qty: 1 }];
 
     /* Reset */
-    ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice'].forEach(k => document.getElementById(k).value = '');
+    ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost'].forEach(k => document.getElementById(k).value = '');
     document.getElementById('totalDisplay').textContent = '0 ₽';
     document.getElementById('marginDisplay').textContent = '—';
     document.getElementById('marginDisplay').style.color = 'var(--text2)';
@@ -495,10 +509,11 @@ class App {
     if (id) {
       const item = this.items.find(i => i.id === id) || await this.db.getItem(id);
       if (item) {
-        document.getElementById('fieldType').value     = item.type     || '';
-        document.getElementById('fieldName').value     = item.name     || '';
-        document.getElementById('fieldPrice').value    = item.price    || '';
-        document.getElementById('fieldBuyPrice').value = item.buyPrice || '';
+        document.getElementById('fieldType').value          = item.type         || '';
+        document.getElementById('fieldName').value          = item.name         || '';
+        document.getElementById('fieldPrice').value         = item.price        || '';
+        document.getElementById('fieldBuyPrice').value      = item.buyPrice     || '';
+        document.getElementById('fieldDeliveryCost').value  = item.deliveryCost || '';
         document.getElementById('fieldNotes').value = item.notes || '';
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'ordered';
@@ -565,6 +580,70 @@ class App {
     ).join('');
   }
 
+  /* ──────────────────────────────────────────
+     DELIVERY SELECTION MODE
+     ────────────────────────────────────────── */
+  enterSelectMode() {
+    this._selectMode  = true;
+    this._selectedIds = new Set();
+    document.getElementById('deliveryBar').classList.remove('hidden');
+    this.renderInventoryList();
+    this.updateDeliveryBar();
+    this.toast('Нажмите на товары для выбора');
+  }
+
+  exitSelectMode() {
+    this._selectMode  = false;
+    this._selectedIds = new Set();
+    document.getElementById('deliveryBar').classList.add('hidden');
+    this.renderInventoryList();
+  }
+
+  toggleSelectItem(id) {
+    if (this._selectedIds.has(id)) this._selectedIds.delete(id);
+    else this._selectedIds.add(id);
+    const card = document.querySelector(`.item-card[data-id="${id}"]`);
+    if (card) card.classList.toggle('selected', this._selectedIds.has(id));
+    this.updateDeliveryBar();
+  }
+
+  updateDeliveryBar() {
+    const n = this._selectedIds.size;
+    const word = n === 1 ? 'товар' : n > 1 && n < 5 ? 'товара' : 'товаров';
+    document.getElementById('deliveryBarCount').textContent =
+      n === 0 ? 'Выберите товары' : `Выбрано: ${n} ${word}`;
+    document.getElementById('deliveryBarApply').disabled = n === 0;
+  }
+
+  openDeliveryModal() {
+    if (!this._selectedIds.size) return;
+    const n    = this._selectedIds.size;
+    const word = n === 1 ? 'товару' : n < 5 ? 'товарам' : 'товарам';
+    document.getElementById('deliveryModalDesc').textContent =
+      `Применить к ${n} ${word}`;
+    document.getElementById('deliveryCostInput').value = '';
+    this.openModal('deliveryModal');
+    setTimeout(() => document.getElementById('deliveryCostInput').focus(), 350);
+  }
+
+  async applyDelivery() {
+    const cost = parseFloat(document.getElementById('deliveryCostInput').value) || 0;
+    const ids  = [...this._selectedIds];
+    for (const id of ids) {
+      const item = this.items.find(i => i.id === id);
+      if (!item) continue;
+      await this.db.saveItem({ ...item, deliveryCost: cost });
+    }
+    const n = ids.length;
+    await this.db.logAction('item_edit',
+      `Доставка ${fmtMoney(cost)} установлена для ${n} тов.`
+    );
+    await this.loadData();
+    this.closeModal('deliveryModal');
+    this.exitSelectMode();
+    this.toast(`Доставка ${fmtMoney(cost)} установлена ✓`);
+  }
+
   updateTotal() {
     const totalQty  = this._sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
     const price     = parseFloat(document.getElementById('fieldPrice')?.value)    || 0;
@@ -601,8 +680,9 @@ class App {
       name,
       sizes,
       quantity:    totQty,
-      price:       parseFloat(document.getElementById('fieldPrice').value)    || 0,
-      buyPrice:    parseFloat(document.getElementById('fieldBuyPrice').value) || 0,
+      price:        parseFloat(document.getElementById('fieldPrice').value)        || 0,
+      buyPrice:     parseFloat(document.getElementById('fieldBuyPrice').value)     || 0,
+      deliveryCost: parseFloat(document.getElementById('fieldDeliveryCost').value) || 0,
       notes:       document.getElementById('fieldNotes').value.trim(),
       ownerId:     this._selOwner  || null,
       orderStatus: this._selStatus || 'ordered',

@@ -700,6 +700,65 @@ html, body {
 .btn-confirm-cancel { font-size: 16px; font-weight: 600; color: var(--text); }
 
 /* =============================================
+   DELIVERY SELECTION BAR
+   ============================================= */
+.delivery-bar {
+  position: fixed;
+  bottom: calc(var(--nav-h) + var(--safe-bot) + 22px);
+  left: 12px; right: 12px;
+  z-index: 150;
+  background: rgba(18,18,18,0.97);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 18px;
+  padding: 10px 10px 10px 16px;
+  display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 4px 32px rgba(0,0,0,.6);
+  animation: slideUp .22s cubic-bezier(.32,.72,0,1);
+}
+.delivery-bar.hidden { display: none; }
+.delivery-bar-count { font-size: 13px; color: var(--text2); flex: 1; }
+.delivery-bar-apply {
+  flex-shrink: 0; background: #fff; color: #000;
+  border: none; font-family: inherit; font-size: 13px; font-weight: 600;
+  padding: 8px 14px; border-radius: 12px; cursor: pointer; transition: opacity .15s;
+}
+.delivery-bar-apply:disabled { opacity: .35; pointer-events: none; }
+.delivery-bar-apply:active { opacity: .7; }
+.delivery-bar-cancel {
+  flex-shrink: 0; background: none; border: none;
+  color: var(--text3); font-size: 22px; line-height: 1;
+  cursor: pointer; padding: 2px 6px;
+}
+
+/* ── selection state on item cards ── */
+.item-card { position: relative; }
+.select-check {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.28);
+  background: rgba(0,0,0,0.35);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+.item-card.selected { outline: 2px solid rgba(255,255,255,0.4); outline-offset: -2px; }
+.item-card.selected .select-check {
+  background: #fff; border-color: #fff;
+}
+.item-card.selected .select-check::after {
+  content: '';
+  position: absolute;
+  top: 4px; left: 3px;
+  width: 10px; height: 6px;
+  border-left: 2px solid #111;
+  border-bottom: 2px solid #111;
+  transform: rotate(-45deg);
+}
+
+/* =============================================
    UTILITY
    ============================================= */
 .hidden { display: none !important; }
