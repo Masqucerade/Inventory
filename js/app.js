@@ -223,6 +223,24 @@ class App {
       document.getElementById('photoRemove').classList.add('hidden');
     });
 
+    /* Paste image from clipboard (Ctrl+V) when item modal is open */
+    document.addEventListener('paste', async (e) => {
+      if (!document.getElementById('itemModal').classList.contains('open')) return;
+      const file = [...(e.clipboardData?.items || [])]
+        .find(i => i.type.startsWith('image/'))
+        ?.getAsFile();
+      if (!file) return;
+      try {
+        const b64 = await resizeImage(file);
+        this.currentPhoto = b64;
+        document.getElementById('photoPreview').src = b64;
+        document.getElementById('photoPreview').classList.remove('hidden');
+        document.getElementById('photoPlaceholder').classList.add('hidden');
+        document.getElementById('photoRemove').classList.remove('hidden');
+        this.toast('Фото вставлено ✓');
+      } catch (_) { this.toast('Ошибка вставки фото'); }
+    });
+
     /* Owner chips in item form (delegated) */
     document.getElementById('ownerSelect').addEventListener('click', (e) => {
       const btn = e.target.closest('.owner-chip');
