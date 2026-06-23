@@ -194,6 +194,7 @@ class App {
       }, 50);
     });
     document.getElementById('fieldPrice').addEventListener('input', () => this.updateTotal());
+    document.getElementById('fieldBuyPrice').addEventListener('input', () => this.updateTotal());
 
     /* Photo */
     document.getElementById('photoPicker').addEventListener('click', (e) => {
@@ -401,10 +402,17 @@ class App {
           </div>`).join('')}
       </div>` : '';
 
+    const margin     = (item.price && item.buyPrice) ? item.price - item.buyPrice : null;
+    const marginStr  = margin !== null
+      ? `<span style="color:${margin >= 0 ? '#34d399' : '#f87171'}">${margin >= 0 ? '+' : ''}${fmtMoney(margin)}</span>`
+      : '—';
+
     const rows = [
-      ['Тип',      item.type  || '—'],
-      ['Цена/шт',  item.price ? fmtMoney(item.price) : '—'],
-      ['Итого',    fmtMoney(item.total), 'big'],
+      ['Тип',           item.type     || '—'],
+      ['Цена закупа',   item.buyPrice ? fmtMoney(item.buyPrice) : '—'],
+      ['Цена продажи',  item.price    ? fmtMoney(item.price)    : '—'],
+      ['Маржа / шт',    marginStr],
+      ['Итого',         fmtMoney(item.total), 'big'],
       ['Статус',   `<span class="status-badge ${item.orderStatus}">${st.label}</span>`],
       ['Владелец', owner
         ? `<span style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
@@ -451,9 +459,10 @@ class App {
     this._sizes        = [{ size: '', qty: 1 }];
 
     /* Reset */
-    ['fieldType','fieldName','fieldNotes'].forEach(k => document.getElementById(k).value = '');
-    document.getElementById('fieldPrice').value = '';
+    ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice'].forEach(k => document.getElementById(k).value = '');
     document.getElementById('totalDisplay').textContent = '0 ₽';
+    document.getElementById('marginDisplay').textContent = '—';
+    document.getElementById('marginDisplay').style.color = 'var(--text2)';
     document.getElementById('photoPreview').src = '';
     document.getElementById('photoPreview').classList.add('hidden');
     document.getElementById('photoPlaceholder').classList.remove('hidden');
@@ -468,9 +477,10 @@ class App {
     if (id) {
       const item = this.items.find(i => i.id === id) || await this.db.getItem(id);
       if (item) {
-        document.getElementById('fieldType').value  = item.type  || '';
-        document.getElementById('fieldName').value  = item.name  || '';
-        document.getElementById('fieldPrice').value = item.price || '';
+        document.getElementById('fieldType').value     = item.type     || '';
+        document.getElementById('fieldName').value     = item.name     || '';
+        document.getElementById('fieldPrice').value    = item.price    || '';
+        document.getElementById('fieldBuyPrice').value = item.buyPrice || '';
         document.getElementById('fieldNotes').value = item.notes || '';
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'ordered';
@@ -538,10 +548,22 @@ class App {
   }
 
   updateTotal() {
-    const totalQty = this._sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
-    const price    = parseFloat(document.getElementById('fieldPrice')?.value) || 0;
-    const el = document.getElementById('totalDisplay');
-    if (el) el.textContent = fmtMoney(totalQty * price);
+    const totalQty  = this._sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
+    const price     = parseFloat(document.getElementById('fieldPrice')?.value)    || 0;
+    const buyPrice  = parseFloat(document.getElementById('fieldBuyPrice')?.value) || 0;
+    const totalEl   = document.getElementById('totalDisplay');
+    const marginEl  = document.getElementById('marginDisplay');
+    if (totalEl) totalEl.textContent = fmtMoney(totalQty * price);
+    if (marginEl) {
+      if (price && buyPrice) {
+        const margin = price - buyPrice;
+        marginEl.textContent = (margin >= 0 ? '+' : '') + fmtMoney(margin);
+        marginEl.style.color = margin >= 0 ? '#34d399' : '#f87171';
+      } else {
+        marginEl.textContent = '—';
+        marginEl.style.color = 'var(--text2)';
+      }
+    }
   }
 
   async saveItem() {
@@ -561,7 +583,8 @@ class App {
       name,
       sizes,
       quantity:    totQty,
-      price:       parseFloat(document.getElementById('fieldPrice').value) || 0,
+      price:       parseFloat(document.getElementById('fieldPrice').value)    || 0,
+      buyPrice:    parseFloat(document.getElementById('fieldBuyPrice').value) || 0,
       notes:       document.getElementById('fieldNotes').value.trim(),
       ownerId:     this._selOwner  || null,
       orderStatus: this._selStatus || 'ordered',
