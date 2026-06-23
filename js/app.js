@@ -923,7 +923,7 @@ class App {
     document.getElementById('restoreFileInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const ok = await this.confirm('Восстановить данные из файла?\nТекущие данные будут заменены.');
+      const ok = await this.confirm('Восстановить данные из файла?\nТекущие данные будут заменены.', 'Восстановить', false);
       if (!ok) { e.target.value = ''; return; }
       try {
         await this.backup.restoreFromFile(file);
@@ -936,7 +936,7 @@ class App {
     });
 
     document.getElementById('sBtnCloudRestore')?.addEventListener('click', async () => {
-      const ok = await this.confirm('Восстановить из Telegram Cloud?\nТекущие данные будут заменены.');
+      const ok = await this.confirm('Восстановить из Telegram Cloud?\nТекущие данные будут заменены.', 'Восстановить', false);
       if (!ok) return;
       try {
         const data = await this.backup.restoreFromCloud();
@@ -1036,9 +1036,12 @@ class App {
   /* ──────────────────────────────────────────
      CONFIRM
      ────────────────────────────────────────── */
-  confirm(msg) {
+  confirm(msg, okLabel = 'Удалить', danger = true) {
     return new Promise((resolve) => {
       document.getElementById('confirmMsg').textContent = msg;
+      const okBtn = document.getElementById('confirmOk');
+      okBtn.textContent = okLabel;
+      okBtn.style.color = danger ? '#f87171' : '#34d399';
       document.getElementById('confirmOverlay').classList.remove('hidden');
       this._confirmRes = () => { document.getElementById('confirmOverlay').classList.add('hidden'); resolve(true); };
       this._confirmRej = () => { document.getElementById('confirmOverlay').classList.add('hidden'); resolve(false); };
