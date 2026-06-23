@@ -57,6 +57,7 @@ class App {
     this._selStatus = 'ordered';
     this._selColor  = DEFAULT_COLOR;
     this._sizes     = [{ size: '', qty: 1 }];
+    this._saving    = false;
 
     this._detailItemId = null;
     this._confirmRes   = null;
@@ -499,10 +500,10 @@ class App {
         <input type="text" class="size-row-input" data-idx="${i}"
                value="${this.esc(s.size)}" placeholder="Размер…"
                list="sizeSuggestions" autocomplete="off">
-        <button type="button" class="qty-btn size-dec" data-idx="${i}">−</button>
-        <input type="number" class="qty-input size-qty-input" data-idx="${i}"
+        <button type="button" class="size-dec" data-idx="${i}">−</button>
+        <input type="number" class="size-qty-input" data-idx="${i}"
                value="${s.qty}" min="0" inputmode="numeric">
-        <button type="button" class="qty-btn size-inc" data-idx="${i}">+</button>
+        <button type="button" class="size-inc" data-idx="${i}">+</button>
         ${this._sizes.length > 1
           ? `<button type="button" class="size-remove" data-idx="${i}">
                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
@@ -543,10 +544,12 @@ class App {
   }
 
   async saveItem() {
+    if (this._saving) return;
     const name = document.getElementById('fieldName').value.trim();
     const type = document.getElementById('fieldType').value.trim();
     if (!name) { this.toast('Укажите наименование товара'); return; }
     if (!type) { this.toast('Укажите тип товара'); return; }
+    this._saving = true;
 
     const isNew  = !this.editingItemId;
     const sizes  = this._sizes.filter(s => s.size.trim() || (s.qty || 0) > 0);
@@ -574,6 +577,7 @@ class App {
     this.closeModal('itemModal');
     this.renderInventoryList();
     this.toast(isNew ? 'Товар добавлен ✓' : 'Товар обновлён ✓');
+    this._saving = false;
   }
 
   /* ──────────────────────────────────────────
@@ -1006,18 +1010,11 @@ class App {
      ────────────────────────────────────────── */
   openModal(id) {
     const el = document.getElementById(id);
-    el.style.display = 'flex';
-    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('open')));
-
-    /* Auto-load logs when history modal opens */
-    if (id === 'historyModal') this.renderLogs();
+    requestAnimationFrame(() => el.classList.add('open'));
   }
 
   closeModal(id) {
-    const el   = document.getElementById(id);
-    el.classList.remove('open');
-    const hide = () => { el.style.display = ''; el.removeEventListener('transitionend', hide); };
-    el.addEventListener('transitionend', hide);
+    document.getElementById(id)?.classList.remove('open');
   }
 
   /* ──────────────────────────────────────────
