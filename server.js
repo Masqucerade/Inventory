@@ -141,6 +141,54 @@ app.delete('/api/logs', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── CSV для Google Sheets (=IMPORTDATA) ─── */
+const STATUS_RU = { ordered: 'Заказано', in_stock: 'В наличии', processing: 'В заказе', done: 'Завершено' };
+const LOG_RU    = { item_add: 'Добавление', item_edit: 'Изменение', item_delete: 'Удаление',
+                    owner_add: 'Владелец+', owner_edit: 'Владелец', owner_delete: 'Владелец-',
+                    backup: 'Бэкап', restore: 'Восстановление', clear: 'Очистка' };
+
+function csvRow(arr) {
+  return arr.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',');
+}
+
+app.get('/api/items.csv', (req, res) => {
+  const db = load();
+  const owners = {};
+  (db.owners || []).forEach(o => { owners[o.id] = o.name; });
+
+  const rows = [csvRow(['Тип','Наименование','Размеры','Кол-во','Цена/шт','Итого','Владелец','Статус','Заметки','Обновлено'])];
+  (db.items || []).forEach(item => {
+    const sizes = (item.sizes || []).map(s => s.size + (s.qty > 1 ? '×' + s.qty : '')).join(', ') || '-';
+    rows.push(csvRow([
+      item.type || '', item.name || '', sizes,
+      item.quantity || 0, item.price || 0, item.total || 0,
+      owners[item.ownerId] || '', STATUS_RU[item.orderStatus] || item.orderStatus || '',
+      item.notes || '', item.updatedAt ? new Date(item.updatedAt).toLocaleString('ru-RU') : '',
+    ]));
+  });
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.send('﻿' + rows.join('\n'));
+});
+
+app.get('/api/logs.csv', (req, res) => {
+  const logs = (load().logs || []).slice().reverse().slice(0, 80);
+
+  const rows = [csvRow(['Дата и время','Тип','Описание'])];
+  logs.forEach(log => {
+    rows.push(csvRow([
+      log.ts ? new Date(log.ts).toLocaleString('ru-RU') : '',
+      LOG_RU[log.type] || log.type || '',
+      log.desc || '',
+    ]));
+  });
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.send('﻿' + rows.join('\n'));
+});
+
 /* ─── EXPORT / IMPORT ─── */
 app.get('/api/export', (req, res) => {
   const db = load();
