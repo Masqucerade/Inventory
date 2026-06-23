@@ -369,6 +369,7 @@ class App {
             ${owner ? `<span class="item-owner-tag"><span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}</span>` : ''}
             ${sizePills || `<span class="size-pill">—</span>`}
           </div>
+          ${item.notes ? `<div class="item-notes-preview">${this.esc(item.notes)}</div>` : ''}
           ${item.price ? `
           <div class="item-bottom">
             <span class="item-price-unit">${fmtMoney(item.price)} <span class="item-per-unit">/шт</span></span>
