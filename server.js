@@ -266,6 +266,6 @@ function scheduleBackup() {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Masqucerade INC. on :${PORT}`);
+  console.log(`Masqucerade INC. v2 on :${PORT}`);
   scheduleBackup();
 });
