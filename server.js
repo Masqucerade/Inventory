@@ -167,9 +167,9 @@ app.get('/api/items.csv', (req, res) => {
     ]));
   });
 
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.send('﻿' + rows.join('\n'));
+  res.send(rows.join('\n'));
 });
 
 app.get('/api/logs.csv', (req, res) => {
@@ -184,9 +184,9 @@ app.get('/api/logs.csv', (req, res) => {
     ]));
   });
 
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.send('﻿' + rows.join('\n'));
+  res.send(rows.join('\n'));
 });
 
 /* ─── EXPORT / IMPORT ─── */
