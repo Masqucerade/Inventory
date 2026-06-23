@@ -373,7 +373,7 @@ class App {
           ${item.notes ? `<div class="item-notes-preview">${this.esc(item.notes)}</div>` : ''}
           ${item.price ? `
           <div class="item-bottom">
-            <span class="item-price-unit">${fmtMoney(item.price)} <span class="item-per-unit">/шт</span>${item.buyPrice ? ` <span class="item-buy-price">← ${fmtMoney(item.buyPrice)} /шт</span>` : ''}</span>
+            <span class="item-price-unit">${fmtMoney(item.price)}${item.buyPrice ? ` <span class="item-buy-price">← ${fmtMoney(item.buyPrice)}</span>` : ''}</span>
             <span class="item-total-dim">${fmtMoney(item.total)}</span>
           </div>` : ''}
         </div>
