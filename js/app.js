@@ -56,6 +56,7 @@ class App {
     this._selOwner  = null;
     this._selStatus = 'ordered';
     this._selColor  = DEFAULT_COLOR;
+    this._sizes     = [{ size: '', qty: 1 }];
 
     this._detailItemId = null;
     this._confirmRes   = null;
@@ -124,11 +125,6 @@ class App {
     /* Save */
     document.getElementById('saveBtn').addEventListener('click', () => this.doManualSave());
 
-    /* History */
-    document.getElementById('historyBtn').addEventListener('click', () => this.openModal('historyModal'));
-    document.getElementById('historyModalClose').addEventListener('click', () => this.closeModal('historyModal'));
-    document.getElementById('clearLogsBtn').addEventListener('click', () => this.clearLogs());
-
     /* Search */
     const inp = document.getElementById('searchInput');
     const clr = document.getElementById('searchClear');
@@ -173,18 +169,29 @@ class App {
     document.getElementById('itemModalClose').addEventListener('click', () => this.closeModal('itemModal'));
     document.getElementById('itemModalSave').addEventListener('click', () => this.saveItem());
 
-    /* Qty */
-    document.getElementById('qtyPlus').addEventListener('click', () => {
-      const el = document.getElementById('fieldQuantity');
-      el.value = Math.max(0, (parseInt(el.value) || 0) + 1);
-      this.updateTotal();
+    /* Sizes */
+    document.getElementById('sizesList').addEventListener('click', (e) => {
+      const dec = e.target.closest('.size-dec');
+      const inc = e.target.closest('.size-inc');
+      const rm  = e.target.closest('.size-remove');
+      if (dec) { const i = +dec.dataset.idx; this._sizes[i].qty = Math.max(0, (this._sizes[i].qty||0) - 1); this.renderSizes(); }
+      if (inc) { const i = +inc.dataset.idx; this._sizes[i].qty = (this._sizes[i].qty||0) + 1; this.renderSizes(); }
+      if (rm)  { const i = +rm.dataset.idx;  this._sizes.splice(i, 1); this.renderSizes(); }
     });
-    document.getElementById('qtyMinus').addEventListener('click', () => {
-      const el = document.getElementById('fieldQuantity');
-      el.value = Math.max(0, (parseInt(el.value) || 0) - 1);
-      this.updateTotal();
+    document.getElementById('sizesList').addEventListener('input', (e) => {
+      const si = e.target.closest('.size-row-input');
+      const qi = e.target.closest('.size-qty-input');
+      if (si) { const i = +si.dataset.idx; this._sizes[i].size = si.value; }
+      if (qi) { const i = +qi.dataset.idx; this._sizes[i].qty  = parseInt(qi.value) || 0; this.updateTotal(); }
     });
-    document.getElementById('fieldQuantity').addEventListener('input', () => this.updateTotal());
+    document.getElementById('addSizeBtn').addEventListener('click', () => {
+      this._sizes.push({ size: '', qty: 1 });
+      this.renderSizes();
+      setTimeout(() => {
+        const inputs = document.querySelectorAll('.size-row-input');
+        inputs[inputs.length - 1]?.focus();
+      }, 50);
+    });
     document.getElementById('fieldPrice').addEventListener('input', () => this.updateTotal());
 
     /* Photo */
@@ -343,24 +350,29 @@ class App {
              </svg>
            </div>`;
 
+      const sizesArr  = item.sizes?.length > 0 ? item.sizes : (item.size ? [{size: item.size, qty: item.quantity||0}] : []);
+      const sizePills = sizesArr.filter(s => s.qty > 0 || s.size)
+        .map(s => `<span class="size-pill">${this.esc(s.size||'?')}${s.qty !== 1 ? ' ×'+s.qty : ''}</span>`).join('');
+
       return `<div class="item-card" data-id="${item.id}" style="animation-delay:${Math.min(idx*28,200)}ms">
         <div class="item-thumb">${thumb}</div>
         <div class="item-info">
           <div class="item-top">
             <div style="min-width:0">
               <div class="item-name">${this.esc(item.name)}</div>
-              <div class="item-type-size">${this.esc(item.type)}${item.size ? ' · ' + this.esc(item.size) : ''}</div>
+              <div class="item-type-size">${this.esc(item.type)}</div>
             </div>
             <span class="status-badge ${item.orderStatus}">${st.label}</span>
           </div>
           <div class="item-meta">
             ${owner ? `<span class="item-owner-tag"><span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}</span>` : ''}
-            <span class="item-qty-badge">${item.quantity} шт</span>
+            ${sizePills || `<span class="size-pill">—</span>`}
           </div>
+          ${item.price ? `
           <div class="item-bottom">
-            <span class="item-total">${item.price ? fmtMoney(item.total) : '—'}</span>
-            ${item.price ? `<span style="font-size:11px;color:var(--hint)">${fmtMoney(item.price)}/шт</span>` : ''}
-          </div>
+            <span class="item-price-unit">${fmtMoney(item.price)} <span class="item-per-unit">/шт</span></span>
+            <span class="item-total-dim">${fmtMoney(item.total)}</span>
+          </div>` : ''}
         </div>
       </div>`;
     }).join('')}</div>`;
@@ -377,21 +389,27 @@ class App {
     const st    = statusById(item.orderStatus);
     const owner = this.owners.find(o => o.id === item.ownerId);
 
+    const sizesArr = item.sizes?.length > 0 ? item.sizes : (item.size ? [{size: item.size, qty: item.quantity||0}] : []);
+    const sizesCard = sizesArr.length > 0 ? `
+      <div class="detail-card">
+        ${sizesArr.map(s => `
+          <div class="detail-row">
+            <span class="detail-key">${this.esc(s.size || 'Без размера')}</span>
+            <span class="detail-val">${s.qty} шт</span>
+          </div>`).join('')}
+      </div>` : '';
+
     const rows = [
-      ['Тип',     item.type     || '—'],
-      ['Размер',  item.size     || '—'],
-      ['Кол-во',  item.quantity + ' шт'],
-      ['Цена/шт', item.price    ? fmtMoney(item.price) : '—'],
-      ['Итого',   fmtMoney(item.total), 'big'],
-      ['Статус',  `<span class="status-badge ${item.orderStatus}">${st.label}</span>`],
+      ['Тип',      item.type  || '—'],
+      ['Цена/шт',  item.price ? fmtMoney(item.price) : '—'],
+      ['Итого',    fmtMoney(item.total), 'big'],
+      ['Статус',   `<span class="status-badge ${item.orderStatus}">${st.label}</span>`],
       ['Владелец', owner
         ? `<span style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
-             <span style="width:10px;height:10px;border-radius:50%;background:${owner.color};display:inline-block;flex-shrink:0"></span>
-             ${this.esc(owner.name)}
-           </span>`
+             <span style="width:8px;height:8px;border-radius:50%;background:${owner.color};display:inline-block;flex-shrink:0"></span>
+             ${this.esc(owner.name)}</span>`
         : '—'],
       ['Создан',   this.fmtDate(item.createdAt)],
-      ['Обновлён', this.fmtDate(item.updatedAt)],
     ].map(([k,v,c]) =>
       `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val ${c||''}">${v}</span></div>`
     ).join('');
@@ -399,9 +417,10 @@ class App {
     document.getElementById('detailModalTitle').textContent = item.name;
     document.getElementById('detailModalBody').innerHTML = `
       ${item.photo ? `<img src="${item.photo}" class="detail-photo" alt="">` : ''}
+      ${sizesCard}
       <div class="detail-card">${rows}</div>
       ${item.notes ? `<div class="detail-notes">${this.esc(item.notes)}</div>` : ''}
-      <button class="detail-delete-btn" id="detailDeleteBtn">🗑 Удалить товар</button>
+      <button class="detail-delete-btn" id="detailDeleteBtn">Удалить товар</button>
     `;
     document.getElementById('detailDeleteBtn').addEventListener('click', () => this.deleteItem(id));
     this.openModal('detailModal');
@@ -426,12 +445,12 @@ class App {
     this.editingItemId = id;
     this.currentPhoto  = null;
     this._selOwner     = null;
-    this._selStatus    = 'in_stock';
+    this._selStatus    = 'ordered';
+    this._sizes        = [{ size: '', qty: 1 }];
 
     /* Reset */
-    ['fieldType','fieldName','fieldSize','fieldNotes'].forEach(i => document.getElementById(i).value = '');
-    document.getElementById('fieldQuantity').value = '1';
-    document.getElementById('fieldPrice').value    = '';
+    ['fieldType','fieldName','fieldNotes'].forEach(k => document.getElementById(k).value = '');
+    document.getElementById('fieldPrice').value = '';
     document.getElementById('totalDisplay').textContent = '0 ₽';
     document.getElementById('photoPreview').src = '';
     document.getElementById('photoPreview').classList.add('hidden');
@@ -447,15 +466,15 @@ class App {
     if (id) {
       const item = await this.db.getItem(id);
       if (item) {
-        document.getElementById('fieldType').value     = item.type     || '';
-        document.getElementById('fieldName').value     = item.name     || '';
-        document.getElementById('fieldSize').value     = item.size     || '';
-        document.getElementById('fieldQuantity').value = item.quantity ?? 1;
-        document.getElementById('fieldPrice').value    = item.price    || '';
-        document.getElementById('fieldNotes').value    = item.notes    || '';
+        document.getElementById('fieldType').value  = item.type  || '';
+        document.getElementById('fieldName').value  = item.name  || '';
+        document.getElementById('fieldPrice').value = item.price || '';
+        document.getElementById('fieldNotes').value = item.notes || '';
         this._selOwner  = item.ownerId     || null;
-        this._selStatus = item.orderStatus || 'in_stock';
-        this.updateTotal();
+        this._selStatus = item.orderStatus || 'ordered';
+        this._sizes = item.sizes?.length > 0
+          ? item.sizes.map(s => ({ size: s.size || '', qty: s.qty || 0 }))
+          : [{ size: item.size || '', qty: item.quantity || 1 }];
         if (item.photo) {
           this.currentPhoto = item.photo;
           document.getElementById('photoPreview').src = item.photo;
@@ -468,7 +487,30 @@ class App {
 
     this.refreshOwnerChips();
     this.refreshStatusChips();
+    this.renderSizes();
     this.openModal('itemModal');
+  }
+
+  renderSizes() {
+    const list = document.getElementById('sizesList');
+    if (!list) return;
+    list.innerHTML = this._sizes.map((s, i) => `
+      <div class="size-row">
+        <input type="text" class="size-row-input" data-idx="${i}"
+               value="${this.esc(s.size)}" placeholder="Размер…"
+               list="sizeSuggestions" autocomplete="off">
+        <button type="button" class="qty-btn size-dec" data-idx="${i}">−</button>
+        <input type="number" class="qty-input size-qty-input" data-idx="${i}"
+               value="${s.qty}" min="0" inputmode="numeric">
+        <button type="button" class="qty-btn size-inc" data-idx="${i}">+</button>
+        ${this._sizes.length > 1
+          ? `<button type="button" class="size-remove" data-idx="${i}">
+               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
+                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+               </svg></button>`
+          : ''}
+      </div>`).join('');
+    this.updateTotal();
   }
 
   refreshOwnerChips() {
@@ -494,9 +536,10 @@ class App {
   }
 
   updateTotal() {
-    const qty   = parseFloat(document.getElementById('fieldQuantity').value) || 0;
-    const price = parseFloat(document.getElementById('fieldPrice').value)    || 0;
-    document.getElementById('totalDisplay').textContent = fmtMoney(qty * price);
+    const totalQty = this._sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
+    const price    = parseFloat(document.getElementById('fieldPrice')?.value) || 0;
+    const el = document.getElementById('totalDisplay');
+    if (el) el.textContent = fmtMoney(totalQty * price);
   }
 
   async saveItem() {
@@ -505,17 +548,19 @@ class App {
     if (!name) { this.toast('Укажите наименование товара'); return; }
     if (!type) { this.toast('Укажите тип товара'); return; }
 
-    const isNew = !this.editingItemId;
-    const item  = {
+    const isNew  = !this.editingItemId;
+    const sizes  = this._sizes.filter(s => s.size.trim() || (s.qty || 0) > 0);
+    const totQty = sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
+    const item   = {
       ...(isNew ? {} : { id: this.editingItemId }),
       type,
       name,
-      size:        document.getElementById('fieldSize').value.trim(),
-      quantity:    parseFloat(document.getElementById('fieldQuantity').value) || 0,
-      price:       parseFloat(document.getElementById('fieldPrice').value)    || 0,
+      sizes,
+      quantity:    totQty,
+      price:       parseFloat(document.getElementById('fieldPrice').value) || 0,
       notes:       document.getElementById('fieldNotes').value.trim(),
       ownerId:     this._selOwner  || null,
-      orderStatus: this._selStatus || 'in_stock',
+      orderStatus: this._selStatus || 'ordered',
       photo:       this.currentPhoto || null,
     };
 
@@ -523,7 +568,7 @@ class App {
     await this.db.logAction(
       isNew ? 'item_add' : 'item_edit',
       isNew ? `Добавлен товар: «${name}»` : `Изменён товар: «${name}»`,
-      { id: saved.id, name, type, quantity: item.quantity, price: item.price }
+      { id: saved.id, name, type, quantity: totQty, price: item.price }
     );
     await this.loadData();
     this.closeModal('itemModal');

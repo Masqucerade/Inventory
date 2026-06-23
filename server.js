@@ -53,7 +53,11 @@ app.put('/api/items', (req, res) => {
   const item = { ...req.body };
   if (!item.id) { item.id = uid(); item.createdAt = now; }
   item.updatedAt = now;
-  item.total = Math.round(((item.quantity || 0) * (item.price || 0)) * 100) / 100;
+  const totQty = item.sizes?.length > 0
+    ? item.sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0)
+    : (item.quantity || 0);
+  item.quantity = totQty;
+  item.total = Math.round((totQty * (item.price || 0)) * 100) / 100;
   if (!db.items) db.items = [];
   const idx = db.items.findIndex(i => i.id === item.id);
   idx >= 0 ? (db.items[idx] = item) : db.items.push(item);
