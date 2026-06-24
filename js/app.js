@@ -238,10 +238,26 @@ class App {
     /* Paste image from clipboard (Ctrl+V) when item modal is open */
     document.addEventListener('paste', async (e) => {
       if (!document.getElementById('itemModal').classList.contains('open')) return;
-      const file = [...(e.clipboardData?.items || [])]
+
+      // Primary: clipboardData.items (works when photo area or text input focused)
+      let file = [...(e.clipboardData?.items || [])]
         .find(i => i.type.startsWith('image/'))
         ?.getAsFile();
+
+      // Fallback: navigator.clipboard.read() — works when number inputs are focused
+      // (browsers filter clipboardData for non-text inputs)
+      if (!file) {
+        try {
+          const items = await navigator.clipboard.read();
+          for (const item of items) {
+            const imgType = item.types.find(t => t.startsWith('image/'));
+            if (imgType) { file = await item.getType(imgType); break; }
+          }
+        } catch (_) {}
+      }
+
       if (!file) return;
+      e.preventDefault();
       try {
         const b64 = await resizeImage(file);
         this.currentPhoto = b64;
