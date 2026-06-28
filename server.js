@@ -190,6 +190,34 @@ app.get('/api/logs.csv', (req, res) => {
   res.send(rows.join('\n'));
 });
 
+/* ─── EMPLOYEE PAYMENTS ─── */
+app.get('/api/employee-payments', (req, res) => {
+  let rows = load().employeePayments || [];
+  if (req.query.ownerId) rows = rows.filter(p => p.ownerId === req.query.ownerId);
+  res.json(rows.slice().reverse());
+});
+
+app.post('/api/employee-payments', (req, res) => {
+  const db    = load();
+  const entry = { id: uid(), ...req.body, ts: new Date().toISOString() };
+  if (!db.employeePayments) db.employeePayments = [];
+  db.employeePayments.push(entry);
+  save(db);
+  const sign = entry.type === 'credit' ? '+' : '−';
+  logToTelegram({
+    type: 'emp_payment', ts: entry.ts,
+    desc: `💵 ${entry.ownerName || 'Сотрудник'}: ${sign}${Number(entry.amount).toLocaleString('ru-RU')} ₽${entry.desc ? ' — ' + entry.desc : ''}`,
+  });
+  res.json(entry);
+});
+
+app.delete('/api/employee-payments/:id', (req, res) => {
+  const db = load();
+  db.employeePayments = (db.employeePayments || []).filter(p => p.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
 /* ─── PAYMENTS ─── */
 app.get('/api/payments', (req, res) => {
   res.json((load().payments || []).slice().reverse());

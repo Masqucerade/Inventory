@@ -100,6 +100,28 @@ class InventoryDB {
     await fetch('/api/logs', { method: 'DELETE' });
   }
 
+  /* ─── EMPLOYEE PAYMENTS ─── */
+  async getEmployeePayments(ownerId = null) {
+    try {
+      const url = ownerId ? `/api/employee-payments?ownerId=${ownerId}` : '/api/employee-payments';
+      const r = await fetch(url);
+      return r.ok ? r.json() : [];
+    } catch { return []; }
+  }
+
+  async addEmployeePayment(payment) {
+    const r = await fetch('/api/employee-payments', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payment),
+    });
+    return r.json();
+  }
+
+  async deleteEmployeePayment(id) {
+    await fetch(`/api/employee-payments/${id}`, { method: 'DELETE' });
+  }
+
   /* ─── PAYMENTS ─── */
   async getPayments() {
     try {

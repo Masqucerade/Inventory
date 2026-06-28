@@ -934,6 +934,30 @@ html, body {
 [data-theme="light"] .pay-amount.deposit { color: #16a34a; }
 [data-theme="light"] .pay-amount.charge  { color: #dc2626; }
 
+/* ─── Employee balance cards ─── */
+.emp-bal-list {
+  background: var(--card); border: 1px solid var(--card-b);
+  border-radius: var(--r); overflow: hidden;
+}
+.emp-bal-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; cursor: pointer;
+  transition: background .12s; animation: cellIn .22s ease both;
+}
+.emp-bal-card:not(:last-child) { border-bottom: 1px solid var(--sep2); }
+.emp-bal-card:active { background: var(--fill); }
+.emp-bal-avatar {
+  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #fff;
+}
+.emp-bal-name { flex: 1; font-size: 14px; font-weight: 500; color: var(--text); letter-spacing: -0.2px; }
+.emp-bal-amount { font-size: 14px; font-weight: 700; letter-spacing: -0.4px; flex-shrink: 0; }
+.emp-bal-amount.pos { color: #4ade80; }
+.emp-bal-amount.neg { color: #f87171; }
+[data-theme="light"] .emp-bal-amount.pos { color: #16a34a; }
+[data-theme="light"] .emp-bal-amount.neg { color: #dc2626; }
+
 .pay-del {
   width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
   background: none; border: 1px solid var(--sep); color: var(--text3);
