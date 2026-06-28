@@ -68,8 +68,9 @@ class App {
     this._selectMode   = false;
     this._selectedIds  = new Set();
 
-    this._filterMonarc = false;
-    this._archiveOpen  = false;
+    this._filterMonarc    = false;
+    this._archiveOpen     = false;
+    this._currentPayType  = 'deposit';
   }
 
   /* ──────────────────────────────────────────
@@ -309,8 +310,11 @@ class App {
       this.openItemModal(id);
     });
 
+    /* Payment modal */
+    document.getElementById('paymentModalClose').addEventListener('click', () => this.closeModal('paymentModal'));
+    document.getElementById('paymentModalSave').addEventListener('click', () => this.savePayment());
+
     /* Owner modal */
-    document.getElementById('addOwnerBtn').addEventListener('click', () => this.openOwnerModal());
     document.getElementById('ownerModalClose').addEventListener('click', () => this.closeModal('ownerModal'));
     document.getElementById('ownerModalSave').addEventListener('click', () => this.saveOwner());
     document.getElementById('ownerName').addEventListener('input', () => {
@@ -348,7 +352,7 @@ class App {
     switch (view) {
       case 'inventory': this.renderInventoryView(); break;
       case 'stats':     this.renderStats();         break;
-      case 'owners':    this.renderOwners();        break;
+      case 'finance':   this.renderFinance();       break;
       case 'settings':  this.renderSettings();      break;
     }
   }
@@ -852,10 +856,108 @@ class App {
   }
 
   /* ──────────────────────────────────────────
+     FINANCE VIEW
+     ────────────────────────────────────────── */
+  async renderFinance() {
+    const el       = document.getElementById('financeContent');
+    const payments = await this.db.getPayments();
+
+    const balance  = payments.reduce((s, p) =>
+      p.type === 'deposit' ? s + (p.amount || 0) : s - (p.amount || 0), 0);
+    const pos = balance >= 0;
+
+    const emptyHtml = `
+      <div class="empty-state" style="padding:60px 32px">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".9">
+          <rect x="1" y="4" width="22" height="16" rx="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+        <h3>Нет транзакций</h3>
+        <p>Нажмите «Депозит» или «Выставить счёт»</p>
+      </div>`;
+
+    el.innerHTML = `
+      <div class="balance-card">
+        <div class="balance-label">Баланс компании</div>
+        <div class="balance-amount ${pos ? 'pos' : 'neg'}">${pos ? '' : '−'}${fmtMoney(Math.abs(balance))}</div>
+      </div>
+      <div class="finance-actions">
+        <button class="fin-btn deposit" id="depositBtn">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Депозит
+        </button>
+        <button class="fin-btn charge" id="chargeBtn">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Выставить счёт
+        </button>
+      </div>
+      ${payments.length ? `
+        <div class="section-title">История</div>
+        <div class="pay-list">
+          ${payments.map((p, idx) => `
+            <div class="pay-entry" style="animation-delay:${Math.min(idx*20,180)}ms">
+              <div class="pay-icon ${p.type}">${p.type === 'deposit' ? '+' : '−'}</div>
+              <div class="pay-info">
+                <div class="pay-desc">${this.esc(p.desc || (p.type === 'deposit' ? 'Депозит' : 'Списание'))}</div>
+                <div class="pay-time">${this.fmtDate(p.ts)}</div>
+              </div>
+              <div class="pay-amount ${p.type}">${p.type === 'deposit' ? '+' : '−'}${fmtMoney(p.amount)}</div>
+              <button class="pay-del" data-id="${p.id}" title="Удалить">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>`).join('')}
+        </div>` : emptyHtml}
+    `;
+
+    document.getElementById('depositBtn').addEventListener('click', () => this.openPaymentModal('deposit'));
+    document.getElementById('chargeBtn').addEventListener('click',  () => this.openPaymentModal('charge'));
+
+    el.querySelectorAll('.pay-del').forEach(btn =>
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const ok = await this.confirm('Удалить эту запись?');
+        if (!ok) return;
+        await this.db.deletePayment(btn.dataset.id);
+        this.renderFinance();
+      })
+    );
+  }
+
+  openPaymentModal(type) {
+    this._currentPayType = type;
+    document.getElementById('paymentModalTitle').textContent =
+      type === 'deposit' ? 'Депозит' : 'Выставить счёт';
+    document.getElementById('paymentModalSave').textContent =
+      type === 'deposit' ? 'Добавить' : 'Выставить';
+    document.getElementById('paymentAmount').value = '';
+    document.getElementById('paymentDesc').value   = '';
+    this.openModal('paymentModal');
+    setTimeout(() => document.getElementById('paymentAmount').focus(), 320);
+  }
+
+  async savePayment() {
+    const amount = parseFloat(document.getElementById('paymentAmount').value);
+    if (!amount || amount <= 0) { this.toast('Укажите сумму'); return; }
+    const desc = document.getElementById('paymentDesc').value.trim();
+    await this.db.addPayment({ type: this._currentPayType, amount, desc });
+    this.closeModal('paymentModal');
+    this.renderFinance();
+    const sign = this._currentPayType === 'deposit' ? '+' : '−';
+    this.toast(`${sign}${fmtMoney(amount)} ✓`);
+  }
+
+  /* ──────────────────────────────────────────
      OWNERS VIEW
      ────────────────────────────────────────── */
-  async renderOwners() {
-    const list  = document.getElementById('ownersList');
+  async renderOwners(containerId = 'ownersList') {
+    const list  = document.getElementById(containerId);
+    if (!list) return;
     const items = await this.db.getItems();
     const cntMap = {}, valMap = {};
     items.forEach(i => {
@@ -948,7 +1050,8 @@ class App {
     await this.loadData();
     this.closeModal('ownerModal');
     this.renderOwners();
-    this.toast(isNew ? 'Владелец добавлен ✓' : 'Владелец обновлён ✓');
+    this.renderOwnerFilterChips();
+    this.toast(isNew ? 'Участник добавлен ✓' : 'Участник обновлён ✓');
   }
 
   async deleteOwner(id) {
@@ -963,7 +1066,8 @@ class App {
     await this.db.logAction('owner_delete', `Удалён владелец: «${owner?.name || id}»`, { id, name: owner?.name });
     await this.loadData();
     this.renderOwners();
-    this.toast('Владелец удалён');
+    this.renderOwnerFilterChips();
+    this.toast('Участник удалён');
   }
 
   /* ──────────────────────────────────────────
@@ -1153,6 +1257,17 @@ class App {
         </div>` : ''}
       </div>
 
+      <div class="section-title">Участники</div>
+      <div class="settings-section">
+        <div class="settings-row" id="addOwnerBtn">
+          <div class="settings-row-icon green">👤</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Добавить участника</div>
+          </div>${arrow}
+        </div>
+      </div>
+      <div id="ownersList"></div>
+
       <div class="section-title">О приложении</div>
       <div class="settings-section">
         <div class="settings-row" style="cursor:default">
@@ -1218,6 +1333,9 @@ class App {
         this.toast('Восстановлено из облака ✓');
       } catch (err) { this.toast('Ошибка: ' + err.message); }
     });
+
+    document.getElementById('addOwnerBtn').addEventListener('click', () => this.openOwnerModal());
+    this.renderOwners();
   }
 
   /* ──────────────────────────────────────────

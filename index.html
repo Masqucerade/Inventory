@@ -76,19 +76,12 @@
     <div class="view-body" id="statsContent"></div>
   </div>
 
-  <!-- ═══ OWNERS VIEW ═══ -->
-  <div id="view-owners" class="view">
+  <!-- ═══ FINANCE VIEW ═══ -->
+  <div id="view-finance" class="view">
     <div class="view-header simple-header">
-      <div class="header-row">
-        <h1 class="view-title">Владельцы</h1>
-        <button class="icon-btn" id="addOwnerBtn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
-          </svg>
-        </button>
-      </div>
+      <h1 class="view-title">Счёт компании</h1>
     </div>
-    <div class="view-body" id="ownersList"></div>
+    <div class="view-body" id="financeContent"></div>
   </div>
 
   <!-- ═══ SETTINGS VIEW ═══ -->
@@ -114,13 +107,12 @@
       </svg>
       <span class="nav-label">Статистика</span>
     </button>
-    <button class="nav-btn" data-view="owners">
+    <button class="nav-btn" data-view="finance">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+        <line x1="1" y1="10" x2="23" y2="10"/>
       </svg>
-      <span class="nav-label">Владельцы</span>
+      <span class="nav-label">Счёт</span>
     </button>
     <button class="nav-btn" data-view="settings">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -339,6 +331,32 @@
       <div class="form-divider"></div>
       <div class="form-group" style="padding:2px 0">
         <span id="deliveryModalDesc" style="font-size:13px;color:var(--text2)"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Payment (deposit / charge) -->
+<div class="modal" id="paymentModal">
+  <div class="modal-header">
+    <button class="modal-close" id="paymentModalClose">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+      </svg>
+    </button>
+    <span class="modal-title" id="paymentModalTitle">Депозит</span>
+    <button class="modal-action-btn" id="paymentModalSave">Добавить</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-card">
+      <div class="form-group">
+        <label class="form-label">Сумма (₽) <span class="required">*</span></label>
+        <input type="number" id="paymentAmount" class="form-input" placeholder="0" min="0" inputmode="decimal">
+      </div>
+      <div class="form-divider"></div>
+      <div class="form-group">
+        <label class="form-label">Описание</label>
+        <input type="text" id="paymentDesc" class="form-input" placeholder="Комментарий…" autocomplete="off">
       </div>
     </div>
   </div>

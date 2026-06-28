@@ -190,6 +190,32 @@ app.get('/api/logs.csv', (req, res) => {
   res.send(rows.join('\n'));
 });
 
+/* ─── PAYMENTS ─── */
+app.get('/api/payments', (req, res) => {
+  res.json((load().payments || []).slice().reverse());
+});
+
+app.post('/api/payments', (req, res) => {
+  const db    = load();
+  const entry = { id: uid(), ...req.body, ts: new Date().toISOString() };
+  if (!db.payments) db.payments = [];
+  db.payments.push(entry);
+  save(db);
+  const sign = entry.type === 'deposit' ? '+' : '−';
+  logToTelegram({
+    type: 'payment', ts: entry.ts,
+    desc: `${entry.type === 'deposit' ? '💰' : '💸'} ${entry.desc || (entry.type === 'deposit' ? 'Депозит' : 'Списание')}: ${sign}${Number(entry.amount).toLocaleString('ru-RU')} ₽`,
+  });
+  res.json(entry);
+});
+
+app.delete('/api/payments/:id', (req, res) => {
+  const db = load();
+  db.payments = (db.payments || []).filter(p => p.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
 /* ─── EXPORT / IMPORT ─── */
 app.get('/api/export', (req, res) => {
   const db = load();

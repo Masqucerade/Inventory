@@ -100,6 +100,27 @@ class InventoryDB {
     await fetch('/api/logs', { method: 'DELETE' });
   }
 
+  /* ─── PAYMENTS ─── */
+  async getPayments() {
+    try {
+      const r = await fetch('/api/payments');
+      return r.ok ? r.json() : [];
+    } catch { return []; }
+  }
+
+  async addPayment(payment) {
+    const r = await fetch('/api/payments', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payment),
+    });
+    return r.json();
+  }
+
+  async deletePayment(id) {
+    await fetch(`/api/payments/${id}`, { method: 'DELETE' });
+  }
+
   /* ─── EXPORT / IMPORT ─── */
   async exportAll() {
     const r = await fetch('/api/export');
