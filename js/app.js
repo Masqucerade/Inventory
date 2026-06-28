@@ -49,6 +49,8 @@ class App {
     this.filterOwnerId = null;
     this.filterStatus  = '';
     this.searchQuery   = '';
+    this._sortBy  = 'date';
+    this._sortDir = 'desc';
 
     this.editingItemId  = null;
     this.editingOwnerId = null;
@@ -144,6 +146,22 @@ class App {
     document.querySelectorAll('.nav-btn').forEach(b =>
       b.addEventListener('click', () => this.renderView(b.dataset.view))
     );
+
+    /* Sort bar */
+    document.getElementById('statusFilterChips').closest('.view-header').addEventListener('click', e => {
+      const opt = e.target.closest('.sort-opt');
+      const dir = e.target.closest('#sortDirBtn');
+      if (opt) {
+        this._sortBy = opt.dataset.sort;
+        document.querySelectorAll('.sort-opt').forEach(b => b.classList.toggle('active', b === opt));
+        this.renderInventoryList();
+      }
+      if (dir) {
+        this._sortDir = this._sortDir === 'desc' ? 'asc' : 'desc';
+        dir.textContent = this._sortDir === 'desc' ? '↓' : '↑';
+        this.renderInventoryList();
+      }
+    });
 
     /* FAB */
     document.getElementById('fabBtn').addEventListener('click', () => this.openItemModal());
@@ -417,6 +435,18 @@ class App {
       orderStatus: this.filterStatus  || undefined,
       search:      this.searchQuery   || undefined,
     });
+
+    // Client-side sort
+    const sd = this._sortDir === 'asc' ? 1 : -1;
+    if (this._sortBy === 'price') {
+      items.sort((a, b) => sd * ((a.price || 0) - (b.price || 0)));
+    } else if (this._sortBy === 'qty') {
+      items.sort((a, b) => sd * ((a.quantity || 0) - (b.quantity || 0)));
+    } else if (this._sortBy === 'name') {
+      items.sort((a, b) => sd * (a.name || '').localeCompare(b.name || '', 'ru'));
+    }
+    // 'date' — already sorted by server (updatedAt desc); respect direction
+    if (this._sortBy === 'date' && this._sortDir === 'asc') items.reverse();
 
     // Monarc isolation: hide Monarc items from normal view, show only in Monarc filter
     if (this._filterMonarc) {

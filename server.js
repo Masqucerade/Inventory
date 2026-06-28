@@ -212,9 +212,17 @@ app.post('/api/employee-payments', (req, res) => {
 });
 
 app.delete('/api/employee-payments/:id', (req, res) => {
-  const db = load();
+  const db  = load();
+  const rec = (db.employeePayments || []).find(p => p.id === req.params.id);
   db.employeePayments = (db.employeePayments || []).filter(p => p.id !== req.params.id);
   save(db);
+  if (rec) {
+    const sign = rec.type === 'credit' ? '+' : '−';
+    logToTelegram({
+      type: 'emp_payment', ts: new Date().toISOString(),
+      desc: `🗑 Удалено начисление ${rec.ownerName || 'сотрудника'}: ${sign}${Number(rec.amount).toLocaleString('ru-RU')} ₽${rec.desc ? ' — ' + rec.desc : ''}`,
+    });
+  }
   res.json({ ok: true });
 });
 
@@ -238,9 +246,17 @@ app.post('/api/payments', (req, res) => {
 });
 
 app.delete('/api/payments/:id', (req, res) => {
-  const db = load();
+  const db  = load();
+  const rec = (db.payments || []).find(p => p.id === req.params.id);
   db.payments = (db.payments || []).filter(p => p.id !== req.params.id);
   save(db);
+  if (rec) {
+    const sign = rec.type === 'deposit' ? '+' : '−';
+    logToTelegram({
+      type: 'payment', ts: new Date().toISOString(),
+      desc: `🗑 Удалена запись: ${rec.desc || (rec.type === 'deposit' ? 'Депозит' : 'Списание')} ${sign}${Number(rec.amount).toLocaleString('ru-RU')} ₽`,
+    });
+  }
   res.json({ ok: true });
 });
 
@@ -255,6 +271,12 @@ app.post('/api/plans', (req, res) => {
   if (!db.plans) db.plans = [];
   db.plans.push(entry);
   save(db);
+  if (entry.amount) {
+    logToTelegram({
+      type: 'plan', ts: entry.createdAt,
+      desc: `📋 Новый план закупки: «${entry.title}» — ${Number(entry.amount).toLocaleString('ru-RU')} ₽`,
+    });
+  }
   res.json(entry);
 });
 
@@ -262,8 +284,15 @@ app.patch('/api/plans/:id', (req, res) => {
   const db  = load();
   const idx = (db.plans || []).findIndex(p => p.id === req.params.id);
   if (idx < 0) return res.status(404).json({ error: 'Not found' });
-  db.plans[idx] = { ...db.plans[idx], ...req.body };
+  const prev = db.plans[idx];
+  db.plans[idx] = { ...prev, ...req.body };
   save(db);
+  if (req.body.done === true && !prev.done && prev.amount) {
+    logToTelegram({
+      type: 'plan', ts: new Date().toISOString(),
+      desc: `✅ План выполнен: «${prev.title}» — ${Number(prev.amount).toLocaleString('ru-RU')} ₽`,
+    });
+  }
   res.json(db.plans[idx]);
 });
 

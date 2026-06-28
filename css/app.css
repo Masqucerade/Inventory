@@ -1027,6 +1027,31 @@ html, body {
   flex-shrink: 0; letter-spacing: -0.3px;
 }
 
+/* ─── Sort bar ─── */
+.sort-bar {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 16px 9px; overflow-x: auto; scrollbar-width: none;
+}
+.sort-bar::-webkit-scrollbar { display: none; }
+.sort-opt {
+  flex-shrink: 0; padding: 3px 9px; border-radius: 100px;
+  border: 1px solid var(--sep); background: none;
+  font-family: inherit; font-size: 11px; font-weight: 500; color: var(--text3);
+  cursor: pointer; transition: all .15s;
+}
+.sort-opt.active {
+  background: var(--fill2); border-color: var(--sep);
+  color: var(--text); font-weight: 600;
+}
+.sort-dir-btn {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: 7px;
+  border: 1px solid var(--sep); background: var(--fill);
+  font-size: 13px; color: var(--text2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  margin-left: 2px; transition: all .15s;
+}
+.sort-dir-btn:active { opacity: .6; }
+
 /* =============================================
    UTILITY
    ============================================= */
