@@ -94,6 +94,10 @@ class App {
   initTheme() {
     const saved = localStorage.getItem('inv_theme') || 'dark';
     this.applyTheme(saved);
+    document.getElementById('themeBtn').addEventListener('click', () => {
+      const cur = localStorage.getItem('inv_theme') || 'dark';
+      this.applyTheme(cur === 'dark' ? 'light' : 'dark');
+    });
   }
 
   applyTheme(theme) {
@@ -104,6 +108,18 @@ class App {
       const bg = theme === 'light' ? '#f0f0f0' : '#0a0a0a';
       try { tg.setHeaderColor(bg); tg.setBackgroundColor(bg); } catch (_) {}
     }
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.innerHTML = theme === 'dark'
+      ? `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+         </svg>`
+      : `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+           <circle cx="12" cy="12" r="5"/>
+           <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+           <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+           <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+           <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+         </svg>`;
   }
 
   async loadData() {
@@ -1430,9 +1446,6 @@ class App {
   renderSettings() {
     const el      = document.getElementById('settingsContent');
     const lastBk  = this.backup.getLastTimeStr();
-    const autoOn  = this.backup.isAutoEnabled();
-    const hasCld  = !!window.Telegram?.WebApp?.CloudStorage;
-    const theme   = localStorage.getItem('inv_theme') || 'dark';
 
     const toggle = (on) => `
       <div class="toggle-track" style="background:${on ? 'var(--a1)' : 'var(--muted)'}">
@@ -1441,65 +1454,43 @@ class App {
 
     const arrow = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="settings-row-arrow"><polyline points="9 18 15 12 9 6"/></svg>`;
 
+    const svgSend     = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+    const svgAuto     = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+    const svgDownload = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    const svgUpload   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
+
     el.innerHTML = `
-      <div class="backup-info-card">
-        <div class="backup-last">💾 Последний бэкап: <strong>${lastBk}</strong></div>
-        ${hasCld ? '<div class="backup-last">☁️ Telegram CloudStorage: подключён</div>' : ''}
-      </div>
-
-      <div class="section-title">Внешний вид</div>
-      <div class="settings-section">
-        <div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon gray">🎨</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Тема</div>
-          </div>
-          <div class="theme-toggle" id="themeToggle">
-            <button class="theme-btn ${theme === 'dark'  ? 'active' : ''}" data-t="dark">🌙 Тёмная</button>
-            <button class="theme-btn ${theme === 'light' ? 'active' : ''}" data-t="light">☀️ Светлая</button>
-          </div>
-        </div>
-      </div>
-
       <div class="section-title">Резервная копия</div>
       <div class="settings-section">
         <div class="settings-row" id="sBtnTgBackup">
-          <div class="settings-row-icon blue">✈️</div>
+          <div class="settings-row-icon blue">${svgSend}</div>
           <div class="settings-row-info">
             <div class="settings-row-title">Отправить в Telegram</div>
             <div class="settings-row-sub">Файл с данными — прямо в чат</div>
           </div>${arrow}
         </div>
         <div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon green">🔄</div>
+          <div class="settings-row-icon green">${svgAuto}</div>
           <div class="settings-row-info">
             <div class="settings-row-title">Авто-бэкап каждые 24 ч</div>
-            <div class="settings-row-sub">Отправляется в Telegram автоматически</div>
+            <div class="settings-row-sub">Последний: <strong>${lastBk}</strong></div>
           </div>
-          <div style="font-size:11px;color:var(--s-in_stock);font-weight:600">ON</div>
+          <div class="auto-backup-badge">ON</div>
         </div>
         <div class="settings-row" id="sBtnBackup">
-          <div class="settings-row-icon gray">💾</div>
+          <div class="settings-row-icon gray">${svgDownload}</div>
           <div class="settings-row-info">
             <div class="settings-row-title">Скачать JSON</div>
             <div class="settings-row-sub">Сохранить файл локально</div>
           </div>${arrow}
         </div>
         <div class="settings-row" id="sBtnRestore">
-          <div class="settings-row-icon orange">📂</div>
+          <div class="settings-row-icon orange">${svgUpload}</div>
           <div class="settings-row-info">
             <div class="settings-row-title">Восстановить из файла</div>
             <div class="settings-row-sub">Загрузить JSON-бэкап</div>
           </div>${arrow}
         </div>
-        ${hasCld ? `
-        <div class="settings-row" id="sBtnCloudRestore">
-          <div class="settings-row-icon teal">☁️</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Восстановить из облака</div>
-            <div class="settings-row-sub">Telegram Cloud Storage</div>
-          </div>${arrow}
-        </div>` : ''}
       </div>
 
       <div class="section-title">Участники</div>
@@ -1526,14 +1517,6 @@ class App {
 
       <input type="file" id="restoreFileInput" accept=".json" hidden>
     `;
-
-    /* Theme toggle */
-    document.getElementById('themeToggle').addEventListener('click', (e) => {
-      const btn = e.target.closest('.theme-btn');
-      if (!btn) return;
-      this.applyTheme(btn.dataset.t);
-      this.renderSettings();
-    });
 
     document.getElementById('sBtnTgBackup').addEventListener('click', async () => {
       this.toast('Отправляю в Telegram…');
@@ -1563,20 +1546,6 @@ class App {
         this.toast('Данные восстановлены ✓');
       } catch (err) { this.toast('Ошибка: ' + err.message); }
       e.target.value = '';
-    });
-
-    document.getElementById('sBtnCloudRestore')?.addEventListener('click', async () => {
-      const ok = await this.confirm('Восстановить из Telegram Cloud?\nТекущие данные будут заменены.', 'Восстановить', false);
-      if (!ok) return;
-      try {
-        const data = await this.backup.restoreFromCloud();
-        if (!data) { this.toast('Нет данных в облаке'); return; }
-        await this.db.importAll(data);
-        await this.db.logAction('restore', 'Восстановлено из Telegram CloudStorage');
-        await this.loadData();
-        this.renderSettings();
-        this.toast('Восстановлено из облака ✓');
-      } catch (err) { this.toast('Ошибка: ' + err.message); }
     });
 
     document.getElementById('addOwnerBtn').addEventListener('click', () => this.openOwnerModal());
