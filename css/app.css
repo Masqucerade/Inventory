@@ -297,15 +297,13 @@ html, body {
   display: flex; align-items: flex-start;
   justify-content: space-between; gap: 6px;
 }
-.item-top-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.item-top-badges { display: flex; flex-direction: row; align-items: center; gap: 5px; flex-shrink: 0; }
 .sale-tag {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 10px; font-weight: 600; letter-spacing: 0.1px;
+  display: inline-flex; align-items: center; justify-content: center;
   color: #fbbf24;
   background: rgba(251,191,36,0.10);
   border: 1px solid rgba(251,191,36,0.28);
-  border-radius: 5px; padding: 2px 5px;
-  white-space: nowrap;
+  border-radius: 5px; padding: 3px 5px;
 }
 [data-theme="light"] .sale-tag { color: #b45309; background: rgba(180,83,9,0.07); border-color: rgba(180,83,9,0.20); }
 .item-name {

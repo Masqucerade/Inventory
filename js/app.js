@@ -488,12 +488,11 @@ class App {
             <div class="item-type-size">${this.esc(item.type)}</div>
           </div>
           <div class="item-top-badges">
-            <span class="status-badge ${item.orderStatus}">${st.label}</span>
-            ${item.isForSale ? `<span class="sale-tag">
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+            <span class="status-badge ${item.orderStatus}">${st.label}</span>${item.isForSale ? `<span class="sale-tag">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
                 <line x1="7" y1="7" x2="7.01" y2="7"/>
-              </svg>Продаётся</span>` : ''}
+              </svg></span>` : ''}
           </div>
         </div>
         <div class="item-meta">
@@ -555,11 +554,11 @@ class App {
              ${this.esc(owner.name)}</span>`
         : '—'],
       ['На продаже', item.isForSale
-        ? `<span class="sale-tag" style="font-size:11px">
-             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+        ? `<span class="sale-tag">
+             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
                <line x1="7" y1="7" x2="7.01" y2="7"/>
-             </svg>Продаётся</span>`
+             </svg></span>`
         : '—'],
       ['Создан', this.fmtDate(item.createdAt)],
     ].map(([k,v]) =>
