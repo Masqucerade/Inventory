@@ -373,7 +373,7 @@ class App {
           ${this.esc(o.name)}
         </button>`;
       }).join('') +
-      `<button class="chip monarc-chip${this._filterMonarc ? ' active' : ''}" data-monarc="1">M Monarc</button>`;
+      `<button class="chip monarc-chip${this._filterMonarc ? ' active' : ''}" data-monarc="1">Monarc</button>`;
   }
 
   async renderInventoryList() {
