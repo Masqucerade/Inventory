@@ -1322,29 +1322,30 @@ class App {
 
     const byStatus = {}, byOwner = {}, byType = {};
     items.forEach(i => {
-      byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + 1;
+      const qty = i.quantity || 0;
+      byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + qty;
       const k = i.ownerId || '__none__';
       if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0 };
-      byOwner[k].qty += (i.quantity || 0);
-      byOwner[k].val += (i.total    || 0);
+      byOwner[k].qty += qty;
+      byOwner[k].val += (i.total || 0);
       byOwner[k].cnt++;
       if (i.type) {
-        if (!byType[i.type]) byType[i.type] = { cnt: 0, val: 0 };
-        byType[i.type].cnt++;
+        if (!byType[i.type]) byType[i.type] = { qty: 0, val: 0 };
+        byType[i.type].qty += qty;
         byType[i.type].val += (i.total || 0);
       }
     });
 
     const maxSt  = Math.max(...Object.values(byStatus), 1);
     const maxOwV = Math.max(...Object.values(byOwner).map(v => v.val), 1);
-    const maxTyC = Math.max(...Object.values(byType).map(v => v.cnt), 1);
+    const maxTyQ = Math.max(...Object.values(byType).map(v => v.qty), 1);
 
     const statusBars = STATUSES.filter(s => byStatus[s.id]).map(s => {
-      const cnt = byStatus[s.id];
+      const qty = byStatus[s.id];
       return `<div class="bar-row">
         <span class="bar-label">${s.icon} ${s.label}</span>
-        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(cnt/maxSt*100)}%;background:${s.color}"></div></div>
-        <span class="bar-count">${cnt}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(qty/maxSt*100)}%;background:${s.color}"></div></div>
+        <span class="bar-count">${qty} шт</span>
       </div>`;
     }).join('') || noData;
 
@@ -1369,12 +1370,12 @@ class App {
         </div>`;
       }).join('') || noData;
 
-    const typeSorted = Object.entries(byType).sort((a, b) => b[1].cnt - a[1].cnt);
+    const typeSorted = Object.entries(byType).sort((a, b) => b[1].qty - a[1].qty);
     const typeRows   = typeSorted.map(([t, v]) =>
       `<div class="bar-row">
         <span class="bar-label">${this.esc(t)}</span>
-        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v.cnt/maxTyC*100)}%;background:var(--a1)"></div></div>
-        <span class="bar-count">${v.cnt} / ${fmtMoney(v.val)}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v.qty/maxTyQ*100)}%;background:var(--a1)"></div></div>
+        <span class="bar-count">${v.qty} шт / ${fmtMoney(v.val)}</span>
       </div>`
     ).join('');
 
