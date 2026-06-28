@@ -1031,3 +1031,65 @@ html, body {
    UTILITY
    ============================================= */
 .hidden { display: none !important; }
+
+/* =============================================
+   DESKTOP LAYOUT  (≥ 700px)
+   ============================================= */
+@media (min-width: 700px) {
+  /* Center all views and modals in a 680px column */
+  .view, .modal {
+    left:  calc(50% - 340px);
+    right: calc(50% - 340px);
+    border-left:  1px solid var(--sep);
+    border-right: 1px solid var(--sep);
+  }
+
+  /* Visible thin scrollbar on desktop */
+  .view-body {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sep) transparent;
+    padding-bottom: calc(24px + var(--pad-bot));
+  }
+  .view-body::-webkit-scrollbar { display: block; width: 4px; }
+  .view-body::-webkit-scrollbar-thumb { background: var(--sep); border-radius: 2px; }
+
+  /* Bigger thumbnail */
+  .item-thumb { width: 80px; }
+  .item-card  { min-height: 68px; }
+
+  /* 2-column item grid */
+  .items-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--card-b);
+  }
+  /* Reset per-card bottom border — gap handles separators */
+  .item-card { background: var(--card); }
+  .item-card:not(:last-child) > .item-info { border-bottom: none; }
+  /* Odd last card spans full width */
+  .item-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+  /* Confirm sheet centered */
+  .confirm-overlay { justify-content: center; }
+  .confirm-box     { max-width: 460px; }
+
+  /* Toast doesn't need to change */
+}
+
+@media (min-width: 700px) and (max-width: 1039px) {
+  /* Narrow desktop / small laptop: single column keeps it readable */
+  .items-list {
+    grid-template-columns: 1fr;
+  }
+  .item-card:last-child:nth-child(odd) { grid-column: unset; }
+}
+
+@media (min-width: 1040px) {
+  /* Wide laptop / external monitor */
+  .view, .modal {
+    left:  calc(50% - 400px);
+    right: calc(50% - 400px);
+  }
+  .item-thumb { width: 90px; }
+}
