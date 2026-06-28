@@ -590,31 +590,50 @@ class App {
   async quickSetStatus(id, statusId) {
     const item = this.items.find(i => i.id === id) || await this.db.getItem(id);
     if (!item) return;
-    if (item.orderStatus === statusId) {
+
+    const closePanel = () => {
       document.getElementById('quickStatusPanel')?.classList.add('hidden');
       const ch = document.getElementById('detailStatusChevron');
       if (ch) ch.style.transform = '';
-      return;
-    }
+    };
+
+    if (item.orderStatus === statusId) { closePanel(); return; }
+
+    const wasDone = item.orderStatus === 'done';
+    const becomesDone = statusId === 'done';
+
     await this.db.saveItem({ ...item, orderStatus: statusId });
     const st = statusById(statusId);
     await this.db.logAction('item_edit',
       `Статус изменён: «${item.name}» → ${st.label}`,
       { id, status: statusId }
     );
-    await this.loadData();
 
+    // Update cache without refetch
+    const cached = this.items.find(i => i.id === id);
+    if (cached) cached.orderStatus = statusId;
+
+    // Update detail modal badge in-place
     const badge = document.getElementById('detailStatusBadge');
     if (badge) { badge.className = `status-badge ${statusId}`; badge.textContent = st.label; }
-
     document.querySelectorAll('#quickStatusPanel .quick-status-btn').forEach(btn =>
       btn.classList.toggle('active', btn.dataset.qstatus === statusId)
     );
-    document.getElementById('quickStatusPanel')?.classList.add('hidden');
-    const ch = document.getElementById('detailStatusChevron');
-    if (ch) ch.style.transform = '';
+    closePanel();
 
-    this.renderInventoryList();
+    if (wasDone !== becomesDone) {
+      // Archive section changes — need full re-render
+      await this.loadData();
+      this.renderInventoryList();
+    } else {
+      // Just patch the badge on the card — no skeleton flash
+      const card = document.querySelector(`.item-card[data-id="${id}"]`);
+      if (card) {
+        const cardBadge = card.querySelector('.status-badge');
+        if (cardBadge) { cardBadge.className = `status-badge ${statusId}`; cardBadge.textContent = st.label; }
+      }
+    }
+
     this.toast(`Статус: ${st.label} ✓`);
   }
 
@@ -642,7 +661,7 @@ class App {
 
     /* Reset */
     ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost'].forEach(k => document.getElementById(k).value = '');
-    document.getElementById('fieldIsMonarc').checked = false;
+    document.getElementById('fieldIsMonarc').checked = !id && this._filterMonarc;
     document.getElementById('totalDisplay').textContent = '0 ₽';
     document.getElementById('marginDisplay').textContent = '—';
     document.getElementById('marginDisplay').style.color = 'var(--text2)';

@@ -812,7 +812,8 @@ html, body {
 }
 .quick-status-btn {
   background: none; border: none; cursor: pointer;
-  padding: 3px; border-radius: 100px; line-height: 0;
+  padding: 3px; border-radius: 100px;
+  display: flex; align-items: center;
   transition: opacity .12s; flex-shrink: 0;
 }
 .quick-status-btn:active { opacity: .6; }
