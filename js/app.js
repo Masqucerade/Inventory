@@ -426,15 +426,15 @@ class App {
       const word = n === 1 ? 'товар' : (n < 5 ? 'товара' : 'товаров');
       html += `
         <div class="archive-section">
-          <button class="archive-toggle" id="archiveToggle">
+          <button class="archive-toggle" id="archiveToggle" type="button">
             <span>Архив · ${n} ${word}</span>
             <svg class="archive-chevron${this._archiveOpen ? ' open' : ''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </button>
-          ${this._archiveOpen
-            ? `<div class="items-list">${archivedItems.map((item, idx) => this._itemCardHtml(item, idx, ownerMap)).join('')}</div>`
-            : ''}
+          <div id="archiveListWrap"${this._archiveOpen ? '' : ' class="hidden"'}>
+            <div class="items-list">${archivedItems.map((item, idx) => this._itemCardHtml(item, idx, ownerMap)).join('')}</div>
+          </div>
         </div>`;
     }
 
@@ -442,7 +442,8 @@ class App {
 
     document.getElementById('archiveToggle')?.addEventListener('click', () => {
       this._archiveOpen = !this._archiveOpen;
-      this.renderInventoryList();
+      document.getElementById('archiveListWrap')?.classList.toggle('hidden', !this._archiveOpen);
+      document.querySelector('#archiveToggle .archive-chevron')?.classList.toggle('open', this._archiveOpen);
     });
   }
 
