@@ -487,7 +487,14 @@ class App {
             <div class="item-name">${this.esc(item.name)}</div>
             <div class="item-type-size">${this.esc(item.type)}</div>
           </div>
-          <span class="status-badge ${item.orderStatus}">${st.label}</span>
+          <div class="item-top-badges">
+            <span class="status-badge ${item.orderStatus}">${st.label}</span>
+            ${item.isForSale ? `<span class="sale-tag">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>Продаётся</span>` : ''}
+          </div>
         </div>
         <div class="item-meta">
           ${owner ? `<span class="item-owner-tag"><span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}</span>` : ''}
@@ -546,6 +553,13 @@ class App {
         ? `<span style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
              <span style="width:8px;height:8px;border-radius:50%;background:${owner.color};display:inline-block;flex-shrink:0"></span>
              ${this.esc(owner.name)}</span>`
+        : '—'],
+      ['На продаже', item.isForSale
+        ? `<span class="sale-tag" style="font-size:11px">
+             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+               <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+               <line x1="7" y1="7" x2="7.01" y2="7"/>
+             </svg>Продаётся</span>`
         : '—'],
       ['Создан', this.fmtDate(item.createdAt)],
     ].map(([k,v]) =>
@@ -673,7 +687,8 @@ class App {
 
     /* Reset */
     ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost'].forEach(k => document.getElementById(k).value = '');
-    document.getElementById('fieldIsMonarc').checked = !id && this._filterMonarc;
+    document.getElementById('fieldIsMonarc').checked  = !id && this._filterMonarc;
+    document.getElementById('fieldIsForSale').checked = false;
     document.getElementById('totalDisplay').textContent = '0 ₽';
     document.getElementById('marginDisplay').textContent = '—';
     document.getElementById('marginDisplay').style.color = 'var(--text2)';
@@ -697,7 +712,8 @@ class App {
         document.getElementById('fieldBuyPrice').value      = item.buyPrice     || '';
         document.getElementById('fieldDeliveryCost').value  = item.deliveryCost || '';
         document.getElementById('fieldNotes').value = item.notes || '';
-        document.getElementById('fieldIsMonarc').checked = !!item.isMonarc;
+        document.getElementById('fieldIsMonarc').checked  = !!item.isMonarc;
+        document.getElementById('fieldIsForSale').checked = !!item.isForSale;
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'ordered';
         this._sizes = item.sizes?.length > 0
@@ -870,6 +886,7 @@ class App {
       ownerId:     this._selOwner  || null,
       orderStatus: this._selStatus || 'ordered',
       isMonarc:    document.getElementById('fieldIsMonarc').checked,
+      isForSale:   document.getElementById('fieldIsForSale').checked,
       photo:       this.currentPhoto || null,
     };
 
