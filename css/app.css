@@ -967,6 +967,54 @@ html, body {
 }
 .pay-del:active { opacity: .5; }
 
+/* ─── Purchase Plans ─── */
+.plan-add-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 8px; border: 1px solid var(--sep);
+  background: none; color: var(--text2); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .12s; font-family: inherit;
+}
+.plan-add-btn:active { opacity: .6; }
+
+.plan-list {
+  background: var(--card); border: 1px solid var(--card-b);
+  border-radius: var(--r); overflow: hidden;
+}
+.plan-empty {
+  padding: 24px 16px; text-align: center;
+  font-size: 13px; color: var(--text3);
+}
+.plan-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 12px 11px 10px;
+  transition: background .12s; animation: cellIn .22s ease both;
+}
+.plan-item:not(:last-child) { border-bottom: 1px solid var(--sep2); }
+.plan-item.plan-done { opacity: .5; }
+
+.plan-check {
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 7px;
+  background: none; border: none; color: var(--text3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: color .15s;
+}
+.plan-check:active { opacity: .6; }
+.plan-item.plan-done .plan-check { color: #4ade80; }
+[data-theme="light"] .plan-item.plan-done .plan-check { color: #16a34a; }
+
+.plan-info { flex: 1; min-width: 0; }
+.plan-title {
+  font-size: 14px; font-weight: 500; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.plan-item.plan-done .plan-title { text-decoration: line-through; color: var(--text3); }
+.plan-note { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+.plan-amount {
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  flex-shrink: 0; letter-spacing: -0.3px;
+}
+
 /* =============================================
    UTILITY
    ============================================= */

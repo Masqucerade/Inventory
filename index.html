@@ -376,6 +376,37 @@
   </div>
 </div>
 
+<!-- Plan Modal -->
+<div class="modal" id="planModal">
+  <div class="modal-header">
+    <button class="modal-close" id="planModalClose">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+      </svg>
+    </button>
+    <span class="modal-title">Новый план</span>
+    <button class="modal-action-btn" id="planModalSave">Добавить</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-card">
+      <div class="form-group">
+        <label class="form-label">Что купить <span class="required">*</span></label>
+        <input type="text" id="planTitle" class="form-input" placeholder="Стеллажи, вешалки…" autocomplete="off">
+      </div>
+      <div class="form-divider"></div>
+      <div class="form-group">
+        <label class="form-label">Сумма (₽)</label>
+        <input type="number" id="planAmount" class="form-input" placeholder="0" min="0" inputmode="decimal">
+      </div>
+      <div class="form-divider"></div>
+      <div class="form-group">
+        <label class="form-label">Комментарий</label>
+        <input type="text" id="planNote" class="form-input" placeholder="Заметка…" autocomplete="off">
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast hidden" id="toast"></div>
 

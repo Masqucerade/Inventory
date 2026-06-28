@@ -321,6 +321,11 @@ class App {
     document.getElementById('paymentModalClose').addEventListener('click', () => this.closeModal('paymentModal'));
     document.getElementById('paymentModalSave').addEventListener('click', () => this.savePayment());
 
+    /* Plan modal */
+    document.getElementById('planModalClose').addEventListener('click', () => this.closeModal('planModal'));
+    document.getElementById('planModalSave').addEventListener('click', () => this.savePlan());
+    document.getElementById('planTitle').addEventListener('keydown', e => { if (e.key === 'Enter') this.savePlan(); });
+
     /* Owner modal */
     document.getElementById('ownerModalClose').addEventListener('click', () => this.closeModal('ownerModal'));
     document.getElementById('ownerModalSave').addEventListener('click', () => this.saveOwner());
@@ -886,9 +891,10 @@ class App {
      ────────────────────────────────────────── */
   async renderFinance() {
     const el = document.getElementById('financeContent');
-    const [payments, empPayments] = await Promise.all([
+    const [payments, empPayments, plans] = await Promise.all([
       this.db.getPayments(),
       this.owners.length ? this.db.getEmployeePayments() : Promise.resolve([]),
+      this.db.getPlans(),
     ]);
 
     const balance = payments.reduce((s, p) =>
@@ -936,6 +942,46 @@ class App {
          }).join('')}</div>`
       : '';
 
+    const pending  = plans.filter(p => !p.done);
+    const donePlans = plans.filter(p => p.done);
+    const allPlans  = [...pending, ...donePlans];
+
+    const planItemHtml = (p) => `
+      <div class="plan-item${p.done ? ' plan-done' : ''}" data-plan-id="${p.id}">
+        <button class="plan-check" data-plan-id="${p.id}" title="${p.done ? 'Отметить активным' : 'Отметить выполненным'}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
+            ${p.done
+              ? '<polyline points="20 6 9 17 4 12"/>'
+              : '<rect x="3" y="3" width="18" height="18" rx="3"/>'}
+          </svg>
+        </button>
+        <div class="plan-info">
+          <div class="plan-title">${this.esc(p.title)}</div>
+          ${p.note ? `<div class="plan-note">${this.esc(p.note)}</div>` : ''}
+        </div>
+        ${p.amount ? `<div class="plan-amount">${fmtMoney(p.amount)}</div>` : ''}
+        <button class="pay-del" data-plan-del="${p.id}">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>`;
+
+    const plansSectionHtml = `
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Планы закупок</span>
+        <button class="plan-add-btn" id="addPlanBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>Добавить
+        </button>
+      </div>
+      <div class="plan-list" id="planList">
+        ${allPlans.length
+          ? allPlans.map(planItemHtml).join('')
+          : `<div class="plan-empty">Нет планов — нажмите «Добавить»</div>`}
+      </div>`;
+
     el.innerHTML = `
       <div class="balance-card">
         <div class="balance-label">Баланс компании</div>
@@ -953,14 +999,16 @@ class App {
           </svg>Выставить счёт
         </button>
       </div>
+      ${plansSectionHtml}
       ${payHistHtml}
       ${empSectionHtml}
     `;
 
     document.getElementById('depositBtn').addEventListener('click', () => this.openPaymentModal('deposit'));
     document.getElementById('chargeBtn').addEventListener('click',  () => this.openPaymentModal('charge'));
+    document.getElementById('addPlanBtn').addEventListener('click', () => this.openPlanModal());
 
-    el.querySelectorAll('.pay-del').forEach(btn =>
+    el.querySelectorAll('.pay-del[data-id]').forEach(btn =>
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const ok = await this.confirm('Удалить эту запись?');
@@ -970,9 +1018,49 @@ class App {
       })
     );
 
+    el.querySelectorAll('[data-plan-del]').forEach(btn =>
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const ok = await this.confirm('Удалить план?');
+        if (!ok) return;
+        await this.db.deletePlan(btn.dataset.planDel);
+        this.renderFinance();
+      })
+    );
+
+    el.querySelectorAll('.plan-check').forEach(btn =>
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id   = btn.dataset.planId;
+        const item = btn.closest('.plan-item');
+        const done = !item.classList.contains('plan-done');
+        await this.db.patchPlan(id, { done });
+        this.renderFinance();
+      })
+    );
+
     el.querySelectorAll('.emp-bal-card').forEach(card =>
       card.addEventListener('click', () => this.openEmpModal(card.dataset.ownerId))
     );
+  }
+
+  openPlanModal() {
+    document.getElementById('planTitle').value  = '';
+    document.getElementById('planAmount').value = '';
+    document.getElementById('planNote').value   = '';
+    this.openModal('planModal');
+    setTimeout(() => document.getElementById('planTitle').focus(), 320);
+  }
+
+  async savePlan() {
+    const title = document.getElementById('planTitle').value.trim();
+    if (!title) { this.toast('Укажите название'); return; }
+    const amount = parseFloat(document.getElementById('planAmount').value) || 0;
+    const note   = document.getElementById('planNote').value.trim();
+    await this.db.addPlan({ title, amount: amount || null, note: note || null });
+    this.closeModal('planModal');
+    this.renderFinance();
+    this.toast('План добавлен ✓');
   }
 
   async openEmpModal(ownerId) {

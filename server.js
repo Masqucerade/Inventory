@@ -244,6 +244,36 @@ app.delete('/api/payments/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── PURCHASE PLANS ─── */
+app.get('/api/plans', (req, res) => {
+  res.json((load().plans || []).slice().reverse());
+});
+
+app.post('/api/plans', (req, res) => {
+  const db    = load();
+  const entry = { id: uid(), ...req.body, done: false, createdAt: new Date().toISOString() };
+  if (!db.plans) db.plans = [];
+  db.plans.push(entry);
+  save(db);
+  res.json(entry);
+});
+
+app.patch('/api/plans/:id', (req, res) => {
+  const db  = load();
+  const idx = (db.plans || []).findIndex(p => p.id === req.params.id);
+  if (idx < 0) return res.status(404).json({ error: 'Not found' });
+  db.plans[idx] = { ...db.plans[idx], ...req.body };
+  save(db);
+  res.json(db.plans[idx]);
+});
+
+app.delete('/api/plans/:id', (req, res) => {
+  const db = load();
+  db.plans = (db.plans || []).filter(p => p.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
 /* ─── EXPORT / IMPORT ─── */
 app.get('/api/export', (req, res) => {
   const db = load();
