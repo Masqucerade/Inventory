@@ -143,7 +143,7 @@ app.delete('/api/logs', (req, res) => {
 });
 
 /* ─── CSV для Google Sheets (=IMPORTDATA) ─── */
-const STATUS_RU = { ordered: 'Заказано', in_stock: 'В наличии', processing: 'В заказе', done: 'Завершено' };
+const STATUS_RU = { ordered: 'Заказано', in_stock: 'В наличии', processing: 'В заказе', waiting: 'Ожидается', done: 'Завершено' };
 const LOG_RU    = { item_add: 'Добавление', item_edit: 'Изменение', item_delete: 'Удаление',
                     owner_add: 'Владелец+', owner_edit: 'Владелец', owner_delete: 'Владелец-',
                     backup: 'Бэкап', restore: 'Восстановление', clear: 'Очистка' };

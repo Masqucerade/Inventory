@@ -8,6 +8,7 @@ const STATUSES = [
   { id: 'ordered',    label: 'Заказано',  icon: '📋', color: 'rgba(255,255,255,0.40)' },
   { id: 'in_stock',   label: 'В наличии', icon: '●',  color: '#4ade80' },
   { id: 'processing', label: 'В заказе',  icon: '○',  color: '#93c5fd' },
+  { id: 'waiting',    label: 'Ожидается', icon: '◎',  color: '#c4b5fd' },
   { id: 'done',       label: 'Завершено', icon: '✓',  color: 'rgba(255,255,255,0.22)' },
 ];
 
@@ -66,6 +67,9 @@ class App {
 
     this._selectMode   = false;
     this._selectedIds  = new Set();
+
+    this._filterMonarc = false;
+    this._archiveOpen  = false;
   }
 
   /* ──────────────────────────────────────────
@@ -156,8 +160,16 @@ class App {
 
     /* Owner filter chips (dynamic, delegated) */
     document.getElementById('ownerFilterChips').addEventListener('click', (e) => {
+      if (e.target.closest('[data-monarc]')) {
+        this._filterMonarc = true;
+        this.filterOwnerId = null;
+        this.renderOwnerFilterChips();
+        this.renderInventoryList();
+        return;
+      }
       const chip = e.target.closest('[data-owner]');
       if (!chip) return;
+      this._filterMonarc = false;
       this.filterOwnerId = chip.dataset.owner || null;
       this.renderOwnerFilterChips();
       this.renderInventoryList();
@@ -351,28 +363,45 @@ class App {
 
   renderOwnerFilterChips() {
     const el = document.getElementById('ownerFilterChips');
+    const allActive = !this.filterOwnerId && !this._filterMonarc;
     el.innerHTML =
-      `<button class="chip ${!this.filterOwnerId ? 'active' : ''}" data-owner="">Все</button>` +
+      `<button class="chip ${allActive ? 'active' : ''}" data-owner="">Все</button>` +
       this.owners.map(o => {
         const a = this.filterOwnerId === o.id;
         return `<button class="chip ${a ? 'active' : ''}" data-owner="${o.id}"
           ${a ? `style="background:${o.color};border-color:transparent;color:#fff"` : ''}>
           ${this.esc(o.name)}
         </button>`;
-      }).join('');
+      }).join('') +
+      `<button class="chip monarc-chip${this._filterMonarc ? ' active' : ''}" data-monarc="1">M Monarc</button>`;
   }
 
   async renderInventoryList() {
     const list = document.getElementById('inventoryList');
     list.innerHTML = '<div class="skeleton-wrap"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
 
-    const items = await this.db.getItems({
+    let items = await this.db.getItems({
       ownerId:     this.filterOwnerId || undefined,
       orderStatus: this.filterStatus  || undefined,
       search:      this.searchQuery   || undefined,
     });
 
-    if (!items.length) {
+    // Monarc isolation: hide Monarc items from normal view, show only in Monarc filter
+    if (this._filterMonarc) {
+      items = items.filter(i => i.isMonarc);
+    } else {
+      items = items.filter(i => !i.isMonarc);
+    }
+
+    // Archive split: done items go to collapsed section unless explicitly filtering by done
+    let activeItems   = items;
+    let archivedItems = [];
+    if (this.filterStatus !== 'done') {
+      activeItems   = items.filter(i => i.orderStatus !== 'done');
+      archivedItems = items.filter(i => i.orderStatus === 'done');
+    }
+
+    if (!activeItems.length && !archivedItems.length) {
       list.innerHTML = `
         <div class="empty-state">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".9">
@@ -386,46 +415,76 @@ class App {
     }
 
     const ownerMap = Object.fromEntries(this.owners.map(o => [o.id, o]));
-    list.innerHTML = `<div class="items-list">${items.map((item, idx) => {
-      const st    = statusById(item.orderStatus);
-      const owner = ownerMap[item.ownerId];
-      const thumb = item.photo
-        ? `<img src="${item.photo}" loading="lazy" alt="">`
-        : `<div class="item-thumb-placeholder">
-             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
-               <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-               <polyline points="21 15 16 10 5 21"/>
-             </svg>
-           </div>`;
+    let html = '';
 
-      const sizesArr  = item.sizes?.length > 0 ? item.sizes : (item.size ? [{size: item.size, qty: item.quantity||0}] : []);
-      const sizePills = sizesArr.filter(s => s.qty > 0 || s.size)
-        .map(s => `<span class="size-pill">${this.esc(s.size||'?')}${s.qty !== 1 ? ' ×'+s.qty : ''}</span>`).join('');
+    if (activeItems.length) {
+      html += `<div class="items-list">${activeItems.map((item, idx) => this._itemCardHtml(item, idx, ownerMap)).join('')}</div>`;
+    }
 
-      return `<div class="item-card${this._selectMode && this._selectedIds.has(item.id) ? ' selected' : ''}" data-id="${item.id}" style="animation-delay:${Math.min(idx*28,200)}ms">
-        <div class="item-thumb">${thumb}</div>
-        <div class="item-info">
-          <div class="item-top">
-            <div style="min-width:0">
-              <div class="item-name">${this.esc(item.name)}</div>
-              <div class="item-type-size">${this.esc(item.type)}</div>
-            </div>
-            <span class="status-badge ${item.orderStatus}">${st.label}</span>
+    if (archivedItems.length) {
+      const n    = archivedItems.length;
+      const word = n === 1 ? 'товар' : (n < 5 ? 'товара' : 'товаров');
+      html += `
+        <div class="archive-section">
+          <button class="archive-toggle" id="archiveToggle">
+            <span>Архив · ${n} ${word}</span>
+            <svg class="archive-chevron${this._archiveOpen ? ' open' : ''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          ${this._archiveOpen
+            ? `<div class="items-list">${archivedItems.map((item, idx) => this._itemCardHtml(item, idx, ownerMap)).join('')}</div>`
+            : ''}
+        </div>`;
+    }
+
+    list.innerHTML = html;
+
+    document.getElementById('archiveToggle')?.addEventListener('click', () => {
+      this._archiveOpen = !this._archiveOpen;
+      this.renderInventoryList();
+    });
+  }
+
+  _itemCardHtml(item, idx, ownerMap) {
+    const st    = statusById(item.orderStatus);
+    const owner = ownerMap[item.ownerId];
+    const thumb = item.photo
+      ? `<img src="${item.photo}" loading="lazy" alt="">`
+      : `<div class="item-thumb-placeholder">
+           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+             <polyline points="21 15 16 10 5 21"/>
+           </svg>
+         </div>`;
+
+    const sizesArr  = item.sizes?.length > 0 ? item.sizes : (item.size ? [{size: item.size, qty: item.quantity||0}] : []);
+    const sizePills = sizesArr.filter(s => s.qty > 0 || s.size)
+      .map(s => `<span class="size-pill">${this.esc(s.size||'?')}${s.qty !== 1 ? ' ×'+s.qty : ''}</span>`).join('');
+
+    return `<div class="item-card${this._selectMode && this._selectedIds.has(item.id) ? ' selected' : ''}" data-id="${item.id}" style="animation-delay:${Math.min(idx*28,200)}ms">
+      <div class="item-thumb">${thumb}</div>
+      <div class="item-info">
+        <div class="item-top">
+          <div style="min-width:0">
+            <div class="item-name">${this.esc(item.name)}</div>
+            <div class="item-type-size">${this.esc(item.type)}</div>
           </div>
-          <div class="item-meta">
-            ${owner ? `<span class="item-owner-tag"><span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}</span>` : ''}
-            ${sizePills || `<span class="size-pill">—</span>`}
-          </div>
-          ${item.notes ? `<div class="item-notes-preview">${this.esc(item.notes)}</div>` : ''}
-          ${item.price ? `
-          <div class="item-bottom">
-            <span class="item-price-unit">${fmtMoney(item.price)}${item.buyPrice ? ` <span class="item-buy-price">← ${fmtMoney(item.buyPrice)}${item.deliveryCost ? ` + ${fmtMoney(item.deliveryCost)}` : ''}</span>` : (item.deliveryCost ? ` <span class="item-buy-price">+ ${fmtMoney(item.deliveryCost)} дост.</span>` : '')}</span>
-            <span class="item-total-dim">${fmtMoney(item.total)}</span>
-          </div>` : ''}
-          ${this._selectMode ? '<div class="select-check"></div>' : ''}
+          <span class="status-badge ${item.orderStatus}">${st.label}</span>
         </div>
-      </div>`;
-    }).join('')}</div>`;
+        <div class="item-meta">
+          ${owner ? `<span class="item-owner-tag"><span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}</span>` : ''}
+          ${sizePills || `<span class="size-pill">—</span>`}
+        </div>
+        ${item.notes ? `<div class="item-notes-preview">${this.esc(item.notes)}</div>` : ''}
+        ${item.price ? `
+        <div class="item-bottom">
+          <span class="item-price-unit">${fmtMoney(item.price)}${item.buyPrice ? ` <span class="item-buy-price">← ${fmtMoney(item.buyPrice)}${item.deliveryCost ? ` + ${fmtMoney(item.deliveryCost)}` : ''}</span>` : (item.deliveryCost ? ` <span class="item-buy-price">+ ${fmtMoney(item.deliveryCost)} дост.</span>` : '')}</span>
+          <span class="item-total-dim">${fmtMoney(item.total)}</span>
+        </div>` : ''}
+        ${this._selectMode ? '<div class="select-check"></div>' : ''}
+      </div>
+    </div>`;
   }
 
   /* ──────────────────────────────────────────
@@ -449,39 +508,109 @@ class App {
           </div>`).join('')}
       </div>` : '';
 
-    const margin     = (item.price && item.buyPrice) ? item.price - item.buyPrice : null;
-    const marginStr  = margin !== null
+    const margin    = (item.price && item.buyPrice) ? item.price - item.buyPrice : null;
+    const marginStr = margin !== null
       ? `<span style="color:${margin >= 0 ? '#34d399' : '#f87171'}">${margin >= 0 ? '+' : ''}${fmtMoney(margin)}</span>`
       : '—';
 
-    const rows = [
-      ['Тип',           item.type          || '—'],
-      ['Цена закупа',   item.buyPrice      ? fmtMoney(item.buyPrice)      : '—'],
-      ['Доставка',      item.deliveryCost  ? fmtMoney(item.deliveryCost)  : '—'],
-      ['Цена продажи',  item.price         ? fmtMoney(item.price)         : '—'],
-      ['Маржа / шт',    marginStr],
-      ['Итого',         fmtMoney(item.total), 'big'],
-      ['Статус',   `<span class="status-badge ${item.orderStatus}">${st.label}</span>`],
+    const priceRows = [
+      ['Тип',          item.type         || '—'],
+      ['Цена закупа',  item.buyPrice     ? fmtMoney(item.buyPrice)     : '—'],
+      ['Доставка',     item.deliveryCost ? fmtMoney(item.deliveryCost) : '—'],
+      ['Цена продажи', item.price        ? fmtMoney(item.price)        : '—'],
+      ['Маржа / шт',   marginStr],
+      ['Итого',        fmtMoney(item.total), 'big'],
+    ].map(([k,v,c]) =>
+      `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val ${c||''}">${v}</span></div>`
+    ).join('');
+
+    const metaRows = [
       ['Владелец', owner
         ? `<span style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
              <span style="width:8px;height:8px;border-radius:50%;background:${owner.color};display:inline-block;flex-shrink:0"></span>
              ${this.esc(owner.name)}</span>`
         : '—'],
-      ['Создан',   this.fmtDate(item.createdAt)],
-    ].map(([k,v,c]) =>
-      `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val ${c||''}">${v}</span></div>`
+      ['Создан', this.fmtDate(item.createdAt)],
+    ].map(([k,v]) =>
+      `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`
     ).join('');
 
     document.getElementById('detailModalTitle').textContent = item.name;
     document.getElementById('detailModalBody').innerHTML = `
       ${item.photo ? `<img src="${item.photo}" class="detail-photo" alt="">` : ''}
       ${sizesCard}
-      <div class="detail-card">${rows}</div>
+      <div class="detail-card">${priceRows}</div>
+      <div class="detail-card">
+        <div class="detail-row detail-status-row" id="detailStatusRow" style="cursor:pointer">
+          <span class="detail-key">Статус</span>
+          <span class="detail-val" style="display:flex;align-items:center;gap:8px">
+            <span class="status-badge ${item.orderStatus}" id="detailStatusBadge">${st.label}</span>
+            <svg id="detailStatusChevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--text3);flex-shrink:0;transition:transform .2s">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </span>
+        </div>
+        <div class="quick-status-panel hidden" id="quickStatusPanel">
+          ${STATUSES.map(s =>
+            `<button class="quick-status-btn${s.id === item.orderStatus ? ' active' : ''}" data-qstatus="${s.id}">
+               <span class="status-badge ${s.id}" style="pointer-events:none">${s.label}</span>
+             </button>`
+          ).join('')}
+        </div>
+        ${metaRows}
+      </div>
       ${item.notes ? `<div class="detail-notes">${this.esc(item.notes)}</div>` : ''}
       <button class="detail-delete-btn" id="detailDeleteBtn">Удалить товар</button>
     `;
+
     document.getElementById('detailDeleteBtn').addEventListener('click', () => this.deleteItem(id));
+
+    document.getElementById('detailStatusRow').addEventListener('click', () => {
+      const panel   = document.getElementById('quickStatusPanel');
+      const chevron = document.getElementById('detailStatusChevron');
+      const opening = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden');
+      if (chevron) chevron.style.transform = opening ? 'rotate(180deg)' : '';
+    });
+
+    document.getElementById('quickStatusPanel').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-qstatus]');
+      if (!btn) return;
+      await this.quickSetStatus(id, btn.dataset.qstatus);
+    });
+
     this.openModal('detailModal');
+  }
+
+  async quickSetStatus(id, statusId) {
+    const item = this.items.find(i => i.id === id) || await this.db.getItem(id);
+    if (!item) return;
+    if (item.orderStatus === statusId) {
+      document.getElementById('quickStatusPanel')?.classList.add('hidden');
+      const ch = document.getElementById('detailStatusChevron');
+      if (ch) ch.style.transform = '';
+      return;
+    }
+    await this.db.saveItem({ ...item, orderStatus: statusId });
+    const st = statusById(statusId);
+    await this.db.logAction('item_edit',
+      `Статус изменён: «${item.name}» → ${st.label}`,
+      { id, status: statusId }
+    );
+    await this.loadData();
+
+    const badge = document.getElementById('detailStatusBadge');
+    if (badge) { badge.className = `status-badge ${statusId}`; badge.textContent = st.label; }
+
+    document.querySelectorAll('#quickStatusPanel .quick-status-btn').forEach(btn =>
+      btn.classList.toggle('active', btn.dataset.qstatus === statusId)
+    );
+    document.getElementById('quickStatusPanel')?.classList.add('hidden');
+    const ch = document.getElementById('detailStatusChevron');
+    if (ch) ch.style.transform = '';
+
+    this.renderInventoryList();
+    this.toast(`Статус: ${st.label} ✓`);
   }
 
   async deleteItem(id) {
@@ -508,6 +637,7 @@ class App {
 
     /* Reset */
     ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost'].forEach(k => document.getElementById(k).value = '');
+    document.getElementById('fieldIsMonarc').checked = false;
     document.getElementById('totalDisplay').textContent = '0 ₽';
     document.getElementById('marginDisplay').textContent = '—';
     document.getElementById('marginDisplay').style.color = 'var(--text2)';
@@ -531,6 +661,7 @@ class App {
         document.getElementById('fieldBuyPrice').value      = item.buyPrice     || '';
         document.getElementById('fieldDeliveryCost').value  = item.deliveryCost || '';
         document.getElementById('fieldNotes').value = item.notes || '';
+        document.getElementById('fieldIsMonarc').checked = !!item.isMonarc;
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'ordered';
         this._sizes = item.sizes?.length > 0
@@ -702,6 +833,7 @@ class App {
       notes:       document.getElementById('fieldNotes').value.trim(),
       ownerId:     this._selOwner  || null,
       orderStatus: this._selStatus || 'ordered',
+      isMonarc:    document.getElementById('fieldIsMonarc').checked,
       photo:       this.currentPhoto || null,
     };
 
