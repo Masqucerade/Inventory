@@ -398,14 +398,14 @@ class App {
     const allActive = !this.filterOwnerId && !this._filterMonarc;
     el.innerHTML =
       `<button class="chip ${allActive ? 'active' : ''}" data-owner="">Все</button>` +
+      `<button class="chip monarc-chip${this._filterMonarc ? ' active' : ''}" data-monarc="1">Monarc</button>` +
       this.owners.map(o => {
         const a = this.filterOwnerId === o.id;
         return `<button class="chip ${a ? 'active' : ''}" data-owner="${o.id}"
           ${a ? `style="background:${o.color};border-color:transparent;color:#fff"` : ''}>
           ${this.esc(o.name)}
         </button>`;
-      }).join('') +
-      `<button class="chip monarc-chip${this._filterMonarc ? ' active' : ''}" data-monarc="1">Monarc</button>`;
+      }).join('');
   }
 
   async renderInventoryList() {
