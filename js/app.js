@@ -6,9 +6,8 @@
 /* ── Constants ── */
 const STATUSES = [
   { id: 'ordered',    label: 'Заказано',  icon: '📋', color: 'rgba(255,255,255,0.40)' },
-  { id: 'in_stock',   label: 'В наличии',  icon: '●',  color: '#4ade80' },
-  { id: 'published',  label: 'Опубликовано', icon: '◆', color: '#fbbf24' },
-  { id: 'processing', label: 'В заказе',   icon: '○',  color: '#93c5fd' },
+  { id: 'in_stock',   label: 'В наличии', icon: '●',  color: '#4ade80' },
+  { id: 'processing', label: 'В заказе',  icon: '○',  color: '#93c5fd' },
   { id: 'waiting',    label: 'Ожидается', icon: '◎',  color: '#c4b5fd' },
   { id: 'done',       label: 'Завершено', icon: '✓',  color: 'rgba(255,255,255,0.22)' },
 ];
