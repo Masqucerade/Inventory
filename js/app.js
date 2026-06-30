@@ -301,7 +301,10 @@ class App {
     });
 
     /* FAB */
-    document.getElementById('fabBtn').addEventListener('click', () => this.openItemModal());
+    document.getElementById('fabBtn').addEventListener('click', () => {
+      if (this.currentView === 'settings') this.openFaqModal();
+      else this.openItemModal();
+    });
 
     /* Hamburger menu */
     document.getElementById('menuBtn').addEventListener('click', () => this.toggleMenu());
@@ -512,6 +515,10 @@ class App {
     document.getElementById('planModalSave').addEventListener('click', () => this.savePlan());
     document.getElementById('planTitle').addEventListener('keydown', e => { if (e.key === 'Enter') this.savePlan(); });
 
+    /* FAQ modal */
+    document.getElementById('faqModalClose').addEventListener('click', () => this.closeModal('faqModal'));
+    document.getElementById('faqModalSave').addEventListener('click', () => this.saveFaqItem());
+
     /* Owner modal */
     document.getElementById('ownerModalClose').addEventListener('click', () => this.closeModal('ownerModal'));
     document.getElementById('ownerModalSave').addEventListener('click', () => this.saveOwner());
@@ -545,13 +552,13 @@ class App {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`view-${view}`)?.classList.add('active');
     document.querySelector(`.nav-btn[data-view="${view}"]`)?.classList.add('active');
-    document.getElementById('fabBtn').classList.toggle('hidden', view !== 'inventory');
+    document.getElementById('fabBtn').classList.toggle('hidden', view !== 'inventory' && view !== 'settings');
 
     switch (view) {
       case 'inventory': this.renderInventoryView(); break;
       case 'stats':     this.renderStats();         break;
       case 'finance':   this.renderFinance();       break;
-      case 'settings':  this.renderSettings();      break;
+      case 'settings':  this.renderFaq();            break;
     }
   }
 
@@ -1667,6 +1674,85 @@ class App {
         </svg>
         <p>Настройки доступны через меню ☰ в шапке</p>
       </div>`;
+  }
+
+  /* ──────────────────────────────────────────
+     FAQ
+     ────────────────────────────────────────── */
+  async renderFaq() {
+    const el    = document.getElementById('settingsContent');
+    if (!el) return;
+    const items = await this.db.getFaqItems();
+
+    if (!items.length) {
+      el.innerHTML = `
+        <div class="faq-empty">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <circle cx="12" cy="10" r="3"/>
+            <path d="M12 2a8 8 0 0 1 8 8c0 4-5 10-8 12C9 20 4 14 4 10a8 8 0 0 1 8-8z"/>
+          </svg>
+          <p>Нет топиков — нажмите + чтобы добавить</p>
+        </div>`;
+      return;
+    }
+
+    el.innerHTML = `<div class="faq-list">${items.map(item => `
+      <div class="faq-item" data-faq-id="${item.id}">
+        <div class="faq-head">
+          <span class="faq-title">${this.esc(item.title)}</span>
+          <svg class="faq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+        <div class="faq-body">
+          <div class="faq-text">${this.esc(item.body || '').replace(/\n/g, '<br>')}</div>
+          <button class="faq-delete" data-faq-id="${item.id}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+            Удалить
+          </button>
+        </div>
+      </div>`).join('')}
+    </div>`;
+
+    el.querySelectorAll('.faq-head').forEach(head => {
+      head.addEventListener('click', () => {
+        head.closest('.faq-item').classList.toggle('open');
+      });
+    });
+
+    el.querySelectorAll('.faq-delete').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        this.deleteFaqItem(btn.dataset.faqId);
+      });
+    });
+  }
+
+  openFaqModal() {
+    document.getElementById('faqTitle').value = '';
+    document.getElementById('faqBody').value  = '';
+    this.openModal('faqModal');
+    setTimeout(() => document.getElementById('faqTitle').focus(), 350);
+  }
+
+  async saveFaqItem() {
+    const title = document.getElementById('faqTitle').value.trim();
+    const body  = document.getElementById('faqBody').value.trim();
+    if (!title) { this.toast('Введите заголовок'); return; }
+    await this.db.addFaqItem({ title, body });
+    this.closeModal('faqModal');
+    this.renderFaq();
+    this.toast('Топик добавлен ✓');
+  }
+
+  async deleteFaqItem(id) {
+    const ok = await this.confirm('Удалить этот топик?');
+    if (!ok) return;
+    await this.db.deleteFaqItem(id);
+    this.renderFaq();
   }
 
   /* ──────────────────────────────────────────

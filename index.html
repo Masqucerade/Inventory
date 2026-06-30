@@ -95,7 +95,7 @@
   <!-- ═══ SETTINGS VIEW ═══ -->
   <div id="view-settings" class="view">
     <div class="view-header simple-header">
-      <h1 class="view-title">Настройки</h1>
+      <h1 class="view-title">FAQ</h1>
     </div>
     <div class="view-body" id="settingsContent"></div>
   </div>
@@ -124,10 +124,11 @@
     </button>
     <button class="nav-btn" data-view="settings">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        <circle cx="12" cy="10" r="3"/>
+        <path d="M12 2a8 8 0 0 1 8 8c0 4-5 10-8 12C9 20 4 14 4 10a8 8 0 0 1 8-8z"/>
+        <line x1="12" y1="16" x2="12" y2="16.5" stroke-linecap="round" stroke-width="2.5"/>
       </svg>
-      <span class="nav-label">Настройки</span>
+      <span class="nav-label">FAQ</span>
     </button>
   </nav>
 
@@ -428,6 +429,29 @@
 
 <input type="file" id="restoreFileInput" accept=".json" hidden>
 
+  <!-- ═══ FAQ MODAL ═══ -->
+  <div class="modal" id="faqModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <button class="modal-back" id="faqModalClose">
+          <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+        <span class="modal-title" id="faqModalTitle">Новый топик</span>
+        <button class="modal-save" id="faqModalSave">Сохранить</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Заголовок</label>
+          <input type="text" class="form-input" id="faqTitle" placeholder="Например: Как добавить товар">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Текст</label>
+          <textarea class="form-input form-textarea" id="faqBody" placeholder="Подробное описание…" rows="7"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <!-- Toast -->
 <div class="toast hidden" id="toast"></div>
 
@@ -442,8 +466,8 @@
   </div>
 </div>
 
-<script src="js/db.js"></script>
-<script src="js/backup.js"></script>
-<script src="js/app.js"></script>
+<script src="js/db.js?v=2"></script>
+<script src="js/backup.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
 </body>
 </html>

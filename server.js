@@ -310,6 +310,27 @@ app.delete('/api/plans/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── FAQ ─── */
+app.get('/api/faq', (req, res) => {
+  res.json((load().faq || []));
+});
+
+app.post('/api/faq', (req, res) => {
+  const db    = load();
+  const entry = { id: uid(), createdAt: new Date().toISOString(), ...req.body };
+  if (!db.faq) db.faq = [];
+  db.faq.push(entry);
+  save(db);
+  res.json(entry);
+});
+
+app.delete('/api/faq/:id', (req, res) => {
+  const db = load();
+  db.faq = (db.faq || []).filter(f => f.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
 /* ─── EXPORT / IMPORT ─── */
 app.get('/api/export', (req, res) => {
   const db = load();
