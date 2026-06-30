@@ -2144,7 +2144,6 @@ class App {
       return;
     }
     document.getElementById('saleBuyPrice').value     = opt.dataset.buy      || '0';
-    document.getElementById('saleSalePrice').value    = opt.dataset.price    || '0';
     document.getElementById('saleDeliveryCost').value = opt.dataset.delivery || '0';
 
     let sizes = [];
