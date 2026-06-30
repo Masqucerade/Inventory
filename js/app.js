@@ -1165,7 +1165,12 @@ class App {
                <div class="pay-desc">${this.esc(p.desc || defaultDesc)}</div>
                <div class="pay-time">${this.fmtDate(p.ts)}</div>
              </div>
-             <div class="pay-amount ${cls}">${isCredit ? '+' : '−'}${fmtMoney(p.amount)}</div>
+             ${isExpense
+               ? `<div class="pay-amount-col">
+                    <div class="pay-amount expense">+${fmtMoney(p.amount)}</div>
+                    <div class="pay-return-label">↩ вернуть</div>
+                  </div>`
+               : `<div class="pay-amount ${cls}">${isCredit ? '+' : '−'}${fmtMoney(p.amount)}</div>`}
              <button class="pay-del" data-id="${p.id}">
                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

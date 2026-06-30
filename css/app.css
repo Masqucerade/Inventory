@@ -922,6 +922,15 @@ html, body {
 [data-theme="light"] .pay-icon.expense   { color: #b45309; }
 [data-theme="light"] .pay-amount.expense { color: #b45309; }
 
+.pay-amount-col { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.pay-return-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.2px;
+  color: #fbbf24; background: rgba(251,191,36,0.10);
+  border: 1px solid rgba(251,191,36,0.25);
+  border-radius: 4px; padding: 1px 5px;
+}
+[data-theme="light"] .pay-return-label { color: #b45309; background: rgba(180,83,9,.07); border-color: rgba(180,83,9,.22); }
+
 .emp-bal-split {
   display: flex; gap: 12px; justify-content: center;
   margin-top: 6px; font-size: 11px; color: var(--text3);
