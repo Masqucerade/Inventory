@@ -71,6 +71,7 @@ class App {
     this._selectedIds  = new Set();
 
     this._filterMonarc      = false;
+    this._filterSale        = false;
     this._archiveOpen       = false;
     this._currentPayType    = 'deposit';
     this._currentEmpOwnerId = null;
@@ -367,6 +368,13 @@ class App {
       this.renderInventoryList();
     });
 
+    /* Sale filter */
+    document.getElementById('saleFilterBtn').addEventListener('click', () => {
+      this._filterSale = !this._filterSale;
+      document.getElementById('saleFilterBtn').classList.toggle('active', this._filterSale);
+      this.renderInventoryList();
+    });
+
     /* Inventory list item click (delegated) */
     document.getElementById('inventoryList').addEventListener('click', (e) => {
       const card = e.target.closest('.item-card');
@@ -613,6 +621,9 @@ class App {
     } else {
       items = items.filter(i => !i.isMonarc);
     }
+
+    // Sale filter
+    if (this._filterSale) items = items.filter(i => i.isForSale);
 
     // Archive split: done items go to collapsed section unless explicitly filtering by done
     let activeItems   = items;

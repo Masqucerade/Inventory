@@ -1073,6 +1073,23 @@ html, body {
 }
 .sort-dir-btn:active { opacity: .6; }
 
+/* ─── Sale filter button ─── */
+.chips-row {
+  display: flex; align-items: center; gap: 0;
+  overflow: hidden;
+}
+.chips-row .chips-scroll { flex: 1; min-width: 0; }
+
+.sale-filter-btn {
+  flex-shrink: 0; width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; cursor: pointer;
+  color: var(--text3); transition: color .15s;
+  padding-right: 10px;
+}
+.sale-filter-btn.active { color: #fbbf24; }
+.sale-filter-btn svg { display: block; }
+
 /* ─── Hamburger menu dropdown ─── */
 .inv-header { position: relative; overflow: visible; }
 
