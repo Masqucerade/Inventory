@@ -1197,6 +1197,64 @@ html, body {
 .faq-delete:active { opacity: .6; }
 [data-theme="light"] .faq-delete { border-color: rgba(220,38,38,.25); background: rgba(220,38,38,.06); color: #dc2626; }
 
+/* ─── Script lines in FAQ modal form ─── */
+.faq-lines-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.faq-add-line-btn {
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  color: var(--text2); background: var(--fill2);
+  border: 1px solid var(--sep); border-radius: 8px;
+  padding: 5px 10px; cursor: pointer; transition: all .15s;
+}
+.faq-add-line-btn:active { opacity: .6; }
+
+.faq-line-row {
+  margin-bottom: 8px;
+  background: var(--fill); border: 1px solid var(--sep);
+  border-radius: 12px; padding: 10px 10px 8px;
+}
+.faq-line-label { margin-bottom: 6px; font-size: 12px; }
+.faq-line-text-wrap { position: relative; }
+.faq-line-text { padding-right: 36px !important; resize: none; }
+.faq-line-remove {
+  position: absolute; top: 8px; right: 8px;
+  width: 22px; height: 22px; border-radius: 6px;
+  border: none; background: var(--fill2); color: var(--text3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s;
+}
+.faq-line-remove:active { opacity: .6; }
+
+/* ─── Script lines in FAQ view ─── */
+.faq-script { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 8px; }
+.faq-script-line { display: flex; flex-direction: column; gap: 4px; }
+.faq-script-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .5px;
+  text-transform: uppercase; color: var(--text3); padding-left: 2px;
+}
+.faq-script-row {
+  display: flex; align-items: stretch;
+  background: var(--fill); border: 1px solid var(--sep);
+  border-radius: 11px; overflow: hidden;
+}
+.faq-script-text {
+  flex: 1; padding: 10px 12px;
+  font-size: 13px; line-height: 1.55; color: var(--text);
+  word-break: break-word; white-space: pre-wrap;
+}
+.faq-copy-btn {
+  flex-shrink: 0; width: 42px;
+  border: none; border-left: 1px solid var(--sep);
+  background: none; color: var(--text3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s;
+}
+.faq-copy-btn:active { background: var(--fill2); }
+.faq-copy-btn.copied { color: #4ade80; background: rgba(74,222,128,.08); }
+[data-theme="light"] .faq-copy-btn.copied { color: #16a34a; background: rgba(22,163,74,.08); }
+
 /* =============================================
    UTILITY
    ============================================= */

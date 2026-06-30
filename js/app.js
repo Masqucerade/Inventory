@@ -526,6 +526,11 @@ class App {
     /* FAQ modal */
     document.getElementById('faqModalClose').addEventListener('click', () => this.closeModal('faqModal'));
     document.getElementById('faqModalSave').addEventListener('click', () => this.saveFaqItem());
+    document.getElementById('faqAddLineBtn').addEventListener('click', () => this._addFaqLine());
+    document.getElementById('faqLinesList').addEventListener('click', (e) => {
+      const rm = e.target.closest('.faq-line-remove');
+      if (rm) rm.closest('.faq-line-row').remove();
+    });
 
     /* Owner modal */
     document.getElementById('ownerModalClose').addEventListener('click', () => this.closeModal('ownerModal'));
@@ -1699,15 +1704,33 @@ class App {
       el.innerHTML = `
         <div class="faq-empty">
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-            <circle cx="12" cy="10" r="3"/>
-            <path d="M12 2a8 8 0 0 1 8 8c0 4-5 10-8 12C9 20 4 14 4 10a8 8 0 0 1 8-8z"/>
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17" stroke-linecap="round" stroke-width="2.5"/>
           </svg>
           <p>Нет топиков — нажмите + чтобы добавить</p>
         </div>`;
       return;
     }
 
-    el.innerHTML = `<div class="faq-list">${items.map(item => `
+    const svgCopy = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+    const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
+    el.innerHTML = `<div class="faq-list">${items.map(item => {
+      const lines = (item.lines || []).filter(l => l.text?.trim());
+      const linesHtml = lines.length ? `
+        <div class="faq-script">
+          ${lines.map((l, i) => `
+            <div class="faq-script-line">
+              ${l.label ? `<div class="faq-script-label">${this.esc(l.label)}</div>` : ''}
+              <div class="faq-script-row">
+                <div class="faq-script-text">${this.esc(l.text)}</div>
+                <button class="faq-copy-btn" data-text="${this.esc(l.text)}" title="Копировать">${svgCopy}</button>
+              </div>
+            </div>`).join('')}
+        </div>` : '';
+
+      return `
       <div class="faq-item" data-faq-id="${item.id}">
         <div class="faq-head">
           <span class="faq-title">${this.esc(item.title)}</span>
@@ -1716,35 +1739,63 @@ class App {
           </svg>
         </div>
         <div class="faq-body">
-          <div class="faq-text">${this.esc(item.body || '').replace(/\n/g, '<br>')}</div>
-          <button class="faq-delete" data-faq-id="${item.id}">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-              <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-            </svg>
-            Удалить
-          </button>
+          ${item.body ? `<div class="faq-text">${this.esc(item.body).replace(/\n/g, '<br>')}</div>` : ''}
+          ${linesHtml}
+          <button class="faq-delete" data-faq-id="${item.id}">${svgDel} Удалить</button>
         </div>
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
     </div>`;
 
     el.querySelectorAll('.faq-head').forEach(head => {
-      head.addEventListener('click', () => {
-        head.closest('.faq-item').classList.toggle('open');
+      head.addEventListener('click', () => head.closest('.faq-item').classList.toggle('open'));
+    });
+
+    el.querySelectorAll('.faq-copy-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const text = btn.dataset.text;
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        btn.classList.add('copied');
+        setTimeout(() => btn.classList.remove('copied'), 1500);
+        this.toast('Скопировано ✓');
       });
     });
 
     el.querySelectorAll('.faq-delete').forEach(btn => {
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        this.deleteFaqItem(btn.dataset.faqId);
-      });
+      btn.addEventListener('click', e => { e.stopPropagation(); this.deleteFaqItem(btn.dataset.faqId); });
     });
+  }
+
+  _addFaqLine(label = '', text = '') {
+    const list = document.getElementById('faqLinesList');
+    const row  = document.createElement('div');
+    row.className = 'faq-line-row';
+    row.innerHTML = `
+      <input class="form-input faq-line-label" placeholder="Пометка (необяз.)" value="${this.esc(label)}" autocomplete="off">
+      <div class="faq-line-text-wrap">
+        <textarea class="form-input faq-line-text" placeholder="Текст сообщения…" rows="2">${this.esc(text)}</textarea>
+        <button class="faq-line-remove" type="button" title="Удалить строку">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>`;
+    list.appendChild(row);
+    row.querySelector('.faq-line-text').focus();
   }
 
   openFaqModal() {
     document.getElementById('faqTitle').value = '';
     document.getElementById('faqBody').value  = '';
+    document.getElementById('faqLinesList').innerHTML = '';
     this.openModal('faqModal');
     setTimeout(() => document.getElementById('faqTitle').focus(), 350);
   }
@@ -1753,7 +1804,13 @@ class App {
     const title = document.getElementById('faqTitle').value.trim();
     const body  = document.getElementById('faqBody').value.trim();
     if (!title) { this.toast('Введите заголовок'); return; }
-    await this.db.addFaqItem({ title, body });
+
+    const lines = [...document.querySelectorAll('#faqLinesList .faq-line-row')].map(row => ({
+      label: row.querySelector('.faq-line-label').value.trim(),
+      text:  row.querySelector('.faq-line-text').value.trim(),
+    })).filter(l => l.text);
+
+    await this.db.addFaqItem({ title, body, lines });
     this.closeModal('faqModal');
     this.renderFaq();
     this.toast('Топик добавлен ✓');

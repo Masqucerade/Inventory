@@ -453,8 +453,15 @@
           <input type="text" class="form-input" id="faqTitle" placeholder="Например: Как добавить товар">
         </div>
         <div class="form-group">
-          <label class="form-label">Текст</label>
-          <textarea class="form-input form-textarea" id="faqBody" placeholder="Подробное описание…" rows="7"></textarea>
+          <label class="form-label">Текст (необязательно)</label>
+          <textarea class="form-input form-textarea" id="faqBody" placeholder="Краткое описание…" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <div class="faq-lines-header">
+            <label class="form-label" style="margin:0">Строки скрипта</label>
+            <button class="faq-add-line-btn" id="faqAddLineBtn" type="button">+ Добавить</button>
+          </div>
+          <div id="faqLinesList"></div>
         </div>
       </div>
     </div>
@@ -474,8 +481,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=4"></script>
-<script src="js/backup.js?v=4"></script>
-<script src="js/app.js?v=4"></script>
+<script src="js/db.js?v=5"></script>
+<script src="js/backup.js?v=5"></script>
+<script src="js/app.js?v=5"></script>
 </body>
 </html>
