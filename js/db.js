@@ -190,6 +190,15 @@ class InventoryDB {
     return r.json();
   }
 
+  async patchFaqItem(id, patch) {
+    const r = await fetch(`/api/faq/${id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(patch),
+    });
+    return r.json();
+  }
+
   async deleteFaqItem(id) {
     await fetch(`/api/faq/${id}`, { method: 'DELETE' });
   }

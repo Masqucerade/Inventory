@@ -1185,16 +1185,29 @@ html, body {
   white-space: pre-wrap; word-break: break-word;
 }
 
-.faq-delete {
-  display: flex; align-items: center; gap: 6px;
+.faq-actions {
+  display: flex; gap: 8px;
   margin: 0 16px 14px;
+}
+
+.faq-edit, .faq-delete {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 7px 12px; border-radius: 9px;
-  border: 1px solid rgba(239,68,68,.25);
-  background: rgba(239,68,68,.06);
-  color: #ef4444; font-family: inherit; font-size: 12px; font-weight: 500;
+  font-family: inherit; font-size: 12px; font-weight: 500;
   cursor: pointer; transition: all .15s;
 }
-.faq-delete:active { opacity: .6; }
+.faq-edit:active, .faq-delete:active { opacity: .6; }
+
+.faq-edit {
+  border: 1px solid var(--sep); background: var(--fill);
+  color: var(--text2);
+}
+
+.faq-delete {
+  border: 1px solid rgba(239,68,68,.25);
+  background: rgba(239,68,68,.06);
+  color: #ef4444;
+}
 [data-theme="light"] .faq-delete { border-color: rgba(220,38,38,.25); background: rgba(220,38,38,.06); color: #dc2626; }
 
 /* ─── Script lines in FAQ modal form ─── */

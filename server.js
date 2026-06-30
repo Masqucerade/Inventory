@@ -324,6 +324,15 @@ app.post('/api/faq', (req, res) => {
   res.json(entry);
 });
 
+app.patch('/api/faq/:id', (req, res) => {
+  const db  = load();
+  const idx = (db.faq || []).findIndex(f => f.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  db.faq[idx] = { ...db.faq[idx], ...req.body, id: req.params.id };
+  save(db);
+  res.json(db.faq[idx]);
+});
+
 app.delete('/api/faq/:id', (req, res) => {
   const db = load();
   db.faq = (db.faq || []).filter(f => f.id !== req.params.id);
