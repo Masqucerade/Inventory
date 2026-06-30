@@ -173,6 +173,36 @@ class InventoryDB {
     await fetch(`/api/plans/${id}`, { method: 'DELETE' });
   }
 
+  /* ─── TASKS ─── */
+  async getTasks() {
+    try { const r = await fetch('/api/tasks'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async addTask(task) {
+    const r = await fetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(task) });
+    return r.json();
+  }
+  async patchTask(id, patch) {
+    const r = await fetch(`/api/tasks/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) });
+    return r.json();
+  }
+  async deleteTask(id) { await fetch(`/api/tasks/${id}`, { method:'DELETE' }); }
+
+  /* ─── QUICK ACCESS ─── */
+  async getQuickItems() {
+    try { const r = await fetch('/api/quickaccess'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async addQuickItem(item) {
+    const r = await fetch('/api/quickaccess', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(item) });
+    return r.json();
+  }
+  async patchQuickItem(id, patch) {
+    const r = await fetch(`/api/quickaccess/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) });
+    return r.json();
+  }
+  async deleteQuickItem(id) { await fetch(`/api/quickaccess/${id}`, { method:'DELETE' }); }
+
   /* ─── PROJECT NOTES ─── */
   async getProjectNotes() {
     try {

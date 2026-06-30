@@ -72,6 +72,7 @@ class App {
 
     this._filterMonarc      = false;
     this._filterSale        = false;
+    this._projectSubTab     = 'tasks';
     this._archiveOpen       = false;
     this._currentPayType    = 'deposit';
     this._currentEmpOwnerId = null;
@@ -303,8 +304,10 @@ class App {
 
     /* FAB */
     document.getElementById('fabBtn').addEventListener('click', () => {
-      if (this.currentView === 'project')  this.openProjectModal();
-      else if (this.currentView === 'settings') this.openFaqModal();
+      if (this.currentView === 'project') {
+        if (this._projectSubTab === 'quick') this.openQuickModal();
+        else this.openTaskModal();
+      } else if (this.currentView === 'settings') this.openFaqModal();
       else this.openItemModal();
     });
 
@@ -525,8 +528,10 @@ class App {
     document.getElementById('planTitle').addEventListener('keydown', e => { if (e.key === 'Enter') this.savePlan(); });
 
     /* Project modal */
-    document.getElementById('projectModalClose').addEventListener('click', () => this.closeModal('projectModal'));
-    document.getElementById('projectModalSave').addEventListener('click', () => this.saveProjectNote());
+    document.getElementById('taskModalClose').addEventListener('click', () => this.closeModal('taskModal'));
+    document.getElementById('taskModalSave').addEventListener('click', () => this.saveTask());
+    document.getElementById('quickModalClose').addEventListener('click', () => this.closeModal('quickModal'));
+    document.getElementById('quickModalSave').addEventListener('click', () => this.saveQuickItem());
 
     /* FAQ modal */
     document.getElementById('faqModalClose').addEventListener('click', () => this.closeModal('faqModal'));
@@ -1699,96 +1704,180 @@ class App {
   }
 
   /* ──────────────────────────────────────────
-     PROJECT NOTES
+     PROJECT — sub-tabs
      ────────────────────────────────────────── */
-  async renderProject() {
+  renderProject() {
+    // wire sub-tab buttons once per render
+    document.querySelectorAll('.proj-subtab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.subtab === this._projectSubTab);
+      btn.onclick = () => {
+        this._projectSubTab = btn.dataset.subtab;
+        document.querySelectorAll('.proj-subtab').forEach(b =>
+          b.classList.toggle('active', b.dataset.subtab === this._projectSubTab));
+        this._renderProjectPane();
+      };
+    });
+    this._renderProjectPane();
+  }
+
+  _renderProjectPane() {
+    if (this._projectSubTab === 'tasks') this.renderProjectTasks();
+    else this.renderProjectQuick();
+  }
+
+  /* ── Задачи ── */
+  async renderProjectTasks() {
     const el    = document.getElementById('projectContent');
     if (!el) return;
-    const notes = await this.db.getProjectNotes();
+    const tasks = await this.db.getTasks();
 
-    if (!notes.length) {
-      el.innerHTML = `
-        <div class="faq-empty">
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-          <p>Нет записей — нажмите + чтобы добавить</p>
-        </div>`;
+    if (!tasks.length) {
+      el.innerHTML = `<div class="faq-empty">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        <p>Нет задач — нажмите + чтобы добавить</p>
+      </div>`;
       return;
     }
 
+    const svgDel = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
+    const todo = tasks.filter(t => !t.done);
+    const done = tasks.filter(t =>  t.done);
+    const render = list => list.map(t => `
+      <div class="task-item${t.done ? ' done' : ''}" data-task-id="${t.id}">
+        <button class="task-check" data-task-id="${t.id}" title="${t.done ? 'Отметить активной' : 'Выполнено'}">
+          ${t.done
+            ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
+            : ''}
+        </button>
+        <span class="task-text">${this.esc(t.text)}</span>
+        <button class="task-del" data-task-id="${t.id}" title="Удалить">${svgDel}</button>
+      </div>`).join('');
+
+    el.innerHTML = `<div class="task-list">
+      ${render(todo)}
+      ${done.length && todo.length ? '<div class="task-divider">Выполнено</div>' : ''}
+      ${render(done)}
+    </div>`;
+
+    el.querySelectorAll('.task-check').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const t = tasks.find(x => x.id === btn.dataset.taskId);
+        if (!t) return;
+        await this.db.patchTask(t.id, { done: !t.done });
+        this.renderProjectTasks();
+      })
+    );
+    el.querySelectorAll('.task-del').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const ok = await this.confirm('Удалить задачу?');
+        if (!ok) return;
+        await this.db.deleteTask(btn.dataset.taskId);
+        this.renderProjectTasks();
+      })
+    );
+  }
+
+  openTaskModal() {
+    document.getElementById('taskText').value = '';
+    this.openModal('taskModal');
+    setTimeout(() => document.getElementById('taskText').focus(), 350);
+  }
+
+  async saveTask() {
+    const text = document.getElementById('taskText').value.trim();
+    if (!text) { this.toast('Введите описание задачи'); return; }
+    await this.db.addTask({ text });
+    this.closeModal('taskModal');
+    this.renderProjectTasks();
+  }
+
+  /* ── Быстрый доступ ── */
+  async renderProjectQuick() {
+    const el    = document.getElementById('projectContent');
+    if (!el) return;
+    const items = await this.db.getQuickItems();
+
+    if (!items.length) {
+      el.innerHTML = `<div class="faq-empty">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        <p>Нет реквизитов — нажмите + чтобы добавить</p>
+      </div>`;
+      return;
+    }
+
+    const svgCopy = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
     const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
     const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
 
-    el.innerHTML = `<div class="faq-list">${notes.map(note => `
-      <div class="faq-item" data-note-id="${note.id}">
-        <div class="faq-head">
-          <span class="faq-title">${this.esc(note.title)}</span>
-          <svg class="faq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
+    el.innerHTML = `<div class="quick-list">${items.map(item => `
+      <div class="quick-item" data-quick-id="${item.id}">
+        <div class="quick-main">
+          <span class="quick-label">${this.esc(item.label)}</span>
+          <span class="quick-value">${this.esc(item.value)}</span>
         </div>
-        <div class="faq-body">
-          ${note.body ? `<div class="faq-text">${this.esc(note.body).replace(/\n/g, '<br>')}</div>` : ''}
-          <div class="faq-actions">
-            <button class="faq-edit proj-edit" data-note-id="${note.id}">${svgEdit} Изменить</button>
-            <button class="faq-delete proj-delete" data-note-id="${note.id}">${svgDel} Удалить</button>
-          </div>
+        <div class="quick-actions">
+          <button class="quick-copy" data-val="${this.esc(item.value)}" title="Скопировать">${svgCopy}</button>
+          <button class="quick-edit" data-quick-id="${item.id}" title="Изменить">${svgEdit}</button>
+          <button class="quick-del" data-quick-id="${item.id}" title="Удалить">${svgDel}</button>
         </div>
       </div>`).join('')}
     </div>`;
 
-    el.querySelectorAll('.faq-head').forEach(h =>
-      h.addEventListener('click', () => h.closest('.faq-item').classList.toggle('open'))
-    );
-    el.querySelectorAll('.proj-edit').forEach(btn =>
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        const note = notes.find(n => n.id === btn.dataset.noteId);
-        if (note) this.openProjectModal(note);
+    el.querySelectorAll('.quick-copy').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.val;
+        (navigator.clipboard?.writeText(val) || Promise.reject())
+          .catch(() => { const ta = document.createElement('textarea'); ta.value = val; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); });
+        btn.classList.add('copied');
+        setTimeout(() => btn.classList.remove('copied'), 1400);
+        this.toast('Скопировано');
       })
     );
-    el.querySelectorAll('.proj-delete').forEach(btn =>
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        this.deleteProjectNote(btn.dataset.noteId);
+    el.querySelectorAll('.quick-edit').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const item = items.find(x => x.id === btn.dataset.quickId);
+        if (item) this.openQuickModal(item);
+      })
+    );
+    el.querySelectorAll('.quick-del').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const ok = await this.confirm('Удалить реквизит?');
+        if (!ok) return;
+        await this.db.deleteQuickItem(btn.dataset.quickId);
+        this.renderProjectQuick();
       })
     );
   }
 
-  openProjectModal(note = null) {
-    this._editingNoteId = note?.id || null;
-    document.getElementById('projectModalTitle').textContent = note ? 'Редактировать' : 'Новая запись';
-    document.getElementById('projectNoteTitle').value = note?.title || '';
-    document.getElementById('projectNoteBody').value  = note?.body  || '';
-    this.openModal('projectModal');
-    setTimeout(() => document.getElementById('projectNoteTitle').focus(), 350);
+  openQuickModal(item = null) {
+    this._editingQuickId = item?.id || null;
+    document.getElementById('quickModalTitle').textContent = item ? 'Редактировать' : 'Новый реквизит';
+    document.getElementById('quickLabel').value = item?.label || '';
+    document.getElementById('quickValue').value = item?.value || '';
+    this.openModal('quickModal');
+    setTimeout(() => document.getElementById('quickLabel').focus(), 350);
   }
 
-  async saveProjectNote() {
-    const title = document.getElementById('projectNoteTitle').value.trim();
-    const body  = document.getElementById('projectNoteBody').value.trim();
-    if (!title) { this.toast('Введите заголовок'); return; }
-    if (this._editingNoteId) {
-      await this.db.patchProjectNote(this._editingNoteId, { title, body });
-      this.toast('Запись обновлена ✓');
+  async saveQuickItem() {
+    const label = document.getElementById('quickLabel').value.trim();
+    const value = document.getElementById('quickValue').value.trim();
+    if (!label) { this.toast('Введите название'); return; }
+    if (!value) { this.toast('Введите значение'); return; }
+    if (this._editingQuickId) {
+      await this.db.patchQuickItem(this._editingQuickId, { label, value });
+      this.toast('Обновлено ✓');
     } else {
-      await this.db.addProjectNote({ title, body });
-      this.toast('Запись добавлена ✓');
+      await this.db.addQuickItem({ label, value });
+      this.toast('Добавлено ✓');
     }
-    this._editingNoteId = null;
-    this.closeModal('projectModal');
-    this.renderProject();
-  }
-
-  async deleteProjectNote(id) {
-    const ok = await this.confirm('Удалить эту запись?');
-    if (!ok) return;
-    await this.db.deleteProjectNote(id);
-    this.renderProject();
+    this._editingQuickId = null;
+    this.closeModal('quickModal');
+    this.renderProjectQuick();
   }
 
   /* ──────────────────────────────────────────

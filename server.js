@@ -310,6 +310,66 @@ app.delete('/api/plans/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── TASKS ─── */
+app.get('/api/tasks', (req, res) => {
+  res.json(load().tasks || []);
+});
+
+app.post('/api/tasks', (req, res) => {
+  const db   = load();
+  const task = { id: uid(), createdAt: new Date().toISOString(), done: false, ...req.body };
+  if (!db.tasks) db.tasks = [];
+  db.tasks.push(task);
+  save(db);
+  res.json(task);
+});
+
+app.patch('/api/tasks/:id', (req, res) => {
+  const db  = load();
+  const idx = (db.tasks || []).findIndex(t => t.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  db.tasks[idx] = { ...db.tasks[idx], ...req.body, id: req.params.id };
+  save(db);
+  res.json(db.tasks[idx]);
+});
+
+app.delete('/api/tasks/:id', (req, res) => {
+  const db = load();
+  db.tasks = (db.tasks || []).filter(t => t.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
+/* ─── QUICK ACCESS ─── */
+app.get('/api/quickaccess', (req, res) => {
+  res.json(load().quickaccess || []);
+});
+
+app.post('/api/quickaccess', (req, res) => {
+  const db    = load();
+  const entry = { id: uid(), createdAt: new Date().toISOString(), ...req.body };
+  if (!db.quickaccess) db.quickaccess = [];
+  db.quickaccess.push(entry);
+  save(db);
+  res.json(entry);
+});
+
+app.patch('/api/quickaccess/:id', (req, res) => {
+  const db  = load();
+  const idx = (db.quickaccess || []).findIndex(q => q.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  db.quickaccess[idx] = { ...db.quickaccess[idx], ...req.body, id: req.params.id };
+  save(db);
+  res.json(db.quickaccess[idx]);
+});
+
+app.delete('/api/quickaccess/:id', (req, res) => {
+  const db = load();
+  db.quickaccess = (db.quickaccess || []).filter(q => q.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
 /* ─── PROJECT NOTES ─── */
 app.get('/api/project', (req, res) => {
   res.json((load().project || []));

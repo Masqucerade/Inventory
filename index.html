@@ -105,6 +105,10 @@
     <div class="view-header simple-header">
       <h1 class="view-title">Проект</h1>
     </div>
+    <div class="proj-subtab-bar">
+      <button class="proj-subtab active" data-subtab="tasks">Задачи</button>
+      <button class="proj-subtab" data-subtab="quick">Быстрый доступ</button>
+    </div>
     <div class="view-body" id="projectContent"></div>
   </div>
 
@@ -455,24 +459,43 @@
 
 <input type="file" id="restoreFileInput" accept=".json" hidden>
 
-  <!-- ═══ PROJECT MODAL ═══ -->
-  <div class="modal" id="projectModal">
+  <!-- ═══ TASK MODAL ═══ -->
+  <div class="modal" id="taskModal">
     <div class="modal-sheet">
       <div class="modal-header">
-        <button class="modal-close" id="projectModalClose">
+        <button class="modal-close" id="taskModalClose">
           <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
         </button>
-        <span class="modal-title" id="projectModalTitle">Новая запись</span>
-        <button class="modal-action-btn" id="projectModalSave">Сохранить</button>
+        <span class="modal-title">Новая задача</span>
+        <button class="modal-action-btn" id="taskModalSave">Добавить</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label class="form-label">Заголовок</label>
-          <input type="text" class="form-input" id="projectNoteTitle" placeholder="Например: Правила работы">
+          <label class="form-label">Описание задачи</label>
+          <textarea class="form-input" id="taskText" placeholder="Что нужно сделать…" rows="4" style="resize:vertical;min-height:80px"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ QUICK ACCESS MODAL ═══ -->
+  <div class="modal" id="quickModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <button class="modal-close" id="quickModalClose">
+          <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+        <span class="modal-title" id="quickModalTitle">Новый реквизит</span>
+        <button class="modal-action-btn" id="quickModalSave">Сохранить</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Название</label>
+          <input type="text" class="form-input" id="quickLabel" placeholder="Например: Карта Сбербанк" autocomplete="off">
         </div>
         <div class="form-group">
-          <label class="form-label">Текст</label>
-          <textarea class="form-input form-textarea" id="projectNoteBody" placeholder="Содержание записи…" rows="10" style="resize:vertical;min-height:160px"></textarea>
+          <label class="form-label">Значение</label>
+          <textarea class="form-input" id="quickValue" placeholder="Номер, адрес, ссылка…" rows="3" style="resize:vertical;min-height:60px"></textarea>
         </div>
       </div>
     </div>
@@ -522,8 +545,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=10"></script>
-<script src="js/backup.js?v=10"></script>
-<script src="js/app.js?v=10"></script>
+<script src="js/db.js?v=11"></script>
+<script src="js/backup.js?v=11"></script>
+<script src="js/app.js?v=11"></script>
 </body>
 </html>
