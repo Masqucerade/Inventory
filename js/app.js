@@ -493,23 +493,6 @@ class App {
       this.renderInventoryList();
     });
 
-    /* Owner filter chips (dynamic, delegated) */
-    document.getElementById('ownerFilterChips').addEventListener('click', (e) => {
-      if (e.target.closest('[data-monarc]')) {
-        this._filterMonarc = true;
-        this.filterOwnerId = null;
-        this.renderOwnerFilterChips();
-        this.renderInventoryList();
-        return;
-      }
-      const chip = e.target.closest('[data-owner]');
-      if (!chip) return;
-      this._filterMonarc = false;
-      this.filterOwnerId = chip.dataset.owner || null;
-      this.renderOwnerFilterChips();
-      this.renderInventoryList();
-    });
-
     /* Sale filter */
     document.getElementById('saleFilterBtn').addEventListener('click', () => {
       this._filterSale = !this._filterSale;
@@ -733,18 +716,6 @@ class App {
   }
 
   renderOwnerFilterChips() {
-    const el = document.getElementById('ownerFilterChips');
-    const allActive = !this.filterOwnerId && !this._filterMonarc;
-    el.innerHTML =
-      `<button class="chip ${allActive ? 'active' : ''}" data-owner="">Все</button>` +
-      `<button class="chip monarc-chip${this._filterMonarc ? ' active' : ''}" data-monarc="1">Monarc</button>` +
-      this.owners.map(o => {
-        const a = this.filterOwnerId === o.id;
-        return `<button class="chip ${a ? 'active' : ''}" data-owner="${o.id}"
-          ${a ? `style="background:${o.color};border-color:transparent;color:#fff"` : ''}>
-          ${this.esc(o.name)}
-        </button>`;
-      }).join('');
     this.renderCatFilterChips();
   }
 
@@ -771,9 +742,8 @@ class App {
     list.innerHTML = '<div class="skeleton-wrap"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
 
     let items = await this.db.getItems({
-      ownerId:     this.filterOwnerId || undefined,
-      orderStatus: this.filterStatus  || undefined,
-      search:      this.searchQuery   || undefined,
+      orderStatus: this.filterStatus || undefined,
+      search:      this.searchQuery  || undefined,
     });
 
     // Client-side sort
@@ -787,13 +757,6 @@ class App {
     }
     // 'date' — already sorted by server (updatedAt desc); respect direction
     if (this._sortBy === 'date' && this._sortDir === 'asc') items.reverse();
-
-    // Monarc isolation: hide Monarc items from normal view, show only in Monarc filter
-    if (this._filterMonarc) {
-      items = items.filter(i => i.isMonarc);
-    } else {
-      items = items.filter(i => !i.isMonarc);
-    }
 
     // Category filter
     if (this._filterCat) items = items.filter(i => i.categoryId === this._filterCat);
@@ -1079,7 +1042,7 @@ class App {
 
     /* Reset */
     ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost'].forEach(k => document.getElementById(k).value = '');
-    document.getElementById('fieldIsMonarc').checked  = !id && this._filterMonarc;
+    document.getElementById('fieldIsMonarc').checked  = false;
     document.getElementById('fieldIsForSale').checked = false;
     document.getElementById('totalDisplay').textContent = '0 ₽';
     document.getElementById('marginDisplay').textContent = '—';
