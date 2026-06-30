@@ -310,6 +310,36 @@ app.delete('/api/plans/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── PROJECT NOTES ─── */
+app.get('/api/project', (req, res) => {
+  res.json((load().project || []));
+});
+
+app.post('/api/project', (req, res) => {
+  const db    = load();
+  const entry = { id: uid(), createdAt: new Date().toISOString(), ...req.body };
+  if (!db.project) db.project = [];
+  db.project.push(entry);
+  save(db);
+  res.json(entry);
+});
+
+app.patch('/api/project/:id', (req, res) => {
+  const db  = load();
+  const idx = (db.project || []).findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  db.project[idx] = { ...db.project[idx], ...req.body, id: req.params.id };
+  save(db);
+  res.json(db.project[idx]);
+});
+
+app.delete('/api/project/:id', (req, res) => {
+  const db = load();
+  db.project = (db.project || []).filter(p => p.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
 /* ─── FAQ ─── */
 app.get('/api/faq', (req, res) => {
   res.json((load().faq || []));

@@ -173,6 +173,34 @@ class InventoryDB {
     await fetch(`/api/plans/${id}`, { method: 'DELETE' });
   }
 
+  /* ─── PROJECT NOTES ─── */
+  async getProjectNotes() {
+    try {
+      const r = await fetch('/api/project');
+      return r.ok ? r.json() : [];
+    } catch { return []; }
+  }
+
+  async addProjectNote(note) {
+    const r = await fetch('/api/project', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(note),
+    });
+    return r.json();
+  }
+
+  async patchProjectNote(id, patch) {
+    const r = await fetch(`/api/project/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    return r.json();
+  }
+
+  async deleteProjectNote(id) {
+    await fetch(`/api/project/${id}`, { method: 'DELETE' });
+  }
+
   /* ─── FAQ ─── */
   async getFaqItems() {
     try {

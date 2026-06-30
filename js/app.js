@@ -303,7 +303,8 @@ class App {
 
     /* FAB */
     document.getElementById('fabBtn').addEventListener('click', () => {
-      if (this.currentView === 'settings') this.openFaqModal();
+      if (this.currentView === 'project')  this.openProjectModal();
+      else if (this.currentView === 'settings') this.openFaqModal();
       else this.openItemModal();
     });
 
@@ -523,6 +524,10 @@ class App {
     document.getElementById('planModalSave').addEventListener('click', () => this.savePlan());
     document.getElementById('planTitle').addEventListener('keydown', e => { if (e.key === 'Enter') this.savePlan(); });
 
+    /* Project modal */
+    document.getElementById('projectModalClose').addEventListener('click', () => this.closeModal('projectModal'));
+    document.getElementById('projectModalSave').addEventListener('click', () => this.saveProjectNote());
+
     /* FAQ modal */
     document.getElementById('faqModalClose').addEventListener('click', () => this.closeModal('faqModal'));
     document.getElementById('faqModalSave').addEventListener('click', () => this.saveFaqItem());
@@ -565,13 +570,14 @@ class App {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`view-${view}`)?.classList.add('active');
     document.querySelector(`.nav-btn[data-view="${view}"]`)?.classList.add('active');
-    document.getElementById('fabBtn').classList.toggle('hidden', view !== 'inventory' && view !== 'settings');
+    document.getElementById('fabBtn').classList.toggle('hidden', !['inventory','project','settings'].includes(view));
 
     switch (view) {
       case 'inventory': this.renderInventoryView(); break;
       case 'stats':     this.renderStats();         break;
       case 'finance':   this.renderFinance();       break;
-      case 'settings':  this.renderFaq();            break;
+      case 'project':   this.renderProject();       break;
+      case 'settings':  this.renderFaq();           break;
     }
   }
 
@@ -1690,6 +1696,99 @@ class App {
         </svg>
         <p>Настройки доступны через меню ☰ в шапке</p>
       </div>`;
+  }
+
+  /* ──────────────────────────────────────────
+     PROJECT NOTES
+     ────────────────────────────────────────── */
+  async renderProject() {
+    const el    = document.getElementById('projectContent');
+    if (!el) return;
+    const notes = await this.db.getProjectNotes();
+
+    if (!notes.length) {
+      el.innerHTML = `
+        <div class="faq-empty">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <p>Нет записей — нажмите + чтобы добавить</p>
+        </div>`;
+      return;
+    }
+
+    const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
+    el.innerHTML = `<div class="faq-list">${notes.map(note => `
+      <div class="faq-item" data-note-id="${note.id}">
+        <div class="faq-head">
+          <span class="faq-title">${this.esc(note.title)}</span>
+          <svg class="faq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+        <div class="faq-body">
+          ${note.body ? `<div class="faq-text">${this.esc(note.body).replace(/\n/g, '<br>')}</div>` : ''}
+          <div class="faq-actions">
+            <button class="faq-edit proj-edit" data-note-id="${note.id}">${svgEdit} Изменить</button>
+            <button class="faq-delete proj-delete" data-note-id="${note.id}">${svgDel} Удалить</button>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+
+    el.querySelectorAll('.faq-head').forEach(h =>
+      h.addEventListener('click', () => h.closest('.faq-item').classList.toggle('open'))
+    );
+    el.querySelectorAll('.proj-edit').forEach(btn =>
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const note = notes.find(n => n.id === btn.dataset.noteId);
+        if (note) this.openProjectModal(note);
+      })
+    );
+    el.querySelectorAll('.proj-delete').forEach(btn =>
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        this.deleteProjectNote(btn.dataset.noteId);
+      })
+    );
+  }
+
+  openProjectModal(note = null) {
+    this._editingNoteId = note?.id || null;
+    document.getElementById('projectModalTitle').textContent = note ? 'Редактировать' : 'Новая запись';
+    document.getElementById('projectNoteTitle').value = note?.title || '';
+    document.getElementById('projectNoteBody').value  = note?.body  || '';
+    this.openModal('projectModal');
+    setTimeout(() => document.getElementById('projectNoteTitle').focus(), 350);
+  }
+
+  async saveProjectNote() {
+    const title = document.getElementById('projectNoteTitle').value.trim();
+    const body  = document.getElementById('projectNoteBody').value.trim();
+    if (!title) { this.toast('Введите заголовок'); return; }
+    if (this._editingNoteId) {
+      await this.db.patchProjectNote(this._editingNoteId, { title, body });
+      this.toast('Запись обновлена ✓');
+    } else {
+      await this.db.addProjectNote({ title, body });
+      this.toast('Запись добавлена ✓');
+    }
+    this._editingNoteId = null;
+    this.closeModal('projectModal');
+    this.renderProject();
+  }
+
+  async deleteProjectNote(id) {
+    const ok = await this.confirm('Удалить эту запись?');
+    if (!ok) return;
+    await this.db.deleteProjectNote(id);
+    this.renderProject();
   }
 
   /* ──────────────────────────────────────────
