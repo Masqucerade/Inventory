@@ -23,20 +23,11 @@
       <div class="header-row">
         <h1 class="brand-name">Masqucerade<span class="brand-inc">INC.</span></h1>
         <div class="header-actions">
-          <button class="icon-btn" id="themeBtn" title="Переключить тему"></button>
-          <button class="icon-btn" id="deliveryBtn" title="Стоимость доставки">
+          <button class="icon-btn" id="menuBtn" title="Меню">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <rect x="1" y="3" width="15" height="13" rx="1"/>
-              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-              <circle cx="5.5" cy="18.5" r="2.5"/>
-              <circle cx="18.5" cy="18.5" r="2.5"/>
-            </svg>
-          </button>
-          <button class="icon-btn" id="saveBtn" title="Сохранить бэкап">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-              <polyline points="17 21 17 13 7 13 7 21"/>
-              <polyline points="7 3 7 8 15 8"/>
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
           </button>
         </div>
@@ -68,7 +59,16 @@
         <button class="sort-opt" data-sort="name">А–Я</button>
         <button class="sort-dir-btn" id="sortDirBtn">↓</button>
       </div>
+
+      <!-- Dropdown menu panel -->
+      <div class="header-menu" id="headerMenu">
+        <div class="header-menu-body" id="headerMenuBody"></div>
+      </div>
     </div>
+
+    <!-- Backdrop to close menu -->
+    <div class="menu-backdrop hidden" id="menuBackdrop"></div>
+
     <div class="view-body" id="inventoryList">
       <div class="skeleton-wrap">
         <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
@@ -425,6 +425,8 @@
     </div>
   </div>
 </div>
+
+<input type="file" id="restoreFileInput" accept=".json" hidden>
 
 <!-- Toast -->
 <div class="toast hidden" id="toast"></div>

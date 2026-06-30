@@ -96,10 +96,6 @@ class App {
   initTheme() {
     const saved = localStorage.getItem('inv_theme') || 'dark';
     this.applyTheme(saved);
-    document.getElementById('themeBtn').addEventListener('click', () => {
-      const cur = localStorage.getItem('inv_theme') || 'dark';
-      this.applyTheme(cur === 'dark' ? 'light' : 'dark');
-    });
   }
 
   applyTheme(theme) {
@@ -110,18 +106,159 @@ class App {
       const bg = theme === 'light' ? '#f0f0f0' : '#0a0a0a';
       try { tg.setHeaderColor(bg); tg.setBackgroundColor(bg); } catch (_) {}
     }
-    const btn = document.getElementById('themeBtn');
-    if (btn) btn.innerHTML = theme === 'dark'
-      ? `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-         </svg>`
-      : `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-           <circle cx="12" cy="12" r="5"/>
-           <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-           <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-           <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-           <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-         </svg>`;
+  }
+
+  toggleMenu() {
+    const menu     = document.getElementById('headerMenu');
+    const backdrop = document.getElementById('menuBackdrop');
+    const isOpen   = menu.classList.contains('open');
+    if (isOpen) {
+      this.closeMenu();
+    } else {
+      this.renderMenuPanel();
+      menu.classList.add('open');
+      backdrop.classList.remove('hidden');
+    }
+  }
+
+  closeMenu() {
+    document.getElementById('headerMenu').classList.remove('open');
+    document.getElementById('menuBackdrop').classList.add('hidden');
+  }
+
+  renderMenuPanel() {
+    const el     = document.getElementById('headerMenuBody');
+    const lastBk = this.backup.getLastTimeStr();
+    const theme  = localStorage.getItem('inv_theme') || 'dark';
+
+    const arrow       = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="settings-row-arrow"><polyline points="9 18 15 12 9 6"/></svg>`;
+    const svgSend     = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+    const svgAuto     = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+    const svgDownload = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    const svgUpload   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
+    const svgTruck    = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`;
+
+    el.innerHTML = `
+      <div class="section-title">Внешний вид</div>
+      <div class="settings-section">
+        <div class="settings-row" style="cursor:default">
+          <div class="settings-row-icon gray">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </div>
+          <div class="settings-row-info"><div class="settings-row-title">Тема</div></div>
+          <div class="menu-theme-toggle" id="menuThemeToggle">
+            <button class="menu-theme-btn${theme === 'dark'  ? ' active' : ''}" data-t="dark">🌙</button>
+            <button class="menu-theme-btn${theme === 'light' ? ' active' : ''}" data-t="light">☀️</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">Инструменты</div>
+      <div class="settings-section">
+        <div class="settings-row" id="mDeliveryBtn">
+          <div class="settings-row-icon gray">${svgTruck}</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Стоимость доставки</div>
+          </div>${arrow}
+        </div>
+      </div>
+
+      <div class="section-title">Резервная копия</div>
+      <div class="settings-section">
+        <div class="settings-row" id="mBtnTgBackup">
+          <div class="settings-row-icon blue">${svgSend}</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Отправить в Telegram</div>
+            <div class="settings-row-sub">Файл с данными — прямо в чат</div>
+          </div>${arrow}
+        </div>
+        <div class="settings-row" style="cursor:default">
+          <div class="settings-row-icon green">${svgAuto}</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Авто-бэкап каждые 24 ч</div>
+            <div class="settings-row-sub">Последний: <strong>${lastBk}</strong></div>
+          </div>
+          <div class="auto-backup-badge">ON</div>
+        </div>
+        <div class="settings-row" id="mBtnBackup">
+          <div class="settings-row-icon gray">${svgDownload}</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Скачать JSON</div>
+            <div class="settings-row-sub">Сохранить файл локально</div>
+          </div>${arrow}
+        </div>
+        <div class="settings-row" id="mBtnRestore">
+          <div class="settings-row-icon orange">${svgUpload}</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Восстановить из файла</div>
+            <div class="settings-row-sub">Загрузить JSON-бэкап</div>
+          </div>${arrow}
+        </div>
+      </div>
+
+      <div class="section-title">Участники</div>
+      <div class="settings-section">
+        <div class="settings-row" id="mAddOwnerBtn">
+          <div class="settings-row-icon green">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="settings-row-info"><div class="settings-row-title">Добавить участника</div></div>${arrow}
+        </div>
+      </div>
+      <div id="menuOwnersList"></div>
+
+      <div class="section-title">О приложении</div>
+      <div class="settings-section">
+        <div class="settings-row" style="cursor:default">
+          <div class="settings-row-icon" style="background:rgba(124,109,250,.12)">🏢</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Masqucerade INC.</div>
+            <div class="settings-row-sub">Версия 1.1 · Telegram Mini App</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('menuThemeToggle').addEventListener('click', e => {
+      const btn = e.target.closest('.menu-theme-btn');
+      if (!btn) return;
+      this.applyTheme(btn.dataset.t);
+      document.querySelectorAll('.menu-theme-btn').forEach(b =>
+        b.classList.toggle('active', b === btn)
+      );
+    });
+
+    document.getElementById('mDeliveryBtn').addEventListener('click', () => {
+      this.closeMenu();
+      this.enterSelectMode();
+    });
+
+    document.getElementById('mBtnTgBackup').addEventListener('click', async () => {
+      this.closeMenu();
+      this.toast('Отправляю в Telegram…');
+      try {
+        const r = await fetch('/api/backup/send', { method: 'POST' });
+        const d = await r.json();
+        this.toast(d.ok ? '✓ Бэкап отправлен в Telegram' : '✗ Не удалось — настройте TG_LOG_TOKEN');
+      } catch { this.toast('✗ Ошибка отправки'); }
+    });
+
+    document.getElementById('mBtnBackup').addEventListener('click', () => {
+      this.closeMenu();
+      this.doManualSave();
+    });
+
+    document.getElementById('mBtnRestore').addEventListener('click', () => {
+      this.closeMenu();
+      document.getElementById('restoreFileInput').click();
+    });
+
+    document.getElementById('mAddOwnerBtn').addEventListener('click', () => {
+      this.closeMenu();
+      this.openOwnerModal();
+    });
+
+    this.renderOwners('menuOwnersList');
   }
 
   async loadData() {
@@ -166,8 +303,24 @@ class App {
     /* FAB */
     document.getElementById('fabBtn').addEventListener('click', () => this.openItemModal());
 
-    /* Save */
-    document.getElementById('saveBtn').addEventListener('click', () => this.doManualSave());
+    /* Hamburger menu */
+    document.getElementById('menuBtn').addEventListener('click', () => this.toggleMenu());
+    document.getElementById('menuBackdrop').addEventListener('click', () => this.closeMenu());
+
+    /* Restore file input (permanent in DOM) */
+    document.getElementById('restoreFileInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const ok = await this.confirm('Восстановить данные из файла?\nТекущие данные будут заменены.', 'Восстановить', false);
+      if (!ok) { e.target.value = ''; return; }
+      try {
+        await this.backup.restoreFromFile(file);
+        await this.db.logAction('restore', `Восстановлено из файла: ${file.name}`);
+        await this.loadData();
+        this.toast('Данные восстановлены ✓');
+      } catch (err) { this.toast('Ошибка: ' + err.message); }
+      e.target.value = '';
+    });
 
     /* Search */
     const inp = document.getElementById('searchInput');
@@ -220,7 +373,6 @@ class App {
     });
 
     /* Delivery */
-    document.getElementById('deliveryBtn').addEventListener('click', () => this.enterSelectMode());
     document.getElementById('deliveryBarApply').addEventListener('click', () => this.openDeliveryModal());
     document.getElementById('deliveryBarCancel').addEventListener('click', () => this.exitSelectMode());
     document.getElementById('deliveryModalClose').addEventListener('click', () => this.closeModal('deliveryModal'));
@@ -1369,7 +1521,7 @@ class App {
     );
     await this.loadData();
     this.closeModal('ownerModal');
-    this.renderOwners();
+    this.renderOwners('menuOwnersList');
     this.renderOwnerFilterChips();
     this.toast(isNew ? 'Участник добавлен ✓' : 'Участник обновлён ✓');
   }
@@ -1385,7 +1537,7 @@ class App {
     await this.db.deleteOwner(id);
     await this.db.logAction('owner_delete', `Удалён владелец: «${owner?.name || id}»`, { id, name: owner?.name });
     await this.loadData();
-    this.renderOwners();
+    this.renderOwners('menuOwnersList');
     this.renderOwnerFilterChips();
     this.toast('Участник удалён');
   }
@@ -1504,112 +1656,17 @@ class App {
      SETTINGS
      ────────────────────────────────────────── */
   renderSettings() {
-    const el      = document.getElementById('settingsContent');
-    const lastBk  = this.backup.getLastTimeStr();
-
-    const toggle = (on) => `
-      <div class="toggle-track" style="background:${on ? 'var(--a1)' : 'var(--muted)'}">
-        <div class="toggle-thumb" style="transform:translateX(${on ? 18 : 0}px)"></div>
-      </div>`;
-
-    const arrow = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="settings-row-arrow"><polyline points="9 18 15 12 9 6"/></svg>`;
-
-    const svgSend     = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
-    const svgAuto     = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
-    const svgDownload = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
-    const svgUpload   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
-
+    const el = document.getElementById('settingsContent');
+    if (!el) return;
     el.innerHTML = `
-      <div class="section-title">Резервная копия</div>
-      <div class="settings-section">
-        <div class="settings-row" id="sBtnTgBackup">
-          <div class="settings-row-icon blue">${svgSend}</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Отправить в Telegram</div>
-            <div class="settings-row-sub">Файл с данными — прямо в чат</div>
-          </div>${arrow}
-        </div>
-        <div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon green">${svgAuto}</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Авто-бэкап каждые 24 ч</div>
-            <div class="settings-row-sub">Последний: <strong>${lastBk}</strong></div>
-          </div>
-          <div class="auto-backup-badge">ON</div>
-        </div>
-        <div class="settings-row" id="sBtnBackup">
-          <div class="settings-row-icon gray">${svgDownload}</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Скачать JSON</div>
-            <div class="settings-row-sub">Сохранить файл локально</div>
-          </div>${arrow}
-        </div>
-        <div class="settings-row" id="sBtnRestore">
-          <div class="settings-row-icon orange">${svgUpload}</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Восстановить из файла</div>
-            <div class="settings-row-sub">Загрузить JSON-бэкап</div>
-          </div>${arrow}
-        </div>
-      </div>
-
-      <div class="section-title">Участники</div>
-      <div class="settings-section">
-        <div class="settings-row" id="addOwnerBtn">
-          <div class="settings-row-icon green">👤</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Добавить участника</div>
-          </div>${arrow}
-        </div>
-      </div>
-      <div id="ownersList"></div>
-
-      <div class="section-title">О приложении</div>
-      <div class="settings-section">
-        <div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon" style="background:rgba(124,109,250,.12)">🏢</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Masqucerade INC.</div>
-            <div class="settings-row-sub">Версия 1.1 · Telegram Mini App</div>
-          </div>
-        </div>
-      </div>
-
-      <input type="file" id="restoreFileInput" accept=".json" hidden>
-    `;
-
-    document.getElementById('sBtnTgBackup').addEventListener('click', async () => {
-      this.toast('Отправляю в Telegram…');
-      try {
-        const r = await fetch('/api/backup/send', { method: 'POST' });
-        const d = await r.json();
-        this.toast(d.ok ? '✓ Бэкап отправлен в Telegram' : '✗ Не удалось — настройте TG_LOG_TOKEN');
-      } catch { this.toast('✗ Ошибка отправки'); }
-    });
-
-    document.getElementById('sBtnBackup').addEventListener('click', () => this.doManualSave());
-
-    document.getElementById('sBtnRestore').addEventListener('click', () =>
-      document.getElementById('restoreFileInput').click()
-    );
-
-    document.getElementById('restoreFileInput').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const ok = await this.confirm('Восстановить данные из файла?\nТекущие данные будут заменены.', 'Восстановить', false);
-      if (!ok) { e.target.value = ''; return; }
-      try {
-        await this.backup.restoreFromFile(file);
-        await this.db.logAction('restore', `Восстановлено из файла: ${file.name}`);
-        await this.loadData();
-        this.renderSettings();
-        this.toast('Данные восстановлены ✓');
-      } catch (err) { this.toast('Ошибка: ' + err.message); }
-      e.target.value = '';
-    });
-
-    document.getElementById('addOwnerBtn').addEventListener('click', () => this.openOwnerModal());
-    this.renderOwners();
+      <div class="settings-empty-hint">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+        <p>Настройки доступны через меню ☰ в шапке</p>
+      </div>`;
   }
 
   /* ──────────────────────────────────────────
