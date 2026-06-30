@@ -26,6 +26,22 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+/* ─── SEED ROOT ADMIN ─── */
+(function seedAdmin() {
+  const db = load();
+  if (!db.owners) db.owners = [];
+  if (db.owners.some(o => o.username === 'Monarc')) return;
+  db.owners.unshift({
+    id:           'root',
+    name:         'Максим',
+    color:        '#a78bfa',
+    username:     'Monarc',
+    passwordHash: hashPwd('0000'),
+    isAdmin:      true,
+  });
+  save(db);
+})();
+
 /* ─── ITEMS ─── */
 app.get('/api/items', (req, res) => {
   let rows = load().items || [];
