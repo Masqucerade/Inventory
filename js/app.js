@@ -1726,7 +1726,7 @@ class App {
             <div class="faq-script-line">
               ${l.label ? `<div class="faq-script-label">${this.esc(l.label)}</div>` : ''}
               <div class="faq-script-row">
-                <div class="faq-script-text">${this.esc(l.text)}</div>
+                <div class="faq-script-text">${this._faqRender(l.text)}</div>
                 <button class="faq-copy-btn" data-text="${this.esc(l.text)}" title="Копировать">${svgCopy}</button>
               </div>
             </div>`).join('')}
@@ -1792,17 +1792,39 @@ class App {
     const row  = document.createElement('div');
     row.className = 'faq-line-row';
     row.innerHTML = `
-      <input class="form-input faq-line-label" placeholder="Пометка (необяз.)" value="${this.esc(label)}" autocomplete="off">
-      <div class="faq-line-text-wrap">
-        <textarea class="form-input faq-line-text" placeholder="Текст сообщения…" rows="2">${this.esc(text)}</textarea>
+      <div class="faq-line-top">
+        <input class="form-input faq-line-label" placeholder="Пометка (необяз.)" value="${this.esc(label)}" autocomplete="off">
         <button class="faq-line-remove" type="button" title="Удалить строку">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
-      </div>`;
+      </div>
+      <div class="faq-line-toolbar">
+        <button class="faq-fmt-btn" data-fmt="bold" type="button" title="Жирный"><b>B</b></button>
+      </div>
+      <textarea class="form-input faq-line-text" placeholder="Текст сообщения…" rows="5">${this.esc(text)}</textarea>`;
     list.appendChild(row);
-    row.querySelector('.faq-line-text').focus();
+
+    const ta  = row.querySelector('.faq-line-text');
+    const btn = row.querySelector('[data-fmt="bold"]');
+    btn.addEventListener('click', () => {
+      const start = ta.selectionStart;
+      const end   = ta.selectionEnd;
+      const sel   = ta.value.slice(start, end);
+      if (!sel) { ta.focus(); return; }
+      const replacement = `**${sel}**`;
+      ta.value = ta.value.slice(0, start) + replacement + ta.value.slice(end);
+      ta.setSelectionRange(start + 2, start + 2 + sel.length);
+      ta.focus();
+    });
+    ta.focus();
+  }
+
+  _faqRender(raw) {
+    return this.esc(raw)
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   }
 
   openFaqModal(item = null) {

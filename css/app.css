@@ -1233,18 +1233,32 @@ html, body {
   margin-bottom: 8px;
   background: var(--fill); border: 1px solid var(--sep);
   border-radius: 12px; padding: 10px 10px 8px;
+  display: flex; flex-direction: column; gap: 6px;
 }
-.faq-line-label { margin-bottom: 6px; font-size: 12px; }
-.faq-line-text-wrap { position: relative; }
-.faq-line-text { padding-right: 36px !important; resize: none; }
+.faq-line-top {
+  display: flex; align-items: center; gap: 6px;
+}
+.faq-line-label { flex: 1; font-size: 12px; margin: 0; }
 .faq-line-remove {
-  position: absolute; top: 8px; right: 8px;
-  width: 22px; height: 22px; border-radius: 6px;
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 7px;
   border: none; background: var(--fill2); color: var(--text3);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all .15s;
 }
 .faq-line-remove:active { opacity: .6; }
+.faq-line-toolbar {
+  display: flex; gap: 4px;
+}
+.faq-fmt-btn {
+  height: 26px; min-width: 26px; padding: 0 8px;
+  border: 1px solid var(--sep); border-radius: 7px;
+  background: var(--fill2); color: var(--text2);
+  font-family: inherit; font-size: 13px;
+  cursor: pointer; transition: all .12s;
+  display: flex; align-items: center; justify-content: center;
+}
+.faq-fmt-btn:active { background: var(--fill3); }
+.faq-line-text { resize: vertical; min-height: 90px; }
 
 /* ─── Script lines in FAQ view ─── */
 .faq-script { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 8px; }
