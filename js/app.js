@@ -255,6 +255,7 @@ class App {
         </div>
       </div>
 
+      ${this._isAdmin() ? `
       <div class="section-title">Участники</div>
       <div class="settings-section">
         <div class="settings-row" id="mAddOwnerBtn">
@@ -264,11 +265,10 @@ class App {
           <div class="settings-row-info"><div class="settings-row-title">Добавить участника</div></div>${arrow}
         </div>
       </div>
-      </div>
       <div id="menuOwnersList"></div>
 
       <div class="section-title">Категории товаров</div>
-      <div class="settings-section" id="menuCatSection">
+      <div class="settings-section">
         <div class="settings-row" id="mAddCatBtn">
           <div class="settings-row-icon" style="background:rgba(251,191,36,.12)">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -277,6 +277,7 @@ class App {
         </div>
       </div>
       <div id="menuCatList"></div>
+      ` : ''}
 
       <div class="section-title">О приложении</div>
       <div class="settings-section">
@@ -334,19 +335,19 @@ class App {
       document.getElementById('restoreFileInput').click();
     });
 
-    document.getElementById('mAddOwnerBtn').addEventListener('click', () => {
-      this.closeMenu();
-      this.openOwnerModal();
-    });
-
-    document.getElementById('mAddCatBtn').addEventListener('click', () => this._openCatPrompt());
+    if (this._isAdmin()) {
+      document.getElementById('mAddOwnerBtn').addEventListener('click', () => {
+        this.closeMenu();
+        this.openOwnerModal();
+      });
+      document.getElementById('mAddCatBtn').addEventListener('click', () => this._openCatPrompt());
+      this.renderOwners('menuOwnersList');
+      this._renderMenuCats();
+    }
 
     if (this._session) {
       document.getElementById('mLogoutBtn')?.addEventListener('click', () => this.logout());
     }
-
-    this.renderOwners('menuOwnersList');
-    this._renderMenuCats();
   }
 
   async _renderMenuCats() {
@@ -384,6 +385,12 @@ class App {
     this._renderMenuCats();
     this.renderCatFilterChips();
     this.toast('Категория добавлена ✓');
+  }
+
+  _isAdmin() {
+    // No auth required (no owners have credentials) — treat as admin
+    if (!this._session) return true;
+    return !!this._session.isAdmin;
   }
 
   _prompt(title, defaultVal = '', placeholder = '') {
@@ -1682,6 +1689,7 @@ class App {
     document.getElementById('ownerName').value                     = '';
     document.getElementById('ownerUsername').value                 = '';
     document.getElementById('ownerPassword').value                 = '';
+    document.getElementById('ownerIsAdmin').checked                = false;
     document.getElementById('ownerAvatarPreview').textContent      = 'А';
     document.getElementById('ownerAvatarPreview').style.background = DEFAULT_COLOR;
     document.getElementById('ownerModalTitle').textContent         = id ? 'Изменить сотрудника' : 'Новый сотрудник';
@@ -1696,6 +1704,7 @@ class App {
         document.getElementById('ownerName').value                     = owner.name;
         document.getElementById('ownerUsername').value                 = owner.username || '';
         document.getElementById('ownerPassword').value                 = '';
+        document.getElementById('ownerIsAdmin').checked                = !!owner.isAdmin;
         document.getElementById('ownerAvatarPreview').textContent      = owner.name[0].toUpperCase();
         this._selColor = owner.color || DEFAULT_COLOR;
         document.getElementById('ownerAvatarPreview').style.background = this._selColor;
@@ -1711,12 +1720,14 @@ class App {
     const name     = document.getElementById('ownerName').value.trim();
     const username = document.getElementById('ownerUsername').value.trim();
     const password = document.getElementById('ownerPassword').value;
+    const isAdmin  = document.getElementById('ownerIsAdmin').checked;
     if (!name) { this.toast('Введите имя сотрудника'); return; }
     const isNew = !this.editingOwnerId;
     const owner = {
       ...(isNew ? {} : { id: this.editingOwnerId }),
       name,
       color: this._selColor,
+      isAdmin,
       ...(username ? { username } : {}),
       ...(password ? { _newPassword: password } : {}),
     };

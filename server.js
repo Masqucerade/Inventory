@@ -358,7 +358,7 @@ app.post('/api/auth/login', (req, res) => {
   const owners = load().owners || [];
   const owner  = owners.find(o => o.username && o.username.toLowerCase() === username.toLowerCase() && o.passwordHash === hashPwd(password));
   if (!owner) return res.status(401).json({ error: 'Неверный логин или пароль' });
-  res.json({ userId: owner.id, name: owner.name, color: owner.color });
+  res.json({ userId: owner.id, name: owner.name, color: owner.color, isAdmin: !!owner.isAdmin });
 });
 
 /* ─── TASKS ─── */

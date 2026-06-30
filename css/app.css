@@ -870,6 +870,17 @@ html, body {
 .sale-toggle input:checked ~ .monarc-toggle-slider { background: #fbbf24; }
 [data-theme="light"] .sale-toggle input:checked ~ .monarc-toggle-slider { background: #d97706; }
 
+/* Generic toggle alias (used in owner modal etc.) */
+.toggle-switch { position: relative; display: inline-block; width: 44px; height: 26px; flex-shrink: 0; cursor: pointer; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-slider { position: absolute; inset: 0; background: var(--muted); border-radius: 100px; transition: background .22s; }
+.toggle-slider::before { content: ''; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform .22s cubic-bezier(.4,0,.2,1); box-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.toggle-switch input:checked ~ .toggle-slider { background: var(--accent); }
+.toggle-switch input:checked ~ .toggle-slider::before { transform: translateX(18px); }
+
+/* Inline label + control row */
+.form-group-inline { flex-direction: row; align-items: center; justify-content: space-between; }
+
 /* =============================================
    FINANCE VIEW
    ============================================= */
