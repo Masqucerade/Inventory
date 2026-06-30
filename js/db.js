@@ -272,6 +272,17 @@ class InventoryDB {
     await fetch(`/api/faq/${id}`, { method: 'DELETE' });
   }
 
+  /* ─── SALES ─── */
+  async getSales() {
+    try { const r = await fetch('/api/sales'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async addSale(sale) {
+    const r = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sale) });
+    return r.json();
+  }
+  async deleteSale(id) { await fetch(`/api/sales/${id}`, { method: 'DELETE' }); }
+
   /* ─── EXPORT / IMPORT ─── */
   async exportAll() {
     const r = await fetch('/api/export');

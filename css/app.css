@@ -929,6 +929,52 @@ html, body {
 [data-theme="light"] .fin-btn.charge   { background: rgba(220,38,38,.07);  border-color: rgba(220,38,38,.25);  color: #dc2626; }
 [data-theme="light"] .fin-btn.expense  { background: rgba(180,83,9,.07);   border-color: rgba(180,83,9,.25);   color: #b45309; }
 .fin-btn.expense { background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.25); color: #fbbf24; }
+.fin-btn.sell    { background: rgba(124,109,250,.08); border-color: rgba(124,109,250,.25); color: var(--accent); }
+[data-theme="light"] .fin-btn.sell { background: rgba(124,109,250,.07); border-color: rgba(124,109,250,.3); color: #6d28d9; }
+
+/* ─── SALES SECTION ─── */
+.sales-summary {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;
+}
+.sales-stat-card {
+  background: var(--card); border-radius: 13px; padding: 10px 10px 11px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.sales-stat-card.profit { border: 1.5px solid rgba(124,109,250,.3); }
+.sales-stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .4px; }
+.sales-stat-val   { font-size: 15px; font-weight: 700; color: var(--text); }
+.sales-stat-val.pos { color: #4ade80; }
+.sales-stat-val.neg { color: var(--danger); }
+[data-theme="light"] .sales-stat-val.pos { color: #16a34a; }
+
+.sales-list { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; }
+.sale-entry {
+  background: var(--card); border-radius: 12px; padding: 10px 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sale-entry-info { flex: 1; min-width: 0; }
+.sale-entry-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sale-entry-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.sale-entry-right { text-align: right; flex-shrink: 0; }
+.sale-entry-profit { font-size: 14px; font-weight: 700; }
+.sale-entry-profit.pos { color: #4ade80; }
+.sale-entry-profit.neg { color: var(--danger); }
+[data-theme="light"] .sale-entry-profit.pos { color: #16a34a; }
+.sale-entry-revenue { font-size: 11px; color: var(--text3); }
+
+/* ─── SALE PROFIT PREVIEW ─── */
+.sale-profit-preview {
+  background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.sale-profit-row { display: flex; justify-content: space-between; align-items: center; }
+.sale-profit-label { font-size: 13px; color: var(--text2); }
+.sale-profit-val   { font-size: 14px; font-weight: 600; color: var(--text); }
+.sale-profit-val.neg { color: var(--danger); }
+.sale-profit-val.pos { color: #4ade80; }
+[data-theme="light"] .sale-profit-val.pos { color: #16a34a; }
+.sale-profit-val.bold { font-size: 17px; }
+.sale-profit-divider { height: 1px; background: var(--sep); margin: 2px 0; }
 
 .pay-icon.expense  { background: rgba(251,191,36,.12); color: #fbbf24; font-size: 13px; }
 .pay-amount.expense { color: #fbbf24; }

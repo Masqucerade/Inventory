@@ -595,6 +595,17 @@ class App {
     /* FAQ modal */
     document.getElementById('faqModalClose').addEventListener('click', () => this.closeModal('faqModal'));
     document.getElementById('faqModalSave').addEventListener('click', () => this.saveFaqItem());
+
+    document.getElementById('saleModalClose').addEventListener('click', () => this.closeModal('saleModal'));
+    document.getElementById('saleModalSave').addEventListener('click', () => this.saveSale());
+
+    /* Sale modal — live profit preview */
+    ['saleSalePrice', 'saleBuyPrice', 'saleDeliveryCost'].forEach(id =>
+      document.getElementById(id).addEventListener('input', () => this._updateSalePreview())
+    );
+
+    /* Sale modal — item select → populate sizes + prefill prices */
+    document.getElementById('saleItemSelect').addEventListener('change', () => this._onSaleItemChange());
     document.getElementById('faqAddLineBtn').addEventListener('click', () => this._addFaqLine());
     document.getElementById('faqLinesList').addEventListener('click', (e) => {
       const rm = e.target.closest('.faq-line-remove');
@@ -1232,10 +1243,11 @@ class App {
      ────────────────────────────────────────── */
   async renderFinance() {
     const el = document.getElementById('financeContent');
-    const [payments, empPayments, plans] = await Promise.all([
+    const [payments, empPayments, plans, sales] = await Promise.all([
       this.db.getPayments(),
       this.owners.length ? this.db.getEmployeePayments() : Promise.resolve([]),
       this.db.getPlans(),
+      this.db.getSales(),
     ]);
 
     const balance = payments.reduce((s, p) =>
@@ -1323,6 +1335,49 @@ class App {
           : `<div class="plan-empty">Нет планов — нажмите «Добавить»</div>`}
       </div>`;
 
+    const totalRevenue  = sales.reduce((s, x) => s + (x.salePrice     || 0), 0);
+    const totalCosts    = sales.reduce((s, x) => s + (x.buyPrice || 0) + (x.deliveryCost || 0), 0);
+    const totalProfit   = sales.reduce((s, x) => s + (x.netProfit    || 0), 0);
+    const profitPos     = totalProfit >= 0;
+
+    const salesListHtml = sales.length
+      ? `<div class="sales-list">${sales.map(s => `
+          <div class="sale-entry">
+            <div class="sale-entry-info">
+              <div class="sale-entry-name">${this.esc(s.itemName)}${s.size ? ` · ${this.esc(s.size)}` : ''}</div>
+              <div class="sale-entry-meta">${this.fmtDate(s.soldAt)}${s.note ? ` · ${this.esc(s.note)}` : ''}</div>
+            </div>
+            <div class="sale-entry-right">
+              <div class="sale-entry-profit ${(s.netProfit||0) >= 0 ? 'pos' : 'neg'}">${(s.netProfit||0) >= 0 ? '+' : ''}${fmtMoney(s.netProfit||0)}</div>
+              <div class="sale-entry-revenue">${fmtMoney(s.salePrice||0)}</div>
+            </div>
+            <button class="pay-del" data-sale-id="${s.id}">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>`).join('')}
+        </div>`
+      : `<div class="plan-empty">Нет записей продаж</div>`;
+
+    const salesSectionHtml = `
+      <div class="section-title">Продажи</div>
+      <div class="sales-summary">
+        <div class="sales-stat-card">
+          <div class="sales-stat-label">Выручка</div>
+          <div class="sales-stat-val">${fmtMoney(totalRevenue)}</div>
+        </div>
+        <div class="sales-stat-card">
+          <div class="sales-stat-label">Издержки</div>
+          <div class="sales-stat-val neg">−${fmtMoney(totalCosts)}</div>
+        </div>
+        <div class="sales-stat-card profit">
+          <div class="sales-stat-label">Чистая прибыль</div>
+          <div class="sales-stat-val ${profitPos ? 'pos' : 'neg'}">${profitPos ? '+' : '−'}${fmtMoney(Math.abs(totalProfit))}</div>
+        </div>
+      </div>
+      ${salesListHtml}`;
+
     el.innerHTML = `
       <div class="balance-card">
         <div class="balance-label">Баланс компании</div>
@@ -1337,9 +1392,16 @@ class App {
         <button class="fin-btn charge" id="chargeBtn">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>Выставить счёт
+          </svg>Списание
+        </button>
+        <button class="fin-btn sell" id="sellBtn">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/>
+          </svg>Продать
         </button>
       </div>
+      ${salesSectionHtml}
       ${plansSectionHtml}
       ${payHistHtml}
       ${empSectionHtml}
@@ -1347,6 +1409,7 @@ class App {
 
     document.getElementById('depositBtn').addEventListener('click', () => this.openPaymentModal('deposit'));
     document.getElementById('chargeBtn').addEventListener('click',  () => this.openPaymentModal('charge'));
+    document.getElementById('sellBtn').addEventListener('click',    () => this.openSaleModal());
     document.getElementById('addPlanBtn').addEventListener('click', () => this.openPlanModal());
 
     el.querySelectorAll('.pay-del[data-id]').forEach(btn =>
@@ -1382,6 +1445,16 @@ class App {
 
     el.querySelectorAll('.emp-bal-card').forEach(card =>
       card.addEventListener('click', () => this.openEmpModal(card.dataset.ownerId))
+    );
+
+    el.querySelectorAll('.pay-del[data-sale-id]').forEach(btn =>
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const ok = await this.confirm('Удалить запись продажи?');
+        if (!ok) return;
+        await this.db.deleteSale(btn.dataset.saleId);
+        this.renderFinance();
+      })
     );
   }
 
@@ -2041,6 +2114,85 @@ class App {
     this._editingQuickId = null;
     this.closeModal('quickModal');
     this.renderProjectQuick();
+  }
+
+  /* ──────────────────────────────────────────
+     SALE MODAL
+     ────────────────────────────────────────── */
+  async openSaleModal() {
+    const items = await this.db.getItems();
+    const sel   = document.getElementById('saleItemSelect');
+    sel.innerHTML = `<option value="">— Выберите товар —</option>` +
+      items.map(i => `<option value="${i.id}" data-buy="${i.buyPrice||0}" data-price="${i.price||0}" data-sizes='${JSON.stringify(i.sizes||[])}'>${this.esc(i.name)}</option>`).join('');
+
+    document.getElementById('saleSalePrice').value    = '';
+    document.getElementById('saleBuyPrice').value     = '';
+    document.getElementById('saleDeliveryCost').value = '0';
+    document.getElementById('saleNote').value         = '';
+    document.getElementById('saleSizeGroup').style.display   = 'none';
+    document.getElementById('saleSizeDivider').style.display = 'none';
+    this._updateSalePreview();
+    this.openModal('saleModal');
+  }
+
+  _onSaleItemChange() {
+    const sel  = document.getElementById('saleItemSelect');
+    const opt  = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) {
+      document.getElementById('saleSizeGroup').style.display   = 'none';
+      document.getElementById('saleSizeDivider').style.display = 'none';
+      return;
+    }
+    document.getElementById('saleBuyPrice').value  = opt.dataset.buy  || '0';
+    document.getElementById('saleSalePrice').value = opt.dataset.price || '0';
+
+    let sizes = [];
+    try { sizes = JSON.parse(opt.dataset.sizes || '[]'); } catch {}
+    const hasSizes = sizes.length > 1 || (sizes.length === 1 && sizes[0].size);
+    document.getElementById('saleSizeGroup').style.display   = hasSizes ? '' : 'none';
+    document.getElementById('saleSizeDivider').style.display = hasSizes ? '' : 'none';
+    if (hasSizes) {
+      document.getElementById('saleSizeSelect').innerHTML =
+        sizes.map(s => `<option value="${this.esc(s.size)}">${this.esc(s.size)} (${s.qty} шт)</option>`).join('');
+    }
+    this._updateSalePreview();
+  }
+
+  _updateSalePreview() {
+    const revenue  = parseFloat(document.getElementById('saleSalePrice').value)    || 0;
+    const buyPrice = parseFloat(document.getElementById('saleBuyPrice').value)     || 0;
+    const delivery = parseFloat(document.getElementById('saleDeliveryCost').value) || 0;
+    const costs    = buyPrice + delivery;
+    const profit   = revenue - costs;
+    const profPos  = profit >= 0;
+
+    document.getElementById('previewRevenue').textContent = fmtMoney(revenue);
+    document.getElementById('previewCosts').textContent   = fmtMoney(costs);
+    const profEl = document.getElementById('previewProfit');
+    profEl.textContent = (profPos ? '+' : '−') + fmtMoney(Math.abs(profit));
+    profEl.className   = 'sale-profit-val bold ' + (profPos ? 'pos' : 'neg');
+  }
+
+  async saveSale() {
+    const sel       = document.getElementById('saleItemSelect');
+    const itemId    = sel.value;
+    const itemName  = sel.options[sel.selectedIndex]?.text || '';
+    const salePrice = parseFloat(document.getElementById('saleSalePrice').value)    || 0;
+    const buyPrice  = parseFloat(document.getElementById('saleBuyPrice').value)     || 0;
+    const delivery  = parseFloat(document.getElementById('saleDeliveryCost').value) || 0;
+    const note      = document.getElementById('saleNote').value.trim();
+
+    if (!itemId)    { this.toast('Выберите товар');        return; }
+    if (!salePrice) { this.toast('Укажите сумму продажи'); return; }
+
+    const sizeEl = document.getElementById('saleSizeSelect');
+    const size   = document.getElementById('saleSizeGroup').style.display !== 'none' ? sizeEl.value : '';
+
+    await this.db.addSale({ itemId, itemName, size, salePrice, buyPrice, deliveryCost: delivery, note });
+    await this.db.logAction('sale', `Продажа: «${itemName}»${size ? ` (${size})` : ''}`, { salePrice, buyPrice, deliveryCost: delivery });
+    this.closeModal('saleModal');
+    this.renderFinance();
+    this.toast(`Продажа записана · +${fmtMoney(salePrice - buyPrice - delivery)} ₽`);
   }
 
   /* ──────────────────────────────────────────

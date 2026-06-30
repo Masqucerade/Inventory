@@ -571,8 +571,76 @@
   </div>
 </div>
 
-<script src="js/db.js?v=20"></script>
-<script src="js/backup.js?v=20"></script>
-<script src="js/app.js?v=20"></script>
+<!-- ═══ SALE MODAL ═══ -->
+<div class="modal" id="saleModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="saleModalClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title">Записать продажу</span>
+      <button class="modal-action-btn" id="saleModalSave">Продать</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-card">
+        <div class="form-group">
+          <label class="form-label">Товар</label>
+          <select class="form-input form-select" id="saleItemSelect">
+            <option value="">— Выберите товар —</option>
+          </select>
+        </div>
+        <div class="form-divider" id="saleSizeDivider" style="display:none"></div>
+        <div class="form-group" id="saleSizeGroup" style="display:none">
+          <label class="form-label">Размер</label>
+          <select class="form-input form-select" id="saleSizeSelect"></select>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-group">
+          <label class="form-label">Сумма продажи</label>
+          <input type="number" class="form-input" id="saleSalePrice" placeholder="0" min="0">
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-group">
+          <label class="form-label">Закупочная цена</label>
+          <input type="number" class="form-input" id="saleBuyPrice" placeholder="0" min="0">
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-group">
+          <label class="form-label">Стоимость доставки</label>
+          <input type="number" class="form-input" id="saleDeliveryCost" placeholder="0" min="0" value="0">
+        </div>
+      </div>
+
+      <div class="sale-profit-preview" id="saleProfitPreview">
+        <div class="sale-profit-row">
+          <span class="sale-profit-label">Выручка</span>
+          <span class="sale-profit-val" id="previewRevenue">0 ₽</span>
+        </div>
+        <div class="sale-profit-row">
+          <span class="sale-profit-label">Издержки (закуп + доставка)</span>
+          <span class="sale-profit-val neg" id="previewCosts">0 ₽</span>
+        </div>
+        <div class="sale-profit-divider"></div>
+        <div class="sale-profit-row bold">
+          <span class="sale-profit-label">Чистая прибыль</span>
+          <span class="sale-profit-val" id="previewProfit">0 ₽</span>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-group">
+          <label class="form-label">Заметка (необязательно)</label>
+          <input type="text" class="form-input" id="saleNote" placeholder="Покупатель, канал продажи…" autocomplete="off">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js?v=21"></script>
+<script src="js/backup.js?v=21"></script>
+<script src="js/app.js?v=21"></script>
 </body>
 </html>

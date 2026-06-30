@@ -322,6 +322,26 @@ app.delete('/api/plans/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── SALES ─── */
+app.get('/api/sales', (req, res) => res.json(load().sales || []));
+
+app.post('/api/sales', (req, res) => {
+  const db   = load();
+  const sale = { id: uid(), soldAt: new Date().toISOString(), ...req.body };
+  sale.netProfit = (sale.salePrice || 0) - (sale.buyPrice || 0) - (sale.deliveryCost || 0);
+  if (!db.sales) db.sales = [];
+  db.sales.unshift(sale);
+  save(db);
+  res.json(sale);
+});
+
+app.delete('/api/sales/:id', (req, res) => {
+  const db = load();
+  db.sales = (db.sales || []).filter(s => s.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
 /* ─── CATEGORIES ─── */
 app.get('/api/categories', (req, res) => res.json(load().categories || []));
 app.post('/api/categories', (req, res) => {
