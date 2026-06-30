@@ -2123,7 +2123,7 @@ class App {
     const items = await this.db.getItems();
     const sel   = document.getElementById('saleItemSelect');
     sel.innerHTML = `<option value="">— Выберите товар —</option>` +
-      items.map(i => `<option value="${i.id}" data-buy="${i.buyPrice||0}" data-price="${i.price||0}" data-sizes='${JSON.stringify(i.sizes||[])}'>${this.esc(i.name)}</option>`).join('');
+      items.map(i => `<option value="${i.id}" data-buy="${i.buyPrice||0}" data-price="${i.price||0}" data-delivery="${i.deliveryCost||0}" data-sizes='${JSON.stringify(i.sizes||[])}'>${this.esc(i.name)}</option>`).join('');
 
     document.getElementById('saleSalePrice').value    = '';
     document.getElementById('saleBuyPrice').value     = '';
@@ -2143,8 +2143,9 @@ class App {
       document.getElementById('saleSizeDivider').style.display = 'none';
       return;
     }
-    document.getElementById('saleBuyPrice').value  = opt.dataset.buy  || '0';
-    document.getElementById('saleSalePrice').value = opt.dataset.price || '0';
+    document.getElementById('saleBuyPrice').value     = opt.dataset.buy      || '0';
+    document.getElementById('saleSalePrice').value    = opt.dataset.price    || '0';
+    document.getElementById('saleDeliveryCost').value = opt.dataset.delivery || '0';
 
     let sizes = [];
     try { sizes = JSON.parse(opt.dataset.sizes || '[]'); } catch {}
