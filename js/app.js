@@ -107,11 +107,37 @@ class App {
     } catch { return false; }
   }
 
-  _showLoginScreen() {
+  async _showLoginScreen() {
     const screen = document.getElementById('loginScreen');
-    const app    = document.getElementById('app');
+    const appEl  = document.getElementById('app');
     screen.classList.remove('hidden');
-    app.classList.add('hidden');
+    appEl.classList.add('hidden');
+
+    // Show quick-login for owners without password
+    const allOwners   = await this.db.getOwners();
+    const noPassOwners = allOwners.filter(o => !o.username);
+    const quickWrap   = document.getElementById('loginQuick');
+    if (noPassOwners.length) {
+      quickWrap.innerHTML = `<p class="login-quick-label">или войти без пароля:</p>` +
+        noPassOwners.map(o =>
+          `<button class="login-quick-btn" data-id="${o.id}"
+             style="border-color:${o.color}">
+             <span class="login-quick-dot" style="background:${o.color}"></span>
+             ${this.esc(o.name)}
+           </button>`
+        ).join('');
+      quickWrap.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => {
+        const o = allOwners.find(x => x.id === b.dataset.id);
+        if (!o) return;
+        const sess = { userId: o.id, name: o.name, color: o.color, isAdmin: !!o.isAdmin };
+        this.db.saveSession(sess);
+        this._session = sess;
+        screen.classList.add('hidden');
+        appEl.classList.remove('hidden');
+        this._startApp();
+      }));
+    }
+
     const btn = document.getElementById('loginBtn');
     const err = document.getElementById('loginError');
     const doLogin = async () => {
@@ -124,7 +150,7 @@ class App {
         this.db.saveSession(data);
         this._session = data;
         screen.classList.add('hidden');
-        app.classList.remove('hidden');
+        appEl.classList.remove('hidden');
         await this._startApp();
       } catch (e) {
         err.classList.remove('hidden');
