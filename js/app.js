@@ -1251,7 +1251,8 @@ class App {
     ]);
 
     const balance = payments.reduce((s, p) =>
-      p.type === 'deposit' ? s + (p.amount || 0) : s - (p.amount || 0), 0);
+      p.type === 'deposit' ? s + (p.amount || 0) : s - (p.amount || 0), 0)
+      + sales.reduce((s, x) => s + (x.netProfit || 0), 0);
     const pos = balance >= 0;
 
     const empBals = {};
