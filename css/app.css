@@ -30,7 +30,6 @@
   --s-at_warehouse: #fb923c;
   --s-in_stock:     #4ade80;
   --s-processing:   #93c5fd;
-  --s-waiting:      #c4b5fd;
 
   --s-done:         rgba(255,255,255,0.22);
 
@@ -69,7 +68,6 @@
   --s-at_warehouse: #ea580c;
   --s-in_stock:     #16a34a;
   --s-processing:   #2563eb;
-  --s-waiting:      #7c3aed;
   --s-done:         rgba(0,0,0,0.22);
 }
 
@@ -349,7 +347,6 @@ html, body {
 .status-badge.at_warehouse { border-color: rgba(251,146,60,.32);  background: rgba(251,146,60,.10);  color: var(--s-at_warehouse); }
 .status-badge.in_stock     { border-color: rgba(74,222,128,.28);   background: rgba(74,222,128,.07);  color: var(--s-in_stock); }
 .status-badge.processing   { border-color: rgba(147,197,253,.28);  background: rgba(147,197,253,.07); color: var(--s-processing); }
-.status-badge.waiting      { border-color: rgba(196,181,253,.28);  background: rgba(196,181,253,.07); color: var(--s-waiting); }
 .status-badge.done         { border-color: rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); color: var(--s-done); text-decoration: none; }
 
 .chip-warehouse.active { background: rgba(251,146,60,.15); border-color: rgba(251,146,60,.45); color: #fb923c; }
@@ -657,7 +654,6 @@ html, body {
 .status-chip[data-status="ordered"].selected    { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.20); color: var(--text2); }
 .status-chip[data-status="in_stock"].selected   { background: rgba(74,222,128,.10);   border-color: rgba(74,222,128,.32);   color: var(--s-in_stock); }
 .status-chip[data-status="processing"].selected { background: rgba(147,197,253,.10);  border-color: rgba(147,197,253,.32);  color: var(--s-processing); }
-.status-chip[data-status="waiting"].selected    { background: rgba(196,181,253,.10);  border-color: rgba(196,181,253,.32);  color: var(--s-waiting); }
 .status-chip[data-status="done"].selected       { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12); color: var(--s-done); }
 
 /* =============================================
