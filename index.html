@@ -13,6 +13,20 @@
 </head>
 <body>
 
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="loginScreen" class="login-screen hidden">
+  <div class="login-card">
+    <div class="login-logo">M</div>
+    <p class="login-brand">Masqucerade INC.</p>
+    <div class="login-fields">
+      <input type="text" class="form-input" id="loginUsername" placeholder="Логин" autocomplete="off" autocapitalize="none">
+      <input type="password" class="form-input" id="loginPassword" placeholder="Пароль">
+      <p class="login-error hidden" id="loginError">Неверный логин или пароль</p>
+      <button class="login-btn" id="loginBtn">Войти</button>
+    </div>
+  </div>
+</div>
+
 <div id="app" class="app">
 
   <div class="bg-fx" aria-hidden="true"></div>
@@ -52,6 +66,7 @@
           </svg>
         </button>
       </div>
+      <div class="chips-scroll" id="catFilterChips" style="display:none"></div>
       <div class="chips-scroll" id="statusFilterChips">
         <button class="chip active" data-status="">Все</button>
         <button class="chip" data-status="ordered">Заказано</button>
@@ -204,6 +219,13 @@
       </div>
 
       <div class="form-card">
+        <div class="form-group" id="categoryGroup">
+          <label class="form-label">Категория</label>
+          <select class="form-input form-select" id="fieldCategory">
+            <option value="">— Без категории —</option>
+          </select>
+        </div>
+        <div class="form-divider" id="categoryDivider"></div>
         <div class="form-group">
           <label class="form-label">Тип товара <span class="required">*</span></label>
           <input type="text" id="fieldType" class="form-input" placeholder="Одежда, Обувь, Аксессуары…" list="typesList" autocomplete="off">
@@ -341,7 +363,18 @@
     <div class="form-card">
       <div class="form-group">
         <label class="form-label">Имя <span class="required">*</span></label>
-        <input type="text" id="ownerName" class="form-input" placeholder="Имя владельца" autocomplete="off">
+        <input type="text" id="ownerName" class="form-input" placeholder="Имя сотрудника" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-card">
+      <div class="form-group">
+        <label class="form-label">Логин</label>
+        <input type="text" id="ownerUsername" class="form-input" placeholder="Для входа в приложение" autocomplete="off" autocapitalize="none">
+      </div>
+      <div class="form-divider"></div>
+      <div class="form-group">
+        <label class="form-label">Пароль</label>
+        <input type="password" id="ownerPassword" class="form-input" placeholder="Оставьте пустым чтобы не менять">
       </div>
     </div>
     <div class="form-card">
@@ -480,6 +513,13 @@
             <option value="">— Не назначен —</option>
           </select>
         </div>
+        <div class="form-group">
+          <label class="form-label">Видимость</label>
+          <select class="form-input form-select" id="taskVisibility">
+            <option value="all">🌐 Видят все</option>
+            <option value="private">🔒 Только я</option>
+          </select>
+        </div>
       </div>
     </div>
   </div>
@@ -513,6 +553,13 @@
         <div class="form-group">
           <label class="form-label">Значение</label>
           <textarea class="form-input" id="quickValue" placeholder="Номер, адрес, ссылка…" rows="3" style="resize:vertical;min-height:60px"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Видимость</label>
+          <select class="form-input form-select" id="quickVisibility">
+            <option value="all">🌐 Видят все</option>
+            <option value="private">🔒 Только я</option>
+          </select>
         </div>
       </div>
     </div>
@@ -562,8 +609,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=12"></script>
-<script src="js/backup.js?v=12"></script>
-<script src="js/app.js?v=12"></script>
+<script src="js/db.js?v=13"></script>
+<script src="js/backup.js?v=13"></script>
+<script src="js/app.js?v=13"></script>
 </body>
 </html>

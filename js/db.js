@@ -173,6 +173,33 @@ class InventoryDB {
     await fetch(`/api/plans/${id}`, { method: 'DELETE' });
   }
 
+  /* ─── CATEGORIES ─── */
+  async getCategories() {
+    try { const r = await fetch('/api/categories'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async addCategory(cat) {
+    const r = await fetch('/api/categories', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(cat) });
+    return r.json();
+  }
+  async deleteCategory(id) { await fetch(`/api/categories/${id}`, { method:'DELETE' }); }
+
+  /* ─── AUTH ─── */
+  async login(username, password) {
+    const r = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username,password}) });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Ошибка входа'); }
+    return r.json();
+  }
+  getSession() {
+    try {
+      const s = JSON.parse(localStorage.getItem('inv_session') || 'null');
+      if (!s || Date.now() - s.ts > 7 * 86400_000) return null;
+      return s;
+    } catch { return null; }
+  }
+  saveSession(data) { localStorage.setItem('inv_session', JSON.stringify({ ...data, ts: Date.now() })); }
+  clearSession()    { localStorage.removeItem('inv_session'); }
+
   /* ─── TASKS ─── */
   async getTasks() {
     try { const r = await fetch('/api/tasks'); return r.ok ? r.json() : []; }

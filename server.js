@@ -1,6 +1,9 @@
 const express = require('express');
 const fs      = require('fs');
 const path    = require('path');
+const crypto  = require('crypto');
+
+function hashPwd(p) { return crypto.createHash('sha256').update('inv2024:' + p).digest('hex'); }
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
@@ -60,7 +63,19 @@ app.put('/api/items', (req, res) => {
   item.total = Math.round((totQty * (item.price || 0)) * 100) / 100;
   if (!db.items) db.items = [];
   const idx = db.items.findIndex(i => i.id === item.id);
-  idx >= 0 ? (db.items[idx] = item) : db.items.push(item);
+  if (idx >= 0) {
+    const old = db.items[idx];
+    const TRACKED = ['status','ownerId','name','price','buyPrice','categoryId'];
+    const changes = {};
+    TRACKED.forEach(f => { if (String(old[f]??'') !== String(item[f]??'')) changes[f] = { from: old[f], to: item[f] }; });
+    item.history = [...(old.history || [])];
+    if (Object.keys(changes).length) item.history = [...item.history, { ts: now, by: item._updatedBy||null, changes }].slice(-30);
+    delete item._updatedBy;
+    db.items[idx] = item;
+  } else {
+    item.history = [];
+    db.items.push(item);
+  }
   save(db);
   res.json(item);
 });
@@ -79,11 +94,19 @@ app.put('/api/owners', (req, res) => {
   const db    = load();
   const owner = { ...req.body };
   if (!owner.id) { owner.id = uid(); owner.createdAt = new Date().toISOString(); }
+  if (owner._newPassword) { owner.passwordHash = hashPwd(owner._newPassword); delete owner._newPassword; }
+  if (!owner.username) delete owner.username;
   if (!db.owners) db.owners = [];
   const idx = db.owners.findIndex(o => o.id === owner.id);
-  idx >= 0 ? (db.owners[idx] = owner) : db.owners.push(owner);
+  if (idx >= 0) {
+    if (!owner.passwordHash) owner.passwordHash = db.owners[idx].passwordHash;
+    db.owners[idx] = owner;
+  } else {
+    db.owners.push(owner);
+  }
   save(db);
-  res.json(owner);
+  const safe = { ...owner }; delete safe.passwordHash;
+  res.json(safe);
 });
 
 app.delete('/api/owners/:id', (req, res) => {
@@ -308,6 +331,34 @@ app.delete('/api/plans/:id', (req, res) => {
   db.plans = (db.plans || []).filter(p => p.id !== req.params.id);
   save(db);
   res.json({ ok: true });
+});
+
+/* ─── CATEGORIES ─── */
+app.get('/api/categories', (req, res) => res.json(load().categories || []));
+app.post('/api/categories', (req, res) => {
+  const db  = load();
+  const cat = { id: uid(), ...req.body };
+  if (!db.categories) db.categories = [];
+  db.categories.push(cat);
+  save(db);
+  res.json(cat);
+});
+app.delete('/api/categories/:id', (req, res) => {
+  const db = load();
+  db.categories = (db.categories || []).filter(c => c.id !== req.params.id);
+  db.items = (db.items || []).map(i => i.categoryId === req.params.id ? { ...i, categoryId: null } : i);
+  save(db);
+  res.json({ ok: true });
+});
+
+/* ─── AUTH ─── */
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Укажите логин и пароль' });
+  const owners = load().owners || [];
+  const owner  = owners.find(o => o.username && o.username.toLowerCase() === username.toLowerCase() && o.passwordHash === hashPwd(password));
+  if (!owner) return res.status(401).json({ error: 'Неверный логин или пароль' });
+  res.json({ userId: owner.id, name: owner.name, color: owner.color });
 });
 
 /* ─── TASKS ─── */
