@@ -912,8 +912,20 @@ html, body {
   border-color: rgba(248,113,113,.25);
   color: #f87171;
 }
-[data-theme="light"] .fin-btn.deposit { background: rgba(22,163,74,.07); border-color: rgba(22,163,74,.25); color: #16a34a; }
-[data-theme="light"] .fin-btn.charge  { background: rgba(220,38,38,.07); border-color: rgba(220,38,38,.25);  color: #dc2626; }
+[data-theme="light"] .fin-btn.deposit  { background: rgba(22,163,74,.07);  border-color: rgba(22,163,74,.25);  color: #16a34a; }
+[data-theme="light"] .fin-btn.charge   { background: rgba(220,38,38,.07);  border-color: rgba(220,38,38,.25);  color: #dc2626; }
+[data-theme="light"] .fin-btn.expense  { background: rgba(180,83,9,.07);   border-color: rgba(180,83,9,.25);   color: #b45309; }
+.fin-btn.expense { background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.25); color: #fbbf24; }
+
+.pay-icon.expense  { background: rgba(251,191,36,.12); color: #fbbf24; font-size: 13px; }
+.pay-amount.expense { color: #fbbf24; }
+[data-theme="light"] .pay-icon.expense   { color: #b45309; }
+[data-theme="light"] .pay-amount.expense { color: #b45309; }
+
+.emp-bal-split {
+  display: flex; gap: 12px; justify-content: center;
+  margin-top: 6px; font-size: 11px; color: var(--text3);
+}
 
 .pay-list {
   background: var(--card); border: 1px solid var(--card-b);

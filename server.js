@@ -203,11 +203,18 @@ app.post('/api/employee-payments', (req, res) => {
   if (!db.employeePayments) db.employeePayments = [];
   db.employeePayments.push(entry);
   save(db);
-  const sign = entry.type === 'credit' ? '+' : '−';
-  logToTelegram({
-    type: 'emp_payment', ts: entry.ts,
-    desc: `💵 ${entry.ownerName || 'Сотрудник'}: ${sign}${Number(entry.amount).toLocaleString('ru-RU')} ₽${entry.desc ? ' — ' + entry.desc : ''}`,
-  });
+  if (entry.isExpense) {
+    logToTelegram({
+      type: 'emp_payment', ts: entry.ts,
+      desc: `🧾 ${entry.ownerName || 'Сотрудник'} потратил из своих: +${Number(entry.amount).toLocaleString('ru-RU')} ₽${entry.desc ? ' — ' + entry.desc : ''}`,
+    });
+  } else {
+    const sign = entry.type === 'credit' ? '+' : '−';
+    logToTelegram({
+      type: 'emp_payment', ts: entry.ts,
+      desc: `💵 ${entry.ownerName || 'Сотрудник'}: ${sign}${Number(entry.amount).toLocaleString('ru-RU')} ₽${entry.desc ? ' — ' + entry.desc : ''}`,
+    });
+  }
   res.json(entry);
 });
 
