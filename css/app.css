@@ -26,12 +26,13 @@
   --a2:   rgba(255,255,255,0.88);
   --a-dim: rgba(255,255,255,0.07);
 
-  --s-ordered:    rgba(255,255,255,0.40);
-  --s-in_stock:   #4ade80;
-  --s-processing: #93c5fd;
-  --s-waiting:    #c4b5fd;
+  --s-ordered:      rgba(255,255,255,0.40);
+  --s-at_warehouse: #fb923c;
+  --s-in_stock:     #4ade80;
+  --s-processing:   #93c5fd;
+  --s-waiting:      #c4b5fd;
 
-  --s-done:       rgba(255,255,255,0.22);
+  --s-done:         rgba(255,255,255,0.22);
 
   --r:    14px;
   --r-sm: 10px;
@@ -64,11 +65,12 @@
   --a2:   rgba(0,0,0,0.85);
   --a-dim: rgba(0,0,0,0.07);
 
-  --s-ordered:    rgba(0,0,0,0.35);
-  --s-in_stock:   #16a34a;
-  --s-processing: #2563eb;
-  --s-waiting:    #7c3aed;
-  --s-done:       rgba(0,0,0,0.22);
+  --s-ordered:      rgba(0,0,0,0.35);
+  --s-at_warehouse: #ea580c;
+  --s-in_stock:     #16a34a;
+  --s-processing:   #2563eb;
+  --s-waiting:      #7c3aed;
+  --s-done:         rgba(0,0,0,0.22);
 }
 
 html, body {
@@ -343,11 +345,15 @@ html, body {
   letter-spacing: 0.1px; white-space: nowrap; flex-shrink: 0;
   border: 1px solid;
 }
-.status-badge.ordered    { border-color: rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: var(--s-ordered); }
-.status-badge.in_stock   { border-color: rgba(74,222,128,.28);   background: rgba(74,222,128,.07);  color: var(--s-in_stock); }
-.status-badge.processing { border-color: rgba(147,197,253,.28);  background: rgba(147,197,253,.07); color: var(--s-processing); }
-.status-badge.waiting    { border-color: rgba(196,181,253,.28);  background: rgba(196,181,253,.07); color: var(--s-waiting); }
-.status-badge.done       { border-color: rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); color: var(--s-done); text-decoration: none; }
+.status-badge.ordered      { border-color: rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: var(--s-ordered); }
+.status-badge.at_warehouse { border-color: rgba(251,146,60,.32);  background: rgba(251,146,60,.10);  color: var(--s-at_warehouse); }
+.status-badge.in_stock     { border-color: rgba(74,222,128,.28);   background: rgba(74,222,128,.07);  color: var(--s-in_stock); }
+.status-badge.processing   { border-color: rgba(147,197,253,.28);  background: rgba(147,197,253,.07); color: var(--s-processing); }
+.status-badge.waiting      { border-color: rgba(196,181,253,.28);  background: rgba(196,181,253,.07); color: var(--s-waiting); }
+.status-badge.done         { border-color: rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); color: var(--s-done); text-decoration: none; }
+
+.chip-warehouse.active { background: rgba(251,146,60,.15); border-color: rgba(251,146,60,.45); color: #fb923c; }
+[data-theme="light"] .chip-warehouse.active { background: rgba(234,88,12,.10); border-color: rgba(234,88,12,.40); color: #ea580c; }
 
 /* =============================================
    EMPTY STATE
