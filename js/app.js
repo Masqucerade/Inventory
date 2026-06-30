@@ -1707,7 +1707,6 @@ class App {
      PROJECT — sub-tabs
      ────────────────────────────────────────── */
   renderProject() {
-    // wire sub-tab buttons once per render
     document.querySelectorAll('.proj-subtab').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.subtab === this._projectSubTab);
       btn.onclick = () => {
@@ -1727,9 +1726,9 @@ class App {
 
   /* ── Задачи ── */
   async renderProjectTasks() {
-    const el    = document.getElementById('projectContent');
+    const el     = document.getElementById('projectContent');
     if (!el) return;
-    const tasks = await this.db.getTasks();
+    const [tasks, owners] = await Promise.all([this.db.getTasks(), this.db.getOwners()]);
 
     if (!tasks.length) {
       el.innerHTML = `<div class="faq-empty">
@@ -1741,25 +1740,36 @@ class App {
       return;
     }
 
-    const svgDel = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+    const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
+    const ownerName = id => owners.find(o => o.id === id)?.name || '';
 
     const todo = tasks.filter(t => !t.done);
     const done = tasks.filter(t =>  t.done);
-    const render = list => list.map(t => `
+
+    const renderList = list => list.map(t => {
+      const assignee = t.assigneeId ? ownerName(t.assigneeId) : '';
+      return `
       <div class="task-item${t.done ? ' done' : ''}" data-task-id="${t.id}">
-        <button class="task-check" data-task-id="${t.id}" title="${t.done ? 'Отметить активной' : 'Выполнено'}">
-          ${t.done
-            ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
-            : ''}
+        <button class="task-check" data-task-id="${t.id}" title="${t.done ? 'Вернуть' : 'Выполнено'}">
+          ${t.done ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
         </button>
-        <span class="task-text">${this.esc(t.text)}</span>
-        <button class="task-del" data-task-id="${t.id}" title="Удалить">${svgDel}</button>
-      </div>`).join('');
+        <div class="task-body">
+          <span class="task-text">${this.esc(t.text)}</span>
+          ${assignee ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}
+        </div>
+        <div class="task-btns">
+          <button class="task-edit" data-task-id="${t.id}" title="Изменить">${svgEdit}</button>
+          <button class="task-del"  data-task-id="${t.id}" title="Удалить">${svgDel}</button>
+        </div>
+      </div>`;
+    }).join('');
 
     el.innerHTML = `<div class="task-list">
-      ${render(todo)}
+      ${renderList(todo)}
       ${done.length && todo.length ? '<div class="task-divider">Выполнено</div>' : ''}
-      ${render(done)}
+      ${renderList(done)}
     </div>`;
 
     el.querySelectorAll('.task-check').forEach(btn =>
@@ -1768,6 +1778,12 @@ class App {
         if (!t) return;
         await this.db.patchTask(t.id, { done: !t.done });
         this.renderProjectTasks();
+      })
+    );
+    el.querySelectorAll('.task-edit').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const t = tasks.find(x => x.id === btn.dataset.taskId);
+        if (t) this.openTaskModal(t);
       })
     );
     el.querySelectorAll('.task-del').forEach(btn =>
@@ -1780,27 +1796,47 @@ class App {
     );
   }
 
-  openTaskModal() {
-    document.getElementById('taskText').value = '';
+  async openTaskModal(task = null) {
+    this._editingTaskId = task?.id || null;
+    document.getElementById('taskModalTitle').textContent = task ? 'Редактировать задачу' : 'Новая задача';
+    document.getElementById('taskModalSave').textContent  = task ? 'Сохранить' : 'Добавить';
+    document.getElementById('taskText').value = task?.text || '';
+
+    const sel    = document.getElementById('taskAssignee');
+    const owners = await this.db.getOwners();
+    sel.innerHTML = `<option value="">— Не назначен —</option>` +
+      owners.map(o => `<option value="${o.id}"${task?.assigneeId === o.id ? ' selected' : ''}>${this.esc(o.name)}</option>`).join('');
+
     this.openModal('taskModal');
     setTimeout(() => document.getElementById('taskText').focus(), 350);
   }
 
   async saveTask() {
-    const text = document.getElementById('taskText').value.trim();
+    const text       = document.getElementById('taskText').value.trim();
+    const assigneeId = document.getElementById('taskAssignee').value || null;
     if (!text) { this.toast('Введите описание задачи'); return; }
-    await this.db.addTask({ text });
+    if (this._editingTaskId) {
+      await this.db.patchTask(this._editingTaskId, { text, assigneeId });
+      this.toast('Задача обновлена ✓');
+    } else {
+      await this.db.addTask({ text, assigneeId });
+    }
+    this._editingTaskId = null;
     this.closeModal('taskModal');
     this.renderProjectTasks();
   }
 
   /* ── Быстрый доступ ── */
+  _quickTypeIcon(type) {
+    return { card:'💳', phone:'📞', address:'📍', password:'🔑', link:'🔗', other:'📋' }[type] || '📋';
+  }
+
   async renderProjectQuick() {
     const el    = document.getElementById('projectContent');
     if (!el) return;
-    const items = await this.db.getQuickItems();
+    const raw   = await this.db.getQuickItems();
 
-    if (!items.length) {
+    if (!raw.length) {
       el.innerHTML = `<div class="faq-empty">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
           <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -1810,24 +1846,49 @@ class App {
       return;
     }
 
-    const svgCopy = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+    const items = [...raw.filter(i => i.pinned), ...raw.filter(i => !i.pinned)];
+
+    const svgPin  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+    const svgCopy = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
     const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
     const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+    const svgEye  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    const svgEyeOff = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
 
-    el.innerHTML = `<div class="quick-list">${items.map(item => `
-      <div class="quick-item" data-quick-id="${item.id}">
+    el.innerHTML = `<div class="quick-list">${items.map(item => {
+      const isPassword = item.type === 'password';
+      const maskedVal  = '●'.repeat(Math.min(item.value.length, 12));
+      return `
+      <div class="quick-item${item.pinned ? ' pinned' : ''}" data-quick-id="${item.id}">
+        <div class="quick-type-icon">${this._quickTypeIcon(item.type)}</div>
         <div class="quick-main">
-          <span class="quick-label">${this.esc(item.label)}</span>
-          <span class="quick-value">${this.esc(item.value)}</span>
+          <span class="quick-label">${item.pinned ? '📌 ' : ''}${this.esc(item.label)}</span>
+          <span class="quick-value${isPassword ? ' masked' : ''}" data-revealed="false" data-val="${this.esc(item.value)}">
+            ${isPassword ? maskedVal : this.esc(item.value)}
+          </span>
         </div>
         <div class="quick-actions">
+          ${isPassword ? `<button class="quick-eye" data-quick-id="${item.id}" title="Показать/скрыть">${svgEyeOff}</button>` : ''}
           <button class="quick-copy" data-val="${this.esc(item.value)}" title="Скопировать">${svgCopy}</button>
+          <button class="quick-pin ${item.pinned ? 'active' : ''}" data-quick-id="${item.id}" title="${item.pinned ? 'Открепить' : 'Закрепить'}">${svgPin}</button>
           <button class="quick-edit" data-quick-id="${item.id}" title="Изменить">${svgEdit}</button>
-          <button class="quick-del" data-quick-id="${item.id}" title="Удалить">${svgDel}</button>
+          <button class="quick-del"  data-quick-id="${item.id}" title="Удалить">${svgDel}</button>
         </div>
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
     </div>`;
 
+    el.querySelectorAll('.quick-eye').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const valEl    = btn.closest('.quick-item').querySelector('.quick-value');
+        const revealed = valEl.dataset.revealed === 'true';
+        valEl.dataset.revealed = !revealed;
+        valEl.textContent = revealed
+          ? '●'.repeat(Math.min(valEl.dataset.val.length, 12))
+          : valEl.dataset.val;
+        btn.innerHTML = revealed ? svgEyeOff : svgEye;
+      })
+    );
     el.querySelectorAll('.quick-copy').forEach(btn =>
       btn.addEventListener('click', () => {
         const val = btn.dataset.val;
@@ -1838,9 +1899,17 @@ class App {
         this.toast('Скопировано');
       })
     );
+    el.querySelectorAll('.quick-pin').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const item = raw.find(x => x.id === btn.dataset.quickId);
+        if (!item) return;
+        await this.db.patchQuickItem(item.id, { pinned: !item.pinned });
+        this.renderProjectQuick();
+      })
+    );
     el.querySelectorAll('.quick-edit').forEach(btn =>
       btn.addEventListener('click', () => {
-        const item = items.find(x => x.id === btn.dataset.quickId);
+        const item = raw.find(x => x.id === btn.dataset.quickId);
         if (item) this.openQuickModal(item);
       })
     );
@@ -1857,6 +1926,7 @@ class App {
   openQuickModal(item = null) {
     this._editingQuickId = item?.id || null;
     document.getElementById('quickModalTitle').textContent = item ? 'Редактировать' : 'Новый реквизит';
+    document.getElementById('quickType').value  = item?.type  || 'other';
     document.getElementById('quickLabel').value = item?.label || '';
     document.getElementById('quickValue').value = item?.value || '';
     this.openModal('quickModal');
@@ -1864,15 +1934,16 @@ class App {
   }
 
   async saveQuickItem() {
+    const type  = document.getElementById('quickType').value;
     const label = document.getElementById('quickLabel').value.trim();
     const value = document.getElementById('quickValue').value.trim();
     if (!label) { this.toast('Введите название'); return; }
     if (!value) { this.toast('Введите значение'); return; }
     if (this._editingQuickId) {
-      await this.db.patchQuickItem(this._editingQuickId, { label, value });
+      await this.db.patchQuickItem(this._editingQuickId, { type, label, value });
       this.toast('Обновлено ✓');
     } else {
-      await this.db.addQuickItem({ label, value });
+      await this.db.addQuickItem({ type, label, value, pinned: false });
       this.toast('Добавлено ✓');
     }
     this._editingQuickId = null;
