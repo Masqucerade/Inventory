@@ -388,6 +388,44 @@ class App {
     this.toast('Категория добавлена ✓');
   }
 
+  _visibleTo(visibility, creatorId, userId) {
+    if (!visibility || visibility === 'all') return true;
+    if (visibility === 'private') return !creatorId || creatorId === userId;
+    if (Array.isArray(visibility)) return visibility.includes(userId) || creatorId === userId;
+    return true;
+  }
+
+  _buildVisPicker(containerId, currentVis) {
+    const el = document.getElementById(containerId);
+    const selected = Array.isArray(currentVis) ? new Set(currentVis) : null;
+    el.innerHTML = `
+      <div class="vis-toggle">
+        <button class="vis-toggle-btn ${!selected ? 'active' : ''}" data-vis="all">🌐 Все</button>
+        <button class="vis-toggle-btn ${selected ? 'active' : ''}" data-vis="custom">👥 Выбрать</button>
+      </div>
+      <div class="vis-owners${!selected ? ' hidden' : ''}" id="${containerId}Owners">
+        ${this.owners.map(o => `
+          <button class="vis-owner-chip ${selected?.has(o.id) ? 'selected' : ''}" data-oid="${o.id}">
+            <span class="vis-dot" style="background:${o.color}"></span>
+            ${this.esc(o.name)}
+          </button>`).join('')}
+      </div>`;
+    el.querySelectorAll('[data-vis]').forEach(btn => btn.addEventListener('click', () => {
+      el.querySelectorAll('[data-vis]').forEach(b => b.classList.toggle('active', b === btn));
+      el.querySelector('.vis-owners').classList.toggle('hidden', btn.dataset.vis === 'all');
+    }));
+    el.querySelectorAll('[data-oid]').forEach(chip => chip.addEventListener('click', () => {
+      chip.classList.toggle('selected');
+    }));
+  }
+
+  _readVisPicker(containerId) {
+    const el = document.getElementById(containerId);
+    const isAll = el.querySelector('[data-vis="all"]')?.classList.contains('active');
+    if (isAll) return 'all';
+    return Array.from(el.querySelectorAll('[data-oid].selected')).map(c => c.dataset.oid);
+  }
+
   _isAdmin() {
     // No auth required (no owners have credentials) — treat as admin
     if (!this._session) return true;
@@ -1915,7 +1953,7 @@ class App {
     if (!el) return;
     const [allTasks, owners] = await Promise.all([this.db.getTasks(), this.db.getOwners()]);
     const uid = this._session?.userId;
-    const tasks = allTasks.filter(t => t.visibility !== 'private' || !t.creatorId || t.creatorId === uid);
+    const tasks = allTasks.filter(t => this._visibleTo(t.visibility, t.creatorId, uid));
 
     if (!tasks.length) {
       el.innerHTML = `<div class="faq-empty">
@@ -1988,7 +2026,7 @@ class App {
     document.getElementById('taskModalTitle').textContent    = task ? 'Редактировать задачу' : 'Новая задача';
     document.getElementById('taskModalSave').textContent     = task ? 'Сохранить' : 'Добавить';
     document.getElementById('taskText').value                = task?.text || '';
-    document.getElementById('taskVisibility').value          = task?.visibility || 'all';
+    this._buildVisPicker('taskVisPicker', task?.visibility || 'all');
 
     const sel    = document.getElementById('taskAssignee');
     const owners = await this.db.getOwners();
@@ -2002,7 +2040,7 @@ class App {
   async saveTask() {
     const text       = document.getElementById('taskText').value.trim();
     const assigneeId = document.getElementById('taskAssignee').value || null;
-    const visibility = document.getElementById('taskVisibility').value || 'all';
+    const visibility = this._readVisPicker('taskVisPicker');
     if (!text) { this.toast('Введите описание задачи'); return; }
     if (this._editingTaskId) {
       await this.db.patchTask(this._editingTaskId, { text, assigneeId, visibility });
@@ -2025,7 +2063,7 @@ class App {
     if (!el) return;
     const allQuick = await this.db.getQuickItems();
     const quid = this._session?.userId;
-    const raw  = allQuick.filter(i => i.visibility !== 'private' || !i.creatorId || i.creatorId === quid);
+    const raw  = allQuick.filter(i => this._visibleTo(i.visibility, i.creatorId, quid));
 
     if (!raw.length) {
       el.innerHTML = `<div class="faq-empty">
@@ -2120,7 +2158,7 @@ class App {
     document.getElementById('quickType').value       = item?.type       || 'other';
     document.getElementById('quickLabel').value      = item?.label      || '';
     document.getElementById('quickValue').value      = item?.value      || '';
-    document.getElementById('quickVisibility').value = item?.visibility || 'all';
+    this._buildVisPicker('quickVisPicker', item?.visibility || 'all');
     this.openModal('quickModal');
     setTimeout(() => document.getElementById('quickLabel').focus(), 350);
   }
@@ -2129,7 +2167,7 @@ class App {
     const type       = document.getElementById('quickType').value;
     const label      = document.getElementById('quickLabel').value.trim();
     const value      = document.getElementById('quickValue').value.trim();
-    const visibility = document.getElementById('quickVisibility').value || 'all';
+    const visibility = this._readVisPicker('quickVisPicker');
     if (!label) { this.toast('Введите название'); return; }
     if (!value) { this.toast('Введите значение'); return; }
     if (this._editingQuickId) {

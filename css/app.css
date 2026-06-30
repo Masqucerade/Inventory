@@ -870,6 +870,39 @@ html, body {
 .sale-toggle input:checked ~ .monarc-toggle-slider { background: #fbbf24; }
 [data-theme="light"] .sale-toggle input:checked ~ .monarc-toggle-slider { background: #d97706; }
 
+/* =============================================
+   VISIBILITY PICKER
+   ============================================= */
+.vis-toggle {
+  display: flex; gap: 6px; margin-bottom: 8px;
+}
+.vis-toggle-btn {
+  flex: 1; padding: 8px 6px;
+  background: var(--card2); border: 1.5px solid var(--sep);
+  border-radius: 10px; font-size: 13px; color: var(--text2);
+  cursor: pointer; transition: all .15s;
+}
+.vis-toggle-btn.active {
+  background: var(--accent); border-color: transparent;
+  color: #fff; font-weight: 600;
+}
+.vis-owners {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.vis-owners.hidden { display: none; }
+.vis-owner-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 20px;
+  background: var(--card2); border: 1.5px solid var(--sep);
+  font-size: 13px; color: var(--text2); cursor: pointer;
+  transition: all .15s;
+}
+.vis-owner-chip.selected {
+  border-color: var(--accent); color: var(--text);
+  background: rgba(124,109,250,.12);
+}
+.vis-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
 /* Generic toggle alias (used in owner modal etc.) */
 .toggle-switch { position: relative; display: inline-block; width: 44px; height: 26px; flex-shrink: 0; cursor: pointer; }
 .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
