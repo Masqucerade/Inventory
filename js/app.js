@@ -74,7 +74,6 @@ class App {
     this._filterSale        = false;
     this._filterCat         = null;
     this._projectSubTab     = 'tasks';
-    this._session           = null;
     this.categories         = [];
     this._archiveOpen       = false;
     this._currentPayType    = 'deposit';
@@ -88,69 +87,14 @@ class App {
     try {
       this.initTheme();
       await this.db.init();
-      this._session = this.db.getSession();
-      const needLogin = await this._needsLogin();
-      if (needLogin && !this._session) {
-        this._showLoginScreen();
-        return;
-      }
-      await this._startApp();
+      await this.loadData();
+      this.initTelegram();
+      this.bindGlobal();
+      this.renderView('inventory');
+      this.backup.checkAutoBackup();
     } catch (err) {
       console.error('Init error:', err);
     }
-  }
-
-  async _needsLogin() {
-    try {
-      const owners = await this.db.getOwners();
-      return owners.some(o => o.username);
-    } catch { return false; }
-  }
-
-  _showLoginScreen() {
-    const screen = document.getElementById('loginScreen');
-    const appEl  = document.getElementById('app');
-    screen.classList.remove('hidden');
-    appEl.classList.add('hidden');
-
-    const btn = document.getElementById('loginBtn');
-    const err = document.getElementById('loginError');
-    const doLogin = async () => {
-      const username = document.getElementById('loginUsername').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      if (!username || !password) { err.classList.remove('hidden'); err.textContent = 'Введите логин и пароль'; return; }
-      btn.disabled = true; btn.textContent = 'Вхожу…';
-      try {
-        const data = await this.db.login(username, password);
-        this.db.saveSession(data);
-        this._session = data;
-        screen.classList.add('hidden');
-        appEl.classList.remove('hidden');
-        await this._startApp();
-      } catch (e) {
-        err.classList.remove('hidden');
-        err.textContent = e.message || 'Неверный логин или пароль';
-        btn.disabled = false; btn.textContent = 'Войти';
-      }
-    };
-    btn.onclick = doLogin;
-    document.getElementById('loginPassword').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
-    document.getElementById('loginUsername').onkeydown = e => { if (e.key === 'Enter') document.getElementById('loginPassword').focus(); };
-    setTimeout(() => document.getElementById('loginUsername').focus(), 100);
-  }
-
-  logout() {
-    this.db.clearSession();
-    this._session = null;
-    location.reload();
-  }
-
-  async _startApp() {
-    await this.loadData();
-    this.initTelegram();
-    this.bindGlobal();
-    this.renderView('inventory');
-    this.backup.checkAutoBackup();
   }
 
   initTheme() {
@@ -256,7 +200,6 @@ class App {
         </div>
       </div>
 
-      ${this._isAdmin() ? `
       <div class="section-title">Участники</div>
       <div class="settings-section">
         <div class="settings-row" id="mAddOwnerBtn">
@@ -278,7 +221,6 @@ class App {
         </div>
       </div>
       <div id="menuCatList"></div>
-      ` : ''}
 
       <div class="section-title">О приложении</div>
       <div class="settings-section">
@@ -289,16 +231,6 @@ class App {
             <div class="settings-row-sub">Версия 1.1 · Telegram Mini App</div>
           </div>
         </div>
-        ${this._session ? `
-        <div class="settings-row" id="mLogoutBtn">
-          <div class="settings-row-icon" style="background:rgba(248,113,113,.12)">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </div>
-          <div class="settings-row-info">
-            <div class="settings-row-title" style="color:var(--danger)">Выйти</div>
-            <div class="settings-row-sub">${this.esc(this._session.name)}</div>
-          </div>
-        </div>` : ''}
       </div>
     `;
 
@@ -336,19 +268,13 @@ class App {
       document.getElementById('restoreFileInput').click();
     });
 
-    if (this._isAdmin()) {
-      document.getElementById('mAddOwnerBtn').addEventListener('click', () => {
-        this.closeMenu();
-        this.openOwnerModal();
-      });
-      document.getElementById('mAddCatBtn').addEventListener('click', () => this._openCatPrompt());
-      this.renderOwners('menuOwnersList');
-      this._renderMenuCats();
-    }
-
-    if (this._session) {
-      document.getElementById('mLogoutBtn')?.addEventListener('click', () => this.logout());
-    }
+    document.getElementById('mAddOwnerBtn').addEventListener('click', () => {
+      this.closeMenu();
+      this.openOwnerModal();
+    });
+    document.getElementById('mAddCatBtn').addEventListener('click', () => this._openCatPrompt());
+    this.renderOwners('menuOwnersList');
+    this._renderMenuCats();
   }
 
   async _renderMenuCats() {
@@ -386,50 +312,6 @@ class App {
     this._renderMenuCats();
     this.renderCatFilterChips();
     this.toast('Категория добавлена ✓');
-  }
-
-  _visibleTo(visibility, creatorId, userId) {
-    if (!visibility || visibility === 'all') return true;
-    if (visibility === 'private') return !creatorId || creatorId === userId;
-    if (Array.isArray(visibility)) return visibility.includes(userId) || creatorId === userId;
-    return true;
-  }
-
-  _buildVisPicker(containerId, currentVis) {
-    const el = document.getElementById(containerId);
-    const selected = Array.isArray(currentVis) ? new Set(currentVis) : null;
-    el.innerHTML = `
-      <div class="vis-toggle">
-        <button class="vis-toggle-btn ${!selected ? 'active' : ''}" data-vis="all">🌐 Все</button>
-        <button class="vis-toggle-btn ${selected ? 'active' : ''}" data-vis="custom">👥 Выбрать</button>
-      </div>
-      <div class="vis-owners${!selected ? ' hidden' : ''}" id="${containerId}Owners">
-        ${this.owners.map(o => `
-          <button class="vis-owner-chip ${selected?.has(o.id) ? 'selected' : ''}" data-oid="${o.id}">
-            <span class="vis-dot" style="background:${o.color}"></span>
-            ${this.esc(o.name)}
-          </button>`).join('')}
-      </div>`;
-    el.querySelectorAll('[data-vis]').forEach(btn => btn.addEventListener('click', () => {
-      el.querySelectorAll('[data-vis]').forEach(b => b.classList.toggle('active', b === btn));
-      el.querySelector('.vis-owners').classList.toggle('hidden', btn.dataset.vis === 'all');
-    }));
-    el.querySelectorAll('[data-oid]').forEach(chip => chip.addEventListener('click', () => {
-      chip.classList.toggle('selected');
-    }));
-  }
-
-  _readVisPicker(containerId) {
-    const el = document.getElementById(containerId);
-    const isAll = el.querySelector('[data-vis="all"]')?.classList.contains('active');
-    if (isAll) return 'all';
-    return Array.from(el.querySelectorAll('[data-oid].selected')).map(c => c.dataset.oid);
-  }
-
-  _isAdmin() {
-    // No auth required (no owners have credentials) — treat as admin
-    if (!this._session) return true;
-    return !!this._session.isAdmin;
   }
 
   _prompt(title, defaultVal = '', placeholder = '') {
@@ -1329,7 +1211,7 @@ class App {
       isForSale:   document.getElementById('fieldIsForSale').checked,
       photo:       this.currentPhoto || null,
       categoryId:  document.getElementById('fieldCategory').value || null,
-      _updatedBy:  this._session?.userId || null,
+      _updatedBy:  null,
     };
 
     const saved = await this.db.saveItem(item);
@@ -1726,9 +1608,6 @@ class App {
     this._selColor      = DEFAULT_COLOR;
 
     document.getElementById('ownerName').value                     = '';
-    document.getElementById('ownerUsername').value                 = '';
-    document.getElementById('ownerPassword').value                 = '';
-    document.getElementById('ownerIsAdmin').checked                = false;
     document.getElementById('ownerAvatarPreview').textContent      = 'А';
     document.getElementById('ownerAvatarPreview').style.background = DEFAULT_COLOR;
     document.getElementById('ownerModalTitle').textContent         = id ? 'Изменить сотрудника' : 'Новый сотрудник';
@@ -1741,9 +1620,6 @@ class App {
       const owner = this.owners.find(o => o.id === id);
       if (owner) {
         document.getElementById('ownerName').value                     = owner.name;
-        document.getElementById('ownerUsername').value                 = owner.username || '';
-        document.getElementById('ownerPassword').value                 = '';
-        document.getElementById('ownerIsAdmin').checked                = !!owner.isAdmin;
         document.getElementById('ownerAvatarPreview').textContent      = owner.name[0].toUpperCase();
         this._selColor = owner.color || DEFAULT_COLOR;
         document.getElementById('ownerAvatarPreview').style.background = this._selColor;
@@ -1756,19 +1632,13 @@ class App {
   }
 
   async saveOwner() {
-    const name     = document.getElementById('ownerName').value.trim();
-    const username = document.getElementById('ownerUsername').value.trim();
-    const password = document.getElementById('ownerPassword').value;
-    const isAdmin  = document.getElementById('ownerIsAdmin').checked;
+    const name = document.getElementById('ownerName').value.trim();
     if (!name) { this.toast('Введите имя сотрудника'); return; }
     const isNew = !this.editingOwnerId;
     const owner = {
       ...(isNew ? {} : { id: this.editingOwnerId }),
       name,
       color: this._selColor,
-      isAdmin,
-      ...(username ? { username } : {}),
-      ...(password ? { _newPassword: password } : {}),
     };
     const saved = await this.db.saveOwner(owner);
     await this.db.logAction(
@@ -1951,9 +1821,7 @@ class App {
   async renderProjectTasks() {
     const el     = document.getElementById('projectContent');
     if (!el) return;
-    const [allTasks, owners] = await Promise.all([this.db.getTasks(), this.db.getOwners()]);
-    const uid = this._session?.userId;
-    const tasks = allTasks.filter(t => this._visibleTo(t.visibility, t.creatorId, uid));
+    const [tasks, owners] = await Promise.all([this.db.getTasks(), this.db.getOwners()]);
 
     if (!tasks.length) {
       el.innerHTML = `<div class="faq-empty">
@@ -2026,8 +1894,6 @@ class App {
     document.getElementById('taskModalTitle').textContent    = task ? 'Редактировать задачу' : 'Новая задача';
     document.getElementById('taskModalSave').textContent     = task ? 'Сохранить' : 'Добавить';
     document.getElementById('taskText').value                = task?.text || '';
-    this._buildVisPicker('taskVisPicker', task?.visibility || 'all');
-
     const sel    = document.getElementById('taskAssignee');
     const owners = await this.db.getOwners();
     sel.innerHTML = `<option value="">— Не назначен —</option>` +
@@ -2040,13 +1906,12 @@ class App {
   async saveTask() {
     const text       = document.getElementById('taskText').value.trim();
     const assigneeId = document.getElementById('taskAssignee').value || null;
-    const visibility = this._readVisPicker('taskVisPicker');
     if (!text) { this.toast('Введите описание задачи'); return; }
     if (this._editingTaskId) {
-      await this.db.patchTask(this._editingTaskId, { text, assigneeId, visibility });
+      await this.db.patchTask(this._editingTaskId, { text, assigneeId });
       this.toast('Задача обновлена ✓');
     } else {
-      await this.db.addTask({ text, assigneeId, visibility, creatorId: this._session?.userId || null });
+      await this.db.addTask({ text, assigneeId });
     }
     this._editingTaskId = null;
     this.closeModal('taskModal');
@@ -2061,9 +1926,7 @@ class App {
   async renderProjectQuick() {
     const el    = document.getElementById('projectContent');
     if (!el) return;
-    const allQuick = await this.db.getQuickItems();
-    const quid = this._session?.userId;
-    const raw  = allQuick.filter(i => this._visibleTo(i.visibility, i.creatorId, quid));
+    const raw = await this.db.getQuickItems();
 
     if (!raw.length) {
       el.innerHTML = `<div class="faq-empty">
@@ -2158,23 +2021,21 @@ class App {
     document.getElementById('quickType').value       = item?.type       || 'other';
     document.getElementById('quickLabel').value      = item?.label      || '';
     document.getElementById('quickValue').value      = item?.value      || '';
-    this._buildVisPicker('quickVisPicker', item?.visibility || 'all');
     this.openModal('quickModal');
     setTimeout(() => document.getElementById('quickLabel').focus(), 350);
   }
 
   async saveQuickItem() {
-    const type       = document.getElementById('quickType').value;
-    const label      = document.getElementById('quickLabel').value.trim();
-    const value      = document.getElementById('quickValue').value.trim();
-    const visibility = this._readVisPicker('quickVisPicker');
+    const type  = document.getElementById('quickType').value;
+    const label = document.getElementById('quickLabel').value.trim();
+    const value = document.getElementById('quickValue').value.trim();
     if (!label) { this.toast('Введите название'); return; }
     if (!value) { this.toast('Введите значение'); return; }
     if (this._editingQuickId) {
-      await this.db.patchQuickItem(this._editingQuickId, { type, label, value, visibility });
+      await this.db.patchQuickItem(this._editingQuickId, { type, label, value });
       this.toast('Обновлено ✓');
     } else {
-      await this.db.addQuickItem({ type, label, value, pinned: false, visibility, creatorId: this._session?.userId || null });
+      await this.db.addQuickItem({ type, label, value, pinned: false });
       this.toast('Добавлено ✓');
     }
     this._editingQuickId = null;
