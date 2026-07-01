@@ -78,6 +78,10 @@ class App {
     this._archiveOpen       = false;
     this._currentPayType    = 'deposit';
     this._currentEmpOwnerId = null;
+
+    this.currentUser        = null;
+    this.users              = [];
+    this._booted            = false;
   }
 
   /* ──────────────────────────────────────────
@@ -86,15 +90,74 @@ class App {
   async init() {
     try {
       this.initTheme();
-      await this.db.init();
-      await this.loadData();
-      this.initTelegram();
-      this.bindGlobal();
-      this.renderView('inventory');
-      this.backup.checkAutoBackup();
+      this.bindLogin();
+      window.addEventListener('inv-unauthorized', () => {
+        this.currentUser = null;
+        this.showLogin();
+      });
+
+      const token = localStorage.getItem('inv_token');
+      let user = null;
+      if (token) { try { user = await this.db.me(); } catch {} }
+
+      if (user) { this.currentUser = user; await this.boot(); }
+      else      { this.showLogin(); }
     } catch (err) {
       console.error('Init error:', err);
     }
+  }
+
+  // Запуск приложения после успешной авторизации
+  async boot() {
+    document.body.classList.add('authed');
+    document.getElementById('loginScreen').classList.add('hidden');
+
+    if (!this._booted) {
+      await this.db.init();
+      this.initTelegram();
+      this.bindGlobal();
+      this._booted = true;
+    }
+    await this.loadData();
+    this.renderView('inventory');
+    this.backup.checkAutoBackup();
+  }
+
+  showLogin() {
+    document.body.classList.remove('authed');
+    const ls = document.getElementById('loginScreen');
+    ls.classList.remove('hidden');
+    const err = document.getElementById('loginError');
+    if (err) err.textContent = '';
+    const pw = document.getElementById('loginPassword');
+    if (pw) pw.value = '';
+    setTimeout(() => document.getElementById('loginLogin')?.focus(), 120);
+  }
+
+  bindLogin() {
+    const form = document.getElementById('loginForm');
+    if (!form || form._bound) return;
+    form._bound = true;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const login = document.getElementById('loginLogin').value.trim();
+      const pass  = document.getElementById('loginPassword').value;
+      const errEl = document.getElementById('loginError');
+      const btn   = document.getElementById('loginSubmit');
+      if (!login || !pass) { errEl.textContent = 'Введите логин и пароль'; return; }
+      btn.disabled = true; btn.textContent = 'Вход…';
+      try {
+        const user = await this.db.login(login, pass);
+        this.currentUser = user;
+        errEl.textContent = '';
+        document.getElementById('loginPassword').value = '';
+        await this.boot();
+      } catch (err) {
+        errEl.textContent = err.message || 'Ошибка входа';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Войти';
+      }
+    });
   }
 
   initTheme() {
@@ -141,8 +204,38 @@ class App {
     const svgDownload = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
     const svgUpload   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
     const svgTruck    = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`;
+    const svgLogout   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`;
+    const svgUserAdd  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>`;
+
+    const isRoot = this.currentUser?.role === 'root';
+    const u      = this.currentUser || {};
 
     el.innerHTML = `
+      <div class="section-title">Аккаунт</div>
+      <div class="settings-section">
+        <div class="settings-row" style="cursor:default">
+          <div class="settings-row-icon" style="background:rgba(124,109,250,.16);color:var(--accent);font-weight:700">${(u.name || u.login || '?')[0].toUpperCase()}</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">${this.esc(u.name || '')}</div>
+            <div class="settings-row-sub">${isRoot ? 'Root-администратор' : 'Пользователь'} · @${this.esc(u.login || '')}</div>
+          </div>
+        </div>
+        <div class="settings-row" id="mLogoutBtn">
+          <div class="settings-row-icon" style="background:rgba(248,113,113,.12);color:#f87171">${svgLogout}</div>
+          <div class="settings-row-info"><div class="settings-row-title">Выйти</div></div>${arrow}
+        </div>
+      </div>
+
+      ${isRoot ? `
+      <div class="section-title">Пользователи</div>
+      <div class="settings-section">
+        <div class="settings-row" id="mAddUserBtn">
+          <div class="settings-row-icon green">${svgUserAdd}</div>
+          <div class="settings-row-info"><div class="settings-row-title">Добавить пользователя</div></div>${arrow}
+        </div>
+      </div>
+      <div id="menuUsersList"></div>` : ''}
+
       <div class="section-title">Внешний вид</div>
       <div class="settings-section">
         <div class="settings-row" style="cursor:default">
@@ -273,8 +366,143 @@ class App {
       this.openOwnerModal();
     });
     document.getElementById('mAddCatBtn').addEventListener('click', () => this._openCatPrompt());
+
+    document.getElementById('mLogoutBtn').addEventListener('click', async () => {
+      const ok = await this.confirm('Выйти из аккаунта?');
+      if (!ok) return;
+      await this.db.logout();
+      this.currentUser = null;
+      this.closeMenu();
+      this.showLogin();
+    });
+
+    document.getElementById('mAddUserBtn')?.addEventListener('click', () => this.openUserModal());
+
     this.renderOwners('menuOwnersList');
     this._renderMenuCats();
+    if (this.currentUser?.role === 'root') this.renderUsersList();
+  }
+
+  /* ──────────────────────────────────────────
+     USERS (root)
+     ────────────────────────────────────────── */
+  renderUsersList() {
+    const el = document.getElementById('menuUsersList');
+    if (!el) return;
+    const users  = this.users || [];
+    const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+    const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+
+    el.innerHTML = `<div class="settings-section">${users.map(usr => `
+      <div class="settings-row" style="cursor:default">
+        <div class="settings-row-icon" style="background:rgba(124,109,250,.12);color:var(--accent);font-weight:700">${(usr.name || usr.login || '?')[0].toUpperCase()}</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">${this.esc(usr.name || usr.login)}${usr.role === 'root' ? ' · root' : ''}</div>
+          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · пароль: ${this.esc(usr.password || '')}`}</div>
+        </div>
+        ${usr.role === 'root' ? '' : `
+          <button class="menu-del-btn user-edit-btn" data-uid="${usr.id}">${svgEdit}</button>
+          <button class="menu-del-btn user-del-btn" data-uid="${usr.id}">${svgDel}</button>`}
+      </div>`).join('')}
+    </div>`;
+
+    el.querySelectorAll('.user-edit-btn').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const usr = users.find(x => x.id === btn.dataset.uid);
+        if (usr) this.openUserModal(usr);
+      })
+    );
+    el.querySelectorAll('.user-del-btn').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const usr = users.find(x => x.id === btn.dataset.uid);
+        const ok  = await this.confirm(`Удалить пользователя «${usr?.name || usr?.login}»?`);
+        if (!ok) return;
+        try {
+          await this.db.deleteUser(btn.dataset.uid);
+          await this.loadData();
+          this.renderUsersList();
+          this.toast('Пользователь удалён ✓');
+        } catch (e) { this.toast(e.message || 'Ошибка'); }
+      })
+    );
+  }
+
+  openUserModal(usr = null) {
+    this._editingUserId = usr?.id || null;
+    document.getElementById('userModalTitle').textContent = usr ? 'Изменить пользователя' : 'Новый пользователь';
+    document.getElementById('userModalSave').textContent  = usr ? 'Сохранить' : 'Добавить';
+    document.getElementById('userName').value     = usr?.name     || '';
+    document.getElementById('userLogin').value    = usr?.login    || '';
+    document.getElementById('userPassword').value = usr?.password || '';
+    this.openModal('userModal');
+    setTimeout(() => document.getElementById('userName').focus(), 350);
+  }
+
+  async saveUser() {
+    const name     = document.getElementById('userName').value.trim();
+    const login    = document.getElementById('userLogin').value.trim();
+    const password = document.getElementById('userPassword').value;
+    if (!login)    { this.toast('Введите логин');  return; }
+    if (!password) { this.toast('Введите пароль'); return; }
+    try {
+      if (this._editingUserId) {
+        await this.db.updateUser(this._editingUserId, { name, login, password });
+        this.toast('Пользователь обновлён ✓');
+      } else {
+        await this.db.addUser({ name, login, password });
+        this.toast('Пользователь добавлен ✓');
+      }
+      this._editingUserId = null;
+      this.closeModal('userModal');
+      await this.loadData();
+      this.renderUsersList();
+    } catch (e) { this.toast(e.message || 'Ошибка'); }
+  }
+
+  /* ──────────────────────────────────────────
+     VISIBILITY PICKER (root)
+     ────────────────────────────────────────── */
+  _renderVisChips(containerId, selected) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const users     = (this.users || []).filter(u => u.role !== 'root');
+    const allActive = !Array.isArray(selected) || selected.length === 0;
+    el.innerHTML =
+      `<button type="button" class="vis-chip${allActive ? ' active' : ''}" data-vis="all">Все</button>` +
+      (users.length
+        ? users.map(u => `<button type="button" class="vis-chip${selected?.includes(u.id) ? ' active' : ''}" data-vis="${u.id}">${this.esc(u.name || u.login)}</button>`).join('')
+        : `<span class="vis-empty">Нет пользователей — добавьте их в меню</span>`);
+    el.onclick = (e) => {
+      const chip = e.target.closest('.vis-chip');
+      if (!chip) return;
+      const allChip = el.querySelector('[data-vis="all"]');
+      if (chip.dataset.vis === 'all') {
+        el.querySelectorAll('.vis-chip').forEach(c => c.classList.toggle('active', c === allChip));
+      } else {
+        chip.classList.toggle('active');
+        allChip.classList.remove('active');
+        const anyUser = [...el.querySelectorAll('.vis-chip')].some(c => c.dataset.vis !== 'all' && c.classList.contains('active'));
+        if (!anyUser) allChip.classList.add('active');
+      }
+    };
+  }
+
+  _readVis(containerId) {
+    const el = document.getElementById(containerId);
+    if (!el) return [];
+    if (el.querySelector('[data-vis="all"]')?.classList.contains('active')) return [];
+    return [...el.querySelectorAll('.vis-chip.active')].map(c => c.dataset.vis).filter(v => v !== 'all');
+  }
+
+  // Метка «видно только…» — показывается только root'у
+  _visBadge(rec) {
+    if (this.currentUser?.role !== 'root') return '';
+    const v = rec.visibility;
+    if (!Array.isArray(v) || v.length === 0) return '';
+    const names = v.map(id => this.users.find(u => u.id === id)?.name).filter(Boolean).join(', ');
+    return `<span class="vis-badge" title="Видно: ${this.esc(names)}">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      ${v.length}</span>`;
   }
 
   async _renderMenuCats() {
@@ -322,10 +550,12 @@ class App {
   }
 
   async loadData() {
-    [this.items, this.owners, this.categories] = await Promise.all([
+    const isRoot = this.currentUser?.role === 'root';
+    [this.items, this.owners, this.categories, this.users] = await Promise.all([
       this.db.getItems(),
       this.db.getOwners(),
       this.db.getCategories(),
+      isRoot ? this.db.getUsers() : Promise.resolve([]),
     ]);
   }
 
@@ -611,6 +841,10 @@ class App {
       const rm = e.target.closest('.faq-line-remove');
       if (rm) rm.closest('.faq-line-row').remove();
     });
+
+    /* User modal (root) */
+    document.getElementById('userModalClose').addEventListener('click', () => this.closeModal('userModal'));
+    document.getElementById('userModalSave').addEventListener('click', () => this.saveUser());
 
     /* Owner modal */
     document.getElementById('ownerModalClose').addEventListener('click', () => this.closeModal('ownerModal'));
@@ -1946,7 +2180,7 @@ class App {
         </button>
         <div class="task-body">
           <span class="task-text">${this.esc(t.text)}</span>
-          ${assignee ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}
+          <span class="task-meta-row">${assignee ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}${this._visBadge(t)}</span>
         </div>
         <div class="task-btns">
           <button class="task-edit" data-task-id="${t.id}" title="Изменить">${svgEdit}</button>
@@ -1995,6 +2229,10 @@ class App {
     sel.innerHTML = `<option value="">— Не назначен —</option>` +
       owners.map(o => `<option value="${o.id}"${task?.assigneeId === o.id ? ' selected' : ''}>${this.esc(o.name)}</option>`).join('');
 
+    const isRoot = this.currentUser?.role === 'root';
+    document.getElementById('taskVisGroup').style.display = isRoot ? '' : 'none';
+    if (isRoot) this._renderVisChips('taskVisChips', task?.visibility || []);
+
     this.openModal('taskModal');
     setTimeout(() => document.getElementById('taskText').focus(), 350);
   }
@@ -2003,11 +2241,13 @@ class App {
     const text       = document.getElementById('taskText').value.trim();
     const assigneeId = document.getElementById('taskAssignee').value || null;
     if (!text) { this.toast('Введите описание задачи'); return; }
+    const payload = { text, assigneeId };
+    if (this.currentUser?.role === 'root') payload.visibility = this._readVis('taskVisChips');
     if (this._editingTaskId) {
-      await this.db.patchTask(this._editingTaskId, { text, assigneeId });
+      await this.db.patchTask(this._editingTaskId, payload);
       this.toast('Задача обновлена ✓');
     } else {
-      await this.db.addTask({ text, assigneeId });
+      await this.db.addTask(payload);
     }
     this._editingTaskId = null;
     this.closeModal('taskModal');
@@ -2050,7 +2290,7 @@ class App {
       <div class="quick-item${item.pinned ? ' pinned' : ''}" data-quick-id="${item.id}">
         <div class="quick-type-icon">${this._quickTypeIcon(item.type)}</div>
         <div class="quick-main">
-          <span class="quick-label">${item.pinned ? '📌 ' : ''}${this.esc(item.label)}</span>
+          <span class="quick-label">${item.pinned ? '📌 ' : ''}${this.esc(item.label)}${this._visBadge(item)}</span>
           <span class="quick-value${isPassword ? ' masked' : ''}" data-revealed="false" data-val="${this.esc(item.value)}">
             ${isPassword ? maskedVal : this.esc(item.value)}
           </span>
@@ -2117,6 +2357,11 @@ class App {
     document.getElementById('quickType').value       = item?.type       || 'other';
     document.getElementById('quickLabel').value      = item?.label      || '';
     document.getElementById('quickValue').value      = item?.value      || '';
+
+    const isRoot = this.currentUser?.role === 'root';
+    document.getElementById('quickVisGroup').style.display = isRoot ? '' : 'none';
+    if (isRoot) this._renderVisChips('quickVisChips', item?.visibility || []);
+
     this.openModal('quickModal');
     setTimeout(() => document.getElementById('quickLabel').focus(), 350);
   }
@@ -2127,11 +2372,15 @@ class App {
     const value = document.getElementById('quickValue').value.trim();
     if (!label) { this.toast('Введите название'); return; }
     if (!value) { this.toast('Введите значение'); return; }
+    const isRoot = this.currentUser?.role === 'root';
+    const vis    = isRoot ? this._readVis('quickVisChips') : undefined;
     if (this._editingQuickId) {
-      await this.db.patchQuickItem(this._editingQuickId, { type, label, value });
+      const patch = { type, label, value };
+      if (vis !== undefined) patch.visibility = vis;
+      await this.db.patchQuickItem(this._editingQuickId, patch);
       this.toast('Обновлено ✓');
     } else {
-      await this.db.addQuickItem({ type, label, value, pinned: false });
+      await this.db.addQuickItem({ type, label, value, pinned: false, ...(vis !== undefined ? { visibility: vis } : {}) });
       this.toast('Добавлено ✓');
     }
     this._editingQuickId = null;
@@ -2280,7 +2529,7 @@ class App {
       return `
       <div class="faq-item" data-faq-id="${item.id}">
         <div class="faq-head">
-          <span class="faq-title">${this.esc(item.title)}</span>
+          <span class="faq-title">${this.esc(item.title)}${this._visBadge(item)}</span>
           <svg class="faq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
@@ -2380,6 +2629,11 @@ class App {
     const list = document.getElementById('faqLinesList');
     list.innerHTML = '';
     (item?.lines || []).forEach(l => this._addFaqLine(l.label, l.text));
+
+    const isRoot = this.currentUser?.role === 'root';
+    document.getElementById('faqVisGroup').style.display = isRoot ? '' : 'none';
+    if (isRoot) this._renderVisChips('faqVisChips', item?.visibility || []);
+
     this.openModal('faqModal');
     setTimeout(() => document.getElementById('faqTitle').focus(), 350);
   }
@@ -2394,11 +2648,15 @@ class App {
       text:  row.querySelector('.faq-line-text').value.trim(),
     })).filter(l => l.text);
 
+    const isRoot = this.currentUser?.role === 'root';
+    const vis    = isRoot ? this._readVis('faqVisChips') : undefined;
     if (this._editingFaqId) {
-      await this.db.patchFaqItem(this._editingFaqId, { title, body, lines });
+      const patch = { title, body, lines };
+      if (vis !== undefined) patch.visibility = vis;
+      await this.db.patchFaqItem(this._editingFaqId, patch);
       this.toast('Топик обновлён ✓');
     } else {
-      await this.db.addFaqItem({ title, body, lines });
+      await this.db.addFaqItem({ title, body, lines, ...(vis !== undefined ? { visibility: vis } : {}) });
       this.toast('Топик добавлен ✓');
     }
     this._editingFaqId = null;

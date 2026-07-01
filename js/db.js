@@ -2,10 +2,71 @@
    API Client — shared server storage
    ============================================= */
 
+/* Прозрачно добавляем токен авторизации ко всем запросам /api
+   и ловим 401 (сессия истекла → показать экран входа). */
+(function () {
+  const orig = window.fetch.bind(window);
+  window.fetch = (url, opts = {}) => {
+    if (typeof url === 'string' && url.startsWith('/api')) {
+      const token = localStorage.getItem('inv_token') || '';
+      opts = { ...opts, headers: { ...(opts.headers || {}), 'x-auth-token': token } };
+      return orig(url, opts).then(res => {
+        if (res.status === 401 && !url.startsWith('/api/login')) {
+          localStorage.removeItem('inv_token');
+          window.dispatchEvent(new CustomEvent('inv-unauthorized'));
+        }
+        return res;
+      });
+    }
+    return orig(url, opts);
+  };
+})();
+
 class InventoryDB {
   constructor() {}
 
   async init() { /* no local setup needed */ }
+
+  /* ─── AUTH ─── */
+  async login(login, password) {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login, password }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка входа');
+    localStorage.setItem('inv_token', d.token);
+    return d.user;
+  }
+  async me() {
+    const r = await fetch('/api/me');
+    return r.ok ? r.json() : null;
+  }
+  async logout() {
+    try { await fetch('/api/logout', { method: 'POST' }); } catch {}
+    localStorage.removeItem('inv_token');
+  }
+
+  /* ─── USERS (root) ─── */
+  async getUsers() {
+    try { const r = await fetch('/api/users'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async addUser(u) {
+    const r = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(u) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка');
+    return d;
+  }
+  async updateUser(id, u) {
+    const r = await fetch(`/api/users/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(u) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка');
+    return d;
+  }
+  async deleteUser(id) {
+    const r = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка');
+    return d;
+  }
 
   uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);

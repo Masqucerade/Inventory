@@ -23,6 +23,123 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+/* ─── AUTH ─── */
+// Гарантируем наличие root-администратора (Monarc / 0000)
+function seedRoot(db) {
+  if (!db.users)    db.users = [];
+  if (!db.sessions) db.sessions = [];
+  if (!db.users.some(u => u.role === 'root')) {
+    db.users.unshift({
+      id: uid(), login: 'Monarc', password: '0000', name: 'Monarc',
+      role: 'root', createdAt: new Date().toISOString(),
+    });
+  }
+}
+// Один раз при старте
+(() => { const db = load(); seedRoot(db); save(db); })();
+
+function currentUser(req) {
+  const token = req.headers['x-auth-token'] || '';
+  if (!token) return null;
+  const db   = load();
+  const sess = (db.sessions || []).find(s => s.token === token);
+  if (!sess) return null;
+  return (db.users || []).find(u => u.id === sess.userId) || null;
+}
+
+function requireRoot(req, res) {
+  if (req.user.role !== 'root') { res.status(403).json({ error: 'Недостаточно прав' }); return false; }
+  return true;
+}
+
+// Виден ли пользователю данный объект (visibility: [] / отсутствует = всем)
+function visibleTo(rec, user) {
+  if (user.role === 'root') return true;
+  const v = rec.visibility;
+  if (!Array.isArray(v) || v.length === 0) return true;
+  return v.includes(user.id);
+}
+
+// Публичный вход
+app.post('/api/login', (req, res) => {
+  const db = load(); seedRoot(db);
+  const login = String(req.body.login || '').trim().toLowerCase();
+  const pass  = String(req.body.password || '');
+  const user  = (db.users || []).find(u => (u.login || '').toLowerCase() === login && String(u.password) === pass);
+  if (!user) { save(db); return res.status(401).json({ error: 'Неверный логин или пароль' }); }
+  const token = uid() + uid();
+  db.sessions.push({ token, userId: user.id, createdAt: new Date().toISOString() });
+  save(db);
+  res.json({ token, user: { id: user.id, name: user.name, login: user.login, role: user.role } });
+});
+
+// Всё остальное под /api требует валидный токен
+app.use('/api', (req, res, next) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ error: 'unauthorized' });
+  req.user = user;
+  next();
+});
+
+app.get('/api/me', (req, res) => {
+  const u = req.user;
+  res.json({ id: u.id, name: u.name, login: u.login, role: u.role });
+});
+
+app.post('/api/logout', (req, res) => {
+  const token = req.headers['x-auth-token'] || '';
+  const db = load();
+  db.sessions = (db.sessions || []).filter(s => s.token !== token);
+  save(db);
+  res.json({ ok: true });
+});
+
+/* ─── USERS (только root) ─── */
+app.get('/api/users', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  res.json((load().users || []).map(u => ({ id: u.id, login: u.login, password: u.password, name: u.name, role: u.role })));
+});
+
+app.post('/api/users', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db       = load();
+  const login    = String(req.body.login || '').trim();
+  const password = String(req.body.password || '');
+  const name     = String(req.body.name || '').trim() || login;
+  if (!login || !password) return res.status(400).json({ error: 'Логин и пароль обязательны' });
+  if ((db.users || []).some(u => (u.login || '').toLowerCase() === login.toLowerCase()))
+    return res.status(409).json({ error: 'Такой логин уже существует' });
+  const user = { id: uid(), login, password, name, role: 'user', createdAt: new Date().toISOString() };
+  db.users.push(user);
+  save(db);
+  res.json(user);
+});
+
+app.put('/api/users/:id', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  const u  = (db.users || []).find(x => x.id === req.params.id);
+  if (!u) return res.status(404).json({ error: 'not found' });
+  const login = String(req.body.login ?? u.login).trim();
+  if (login && db.users.some(x => x.id !== u.id && (x.login || '').toLowerCase() === login.toLowerCase()))
+    return res.status(409).json({ error: 'Такой логин уже существует' });
+  if (login) u.login = login;
+  if (req.body.password != null && req.body.password !== '') u.password = String(req.body.password);
+  if (req.body.name != null) u.name = String(req.body.name).trim() || u.name;
+  save(db);
+  res.json(u);
+});
+
+app.delete('/api/users/:id', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  const u  = (db.users || []).find(x => x.id === req.params.id);
+  if (u && u.role === 'root') return res.status(400).json({ error: 'Нельзя удалить root-администратора' });
+  db.users = (db.users || []).filter(x => x.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
 /* ─── ITEMS ─── */
 app.get('/api/items', (req, res) => {
   let rows = load().items || [];
@@ -382,7 +499,7 @@ app.delete('/api/categories/:id', (req, res) => {
 
 /* ─── TASKS ─── */
 app.get('/api/tasks', (req, res) => {
-  res.json(load().tasks || []);
+  res.json((load().tasks || []).filter(t => visibleTo(t, req.user)));
 });
 
 app.post('/api/tasks', (req, res) => {
@@ -412,7 +529,7 @@ app.delete('/api/tasks/:id', (req, res) => {
 
 /* ─── QUICK ACCESS ─── */
 app.get('/api/quickaccess', (req, res) => {
-  res.json(load().quickaccess || []);
+  res.json((load().quickaccess || []).filter(q => visibleTo(q, req.user)));
 });
 
 app.post('/api/quickaccess', (req, res) => {
@@ -472,7 +589,7 @@ app.delete('/api/project/:id', (req, res) => {
 
 /* ─── FAQ ─── */
 app.get('/api/faq', (req, res) => {
-  res.json((load().faq || []));
+  res.json((load().faq || []).filter(f => visibleTo(f, req.user)));
 });
 
 app.post('/api/faq', (req, res) => {
