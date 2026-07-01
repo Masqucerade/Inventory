@@ -90,6 +90,7 @@ class App {
   async init() {
     try {
       this.initTheme();
+      this.detectPlatform();
       this.bindLogin();
       window.addEventListener('inv-unauthorized', () => {
         this.currentUser = null;
@@ -163,6 +164,13 @@ class App {
   initTheme() {
     const saved = localStorage.getItem('inv_theme') || 'dark';
     this.applyTheme(saved);
+  }
+
+  // Открыто как обычный сайт (не в Telegram) → десктоп-оформление под macOS
+  detectPlatform() {
+    const tg = window.Telegram?.WebApp;
+    const inTelegram = !!(tg && tg.initData && tg.initData.length > 0);
+    document.documentElement.classList.toggle('is-web', !inTelegram);
   }
 
   applyTheme(theme) {

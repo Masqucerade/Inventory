@@ -1583,6 +1583,89 @@ html, body {
 .task-meta-row { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 
 /* =============================================
+   MENU ICON BUTTONS (edit / delete)
+   ============================================= */
+.menu-del-btn {
+  width: 30px; height: 30px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 9px; margin-left: 4px;
+  background: var(--fill); color: var(--text2);
+  cursor: pointer; transition: background .13s, color .13s, transform .1s;
+}
+.menu-del-btn svg { display: block; }
+.menu-del-btn:active { transform: scale(.9); }
+.user-edit-btn:hover, .user-edit-btn:active { background: rgba(124,109,250,.16); color: var(--accent); }
+.user-del-btn, .cat-del-btn { background: rgba(248,113,113,.10); color: #f87171; }
+.user-del-btn:hover, .user-del-btn:active,
+.cat-del-btn:hover, .cat-del-btn:active { background: rgba(248,113,113,.2); }
+
+/* =============================================
+   DESKTOP / macOS  (только веб-версия, не Telegram)
+   ============================================= */
+@media (min-width: 820px) {
+  html.is-web, html.is-web body {
+    height: 100%;
+    background:
+      radial-gradient(60% 50% at 50% -5%, rgba(124,109,250,.20), transparent 70%),
+      radial-gradient(45% 45% at 100% 105%, rgba(124,109,250,.12), transparent 70%),
+      var(--bg);
+    background-attachment: fixed;
+  }
+
+  /* .app превращается в плавающее окно; transform делает fixed-элементы
+     (нижнее меню, FAB, дропдаун) позиционируемыми относительно окна */
+  html.is-web .app {
+    inset: auto;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 430px;
+    height: 92vh; max-height: 940px;
+    border-radius: 30px;
+    overflow: hidden;
+    background: var(--bg);
+    box-shadow: 0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.07);
+  }
+  [data-theme="light"] html.is-web .app,
+  html.is-web[data-theme="light"] .app {
+    box-shadow: 0 40px 100px rgba(0,0,0,.22), 0 0 0 1px rgba(0,0,0,.06);
+  }
+
+  /* Модалки центрируем поверх окна (плавное появление вместо шторки снизу) */
+  html.is-web .modal {
+    inset: auto;
+    left: 50%; top: 50%;
+    width: 430px; height: 92vh; max-height: 940px;
+    border-radius: 30px; overflow: hidden;
+    transform: translate(-50%, -50%) scale(.97);
+    opacity: 0; visibility: hidden;
+    transition: opacity .2s ease, transform .22s cubic-bezier(.2,.7,.3,1), visibility .2s;
+    box-shadow: 0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.07);
+  }
+  html.is-web .modal.open {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1; visibility: visible;
+  }
+
+  /* Крупнее интерактив под курсор/мышь */
+  html.is-web .nav-btn:hover  { color: var(--text2); }
+  html.is-web .fab:hover      { transform: scale(1.06); }
+  html.is-web .settings-row:hover,
+  html.is-web .item-card:hover { background: var(--fill); }
+  html.is-web * { cursor: default; }
+  html.is-web button,
+  html.is-web .item-card,
+  html.is-web .settings-row,
+  html.is-web select,
+  html.is-web .chip,
+  html.is-web input { cursor: pointer; }
+  html.is-web input[type="text"],
+  html.is-web input[type="number"],
+  html.is-web input[type="password"],
+  html.is-web textarea,
+  html.is-web .search-input { cursor: text; }
+}
+
+/* =============================================
    UTILITY
    ============================================= */
 .hidden { display: none !important; }
