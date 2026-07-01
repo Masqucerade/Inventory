@@ -1582,6 +1582,79 @@ html, body {
 .vis-badge svg { display: block; }
 .task-meta-row { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 
+/* Задача: описание + фото */
+.task-desc { display: block; font-size: 12.5px; color: var(--text2); line-height: 1.4; margin-top: 2px; white-space: pre-wrap; }
+.task-photo-thumb {
+  display: block; margin-top: 8px; width: 96px; height: 96px;
+  object-fit: cover; border-radius: 10px; border: 1px solid var(--card-b);
+  cursor: pointer; transition: transform .12s;
+}
+.task-photo-thumb:active { transform: scale(.97); }
+
+/* Пикер фото в модалке задачи */
+.task-photo-picker {
+  position: relative; border-radius: var(--r);
+  background: var(--card); border: 1px dashed var(--card-b);
+  min-height: 90px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; overflow: hidden;
+}
+.task-photo-placeholder { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text3); font-size: 13px; padding: 18px; }
+.task-photo-preview { width: 100%; max-height: 240px; object-fit: cover; display: block; }
+.task-photo-remove {
+  position: absolute; top: 8px; right: 8px; width: 26px; height: 26px;
+  border-radius: 50%; border: none; background: rgba(0,0,0,.6); color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+
+/* Просмотр фото на весь экран */
+.image-viewer {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,.9); display: flex; align-items: center; justify-content: center;
+  padding: 24px; cursor: zoom-out; animation: fadeIn .15s ease;
+}
+.image-viewer img { max-width: 100%; max-height: 100%; border-radius: 10px; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Профиль справа вверху */
+.profile-btn {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  border: 1px solid var(--card-b); background: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; padding: 0; transition: transform .12s, box-shadow .12s;
+}
+.profile-btn:active { transform: scale(.92); }
+.profile-btn.is-root { background: rgba(124,109,250,.16); border-color: transparent; box-shadow: 0 0 0 2px rgba(124,109,250,.28); }
+.profile-initial { font-size: 14px; font-weight: 700; color: var(--accent); letter-spacing: -.3px; }
+
+/* Карточка аккаунта в меню */
+.account-hero {
+  display: flex; align-items: center; gap: 13px; padding: 14px 4px 16px;
+}
+.account-hero-avatar {
+  width: 52px; height: 52px; border-radius: 16px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 22px; font-weight: 800; letter-spacing: -.5px;
+  box-shadow: 0 6px 18px rgba(124,109,250,.35);
+}
+.account-hero-name { font-size: 18px; font-weight: 700; letter-spacing: -.4px; color: var(--text); }
+.account-hero-role { display: flex; align-items: center; gap: 7px; margin-top: 3px; font-size: 12.5px; color: var(--text3); }
+.account-badge {
+  padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  background: var(--muted); color: var(--text2);
+}
+.account-badge.root { background: rgba(124,109,250,.16); color: var(--accent); }
+
+/* Кнопка «Погасить долги» в бюджете */
+.budget-row.debt span:first-child { color: #f59e0b; }
+.debt-pay-btn {
+  width: 100%; margin-top: 10px; padding: 11px; border-radius: 12px;
+  border: none; background: var(--accent); color: #fff;
+  font-family: inherit; font-size: 14px; font-weight: 700; letter-spacing: -.2px;
+  cursor: pointer; transition: opacity .13s, transform .1s;
+}
+.debt-pay-btn:active { transform: scale(.98); opacity: .9; }
+
 /* =============================================
    MENU ICON BUTTONS (edit / delete)
    ============================================= */

@@ -43,6 +43,18 @@ class InventoryDB {
     try { await fetch('/api/logout', { method: 'POST' }); } catch {}
     localStorage.removeItem('inv_token');
   }
+  async changeMyPassword(password) {
+    const r = await fetch('/api/me/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка');
+    return d;
+  }
+  async reimburseExpenses() {
+    const r = await fetch('/api/employee-payments/reimburse', { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка');
+    return d;
+  }
 
   /* ─── USERS (root) ─── */
   async getUsers() {

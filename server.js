@@ -75,6 +75,8 @@ app.post('/api/login', (req, res) => {
 
 // Всё остальное под /api требует валидный токен
 app.use('/api', (req, res, next) => {
+  // Не кэшируем данные API — иначе можно увидеть чужие/устаревшие записи
+  res.set('Cache-Control', 'no-store');
   const user = currentUser(req);
   if (!user) return res.status(401).json({ error: 'unauthorized' });
   req.user = user;
@@ -84,6 +86,18 @@ app.use('/api', (req, res, next) => {
 app.get('/api/me', (req, res) => {
   const u = req.user;
   res.json({ id: u.id, name: u.name, login: u.login, role: u.role });
+});
+
+// Пользователь меняет свой собственный пароль
+app.post('/api/me/password', (req, res) => {
+  const password = String(req.body.password || '');
+  if (password.length < 1) return res.status(400).json({ error: 'Введите новый пароль' });
+  const db = load();
+  const u  = (db.users || []).find(x => x.id === req.user.id);
+  if (!u) return res.status(404).json({ error: 'not found' });
+  u.password = password;
+  save(db);
+  res.json({ ok: true });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -360,6 +374,30 @@ app.delete('/api/employee-payments/:id', (req, res) => {
     });
   }
   res.json({ ok: true });
+});
+
+// Погасить долги перед сотрудниками (их расходы из своих) — списывается из бюджета
+app.post('/api/employee-payments/reimburse', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db  = load();
+  const now = new Date().toISOString();
+  let total = 0, count = 0;
+  (db.employeePayments || []).forEach(p => {
+    if (p.isExpense && !p.reimbursed) {
+      p.reimbursed = true;
+      p.reimbursedAt = now;
+      total += Number(p.amount) || 0;
+      count++;
+    }
+  });
+  save(db);
+  if (total > 0) {
+    logToTelegram({
+      type: 'emp_payment', ts: now,
+      desc: `✅ Погашены долги сотрудникам: −${total.toLocaleString('ru-RU')} ₽ (${count} шт) — вычтено из бюджета компании`,
+    });
+  }
+  res.json({ ok: true, total, count });
 });
 
 /* ─── PAYMENTS ─── */

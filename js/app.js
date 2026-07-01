@@ -55,6 +55,7 @@ class App {
     this.editingItemId  = null;
     this.editingOwnerId = null;
     this.currentPhoto   = null;
+    this._taskPhoto     = null;
 
     this._selOwner  = null;
     this._selStatus = 'ordered';
@@ -119,9 +120,21 @@ class App {
       this.bindGlobal();
       this._booted = true;
     }
+    this._updateProfileBadge();
     await this.loadData();
     this.renderView('inventory');
     this.backup.checkAutoBackup();
+  }
+
+  // Аватар текущего профиля справа вверху
+  _updateProfileBadge() {
+    const el = document.getElementById('profileInitial');
+    const btn = document.getElementById('profileBtn');
+    if (!el || !btn) return;
+    const u = this.currentUser || {};
+    el.textContent = (u.name || u.login || '?')[0].toUpperCase();
+    btn.title = `${u.name || ''}${u.role === 'root' ? ' · root' : ''}`;
+    btn.classList.toggle('is-root', u.role === 'root');
   }
 
   showLogin() {
@@ -218,15 +231,23 @@ class App {
     const isRoot = this.currentUser?.role === 'root';
     const u      = this.currentUser || {};
 
+    const svgKey = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+
     el.innerHTML = `
-      <div class="section-title">Аккаунт</div>
-      <div class="settings-section">
-        <div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon" style="background:rgba(124,109,250,.16);color:var(--accent);font-weight:700">${(u.name || u.login || '?')[0].toUpperCase()}</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">${this.esc(u.name || '')}</div>
-            <div class="settings-row-sub">${isRoot ? 'Root-администратор' : 'Пользователь'} · @${this.esc(u.login || '')}</div>
+      <div class="account-hero">
+        <div class="account-hero-avatar">${(u.name || u.login || '?')[0].toUpperCase()}</div>
+        <div class="account-hero-info">
+          <div class="account-hero-name">${this.esc(u.name || '')}</div>
+          <div class="account-hero-role">
+            <span class="account-badge ${isRoot ? 'root' : ''}">${isRoot ? 'Root-админ' : 'Сотрудник'}</span>
+            <span>@${this.esc(u.login || '')}</span>
           </div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-row" id="mChangePassBtn">
+          <div class="settings-row-icon" style="background:rgba(56,189,248,.12);color:#38bdf8">${svgKey}</div>
+          <div class="settings-row-info"><div class="settings-row-title">Сменить пароль</div></div>${arrow}
         </div>
         <div class="settings-row" id="mLogoutBtn">
           <div class="settings-row-icon" style="background:rgba(248,113,113,.12);color:#f87171">${svgLogout}</div>
@@ -385,6 +406,13 @@ class App {
     });
 
     document.getElementById('mAddUserBtn')?.addEventListener('click', () => this.openUserModal());
+
+    document.getElementById('mChangePassBtn')?.addEventListener('click', async () => {
+      const np = await this._prompt('Новый пароль', '', 'Введите новый пароль');
+      if (!np) return;
+      try { await this.db.changeMyPassword(np); this.toast('Пароль изменён ✓'); }
+      catch (e) { this.toast(e.message || 'Ошибка'); }
+    });
 
     this.renderOwners('menuOwnersList');
     this._renderMenuCats();
@@ -610,6 +638,7 @@ class App {
 
     /* Hamburger menu */
     document.getElementById('menuBtn').addEventListener('click', () => this.toggleMenu());
+    document.getElementById('profileBtn')?.addEventListener('click', () => this.toggleMenu());
     document.getElementById('menuBackdrop').addEventListener('click', () => this.closeMenu());
 
     /* Restore file input (permanent in DOM) */
@@ -827,6 +856,23 @@ class App {
     /* Project modal */
     document.getElementById('taskModalClose').addEventListener('click', () => this.closeModal('taskModal'));
     document.getElementById('taskModalSave').addEventListener('click', () => this.saveTask());
+
+    /* Task photo */
+    document.getElementById('taskPhotoPicker').addEventListener('click', (e) => {
+      if (e.target.closest('#taskPhotoRemove')) return;
+      document.getElementById('taskPhotoInput').click();
+    });
+    document.getElementById('taskPhotoInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try { this._setTaskPhoto(await resizeImage(file)); }
+      catch (_) { this.toast('Ошибка загрузки фото'); }
+      e.target.value = '';
+    });
+    document.getElementById('taskPhotoRemove').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._setTaskPhoto(null);
+    });
     document.getElementById('quickModalClose').addEventListener('click', () => this.closeModal('quickModal'));
     document.getElementById('quickModalSave').addEventListener('click', () => this.saveQuickItem());
 
@@ -1506,9 +1552,12 @@ class App {
     const payBalance   = payments.reduce((s, p) =>
       p.type === 'deposit' ? s + (p.amount || 0) : s - (p.amount || 0), 0);
     const salesProfit  = sales.reduce((s, x) => s + (x.netProfit || 0), 0);
-    // Расходы сотрудников из своих денег вычитаются из бюджета компании
-    const empExpenses  = empPayments.reduce((s, p) => p.isExpense ? s + (p.amount || 0) : s, 0);
-    const balance = payBalance + salesProfit - empExpenses;
+    // Расходы сотрудников из своих = долг компании перед ними.
+    // Пока не погашен — это просто задолженность (в бюджет НЕ вычитается).
+    // Когда «Погасить долги» — помечаются reimbursed и вычитаются из бюджета.
+    const pendingDebt = empPayments.reduce((s, p) => (p.isExpense && !p.reimbursed) ? s + (p.amount || 0) : s, 0);
+    const paidDebt    = empPayments.reduce((s, p) => (p.isExpense &&  p.reimbursed) ? s + (p.amount || 0) : s, 0);
+    const balance = payBalance + salesProfit - paidDebt;
     const pos = balance >= 0;
 
     // Остаток средств сотрудника = пополнения (начисления) − выплаты.
@@ -1642,10 +1691,17 @@ class App {
       <div class="balance-card">
         <div class="balance-label">Бюджет компании</div>
         <div class="balance-amount ${pos ? 'pos' : 'neg'}">${pos ? '' : '−'}${fmtMoney(Math.abs(balance))}</div>
-        ${(salesProfit || empExpenses) ? `
+        ${(salesProfit || pendingDebt || paidDebt) ? `
         <div class="budget-breakdown">
           ${salesProfit ? `<div class="budget-row"><span>Прибыль с продаж</span><span class="pos">+${fmtMoney(salesProfit)}</span></div>` : ''}
-          ${empExpenses ? `<div class="budget-row"><span>Расходы сотрудников из своих</span><span class="neg">−${fmtMoney(empExpenses)}</span></div>` : ''}
+          ${paidDebt ? `<div class="budget-row"><span>Погашено сотрудникам</span><span class="neg">−${fmtMoney(paidDebt)}</span></div>` : ''}
+          ${pendingDebt ? `
+            <div class="budget-row debt">
+              <span>Долг сотрудникам (потрачено из своих)</span>
+              <span class="neg">−${fmtMoney(pendingDebt)}</span>
+            </div>
+            <button class="debt-pay-btn" id="payDebtsBtn">Погасить долги · ${fmtMoney(pendingDebt)}</button>
+          ` : ''}
         </div>` : ''}
       </div>
       <div class="finance-actions">
@@ -1676,6 +1732,16 @@ class App {
     document.getElementById('chargeBtn').addEventListener('click',  () => this.openPaymentModal('charge'));
     document.getElementById('sellBtn').addEventListener('click',    () => this.openSaleModal());
     document.getElementById('addPlanBtn').addEventListener('click', () => this.openPlanModal());
+
+    document.getElementById('payDebtsBtn')?.addEventListener('click', async () => {
+      const ok = await this.confirm(`Погасить долги сотрудникам на ${fmtMoney(pendingDebt)}? Сумма спишется из бюджета компании.`);
+      if (!ok) return;
+      try {
+        const r = await this.db.reimburseExpenses();
+        this.toast(`Погашено ${fmtMoney(r.total || 0)} ✓`);
+        this.renderFinance();
+      } catch (e) { this.toast(e.message || 'Ошибка'); }
+    });
 
     el.querySelectorAll('.pay-del[data-id]').forEach(btn =>
       btn.addEventListener('click', async (e) => {
@@ -1756,15 +1822,17 @@ class App {
     const payments = await this.db.getEmployeePayments(ownerId);
 
     const salary   = payments.reduce((s, p) => p.type === 'credit' && !p.isExpense ? s + (p.amount || 0) : s, 0);
-    const expenses = payments.reduce((s, p) => p.type === 'credit' &&  p.isExpense ? s + (p.amount || 0) : s, 0);
     const debits   = payments.reduce((s, p) => p.type === 'debit'                  ? s + (p.amount || 0) : s, 0);
-    // Остаток = начисления − выплаты. Расходы из своих сюда не входят (идут в бюджет компании).
+    const expPending = payments.reduce((s, p) => (p.isExpense && !p.reimbursed) ? s + (p.amount || 0) : s, 0);
+    const expPaid    = payments.reduce((s, p) => (p.isExpense &&  p.reimbursed) ? s + (p.amount || 0) : s, 0);
+    // Остаток = начисления − выплаты. Расходы из своих — отдельный долг компании.
     const balance  = salary - debits;
     const pos      = balance >= 0;
 
-    const balanceExtra = expenses > 0
+    const balanceExtra = (expPending || expPaid)
       ? `<div class="emp-bal-split">
-           <span>🧾 ${fmtMoney(expenses)} потрачено из своих → в бюджет компании</span>
+           ${expPending ? `<span>🧾 ${fmtMoney(expPending)} долг (из своих)</span>` : ''}
+           ${expPaid ? `<span>✅ ${fmtMoney(expPaid)} возвращено</span>` : ''}
          </div>`
       : '';
 
@@ -1785,7 +1853,7 @@ class App {
              ${isExpense
                ? `<div class="pay-amount-col">
                     <div class="pay-amount expense">${fmtMoney(p.amount)}</div>
-                    <div class="pay-return-label">→ в бюджет</div>
+                    <div class="pay-return-label">${p.reimbursed ? '✅ возвращено' : 'долг'}</div>
                   </div>`
                : `<div class="pay-amount ${cls}">${isCredit ? '+' : '−'}${fmtMoney(p.amount)}</div>`}
              <button class="pay-del" data-id="${p.id}">
@@ -2181,13 +2249,17 @@ class App {
 
     const renderList = list => list.map(t => {
       const assignee = t.assigneeId ? ownerName(t.assigneeId) : '';
+      const title = t.title || t.text || '';
+      const desc  = t.description || '';
       return `
       <div class="task-item${t.done ? ' done' : ''}" data-task-id="${t.id}">
         <button class="task-check" data-task-id="${t.id}" title="${t.done ? 'Вернуть' : 'Выполнено'}">
           ${t.done ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
         </button>
         <div class="task-body">
-          <span class="task-text">${this.esc(t.text)}</span>
+          <span class="task-text">${this.esc(title)}</span>
+          ${desc ? `<span class="task-desc">${this.esc(desc)}</span>` : ''}
+          ${t.photo ? `<img class="task-photo-thumb" src="${t.photo}" alt="фото задачи">` : ''}
           <span class="task-meta-row">${assignee ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}${this._visBadge(t)}</span>
         </div>
         <div class="task-btns">
@@ -2225,13 +2297,28 @@ class App {
         this.renderProjectTasks();
       })
     );
+    el.querySelectorAll('.task-photo-thumb').forEach(img =>
+      img.addEventListener('click', (e) => { e.stopPropagation(); this._openImage(img.src); })
+    );
+  }
+
+  // Простой просмотрщик фото на весь экран
+  _openImage(src) {
+    const ov = document.createElement('div');
+    ov.className = 'image-viewer';
+    ov.innerHTML = `<img src="${src}" alt="">`;
+    ov.addEventListener('click', () => ov.remove());
+    document.body.appendChild(ov);
   }
 
   async openTaskModal(task = null) {
     this._editingTaskId = task?.id || null;
     document.getElementById('taskModalTitle').textContent    = task ? 'Редактировать задачу' : 'Новая задача';
     document.getElementById('taskModalSave').textContent     = task ? 'Сохранить' : 'Добавить';
-    document.getElementById('taskText').value                = task?.text || '';
+    // back-compat: старые задачи хранили всё в .text
+    document.getElementById('taskTitle').value       = task?.title || task?.text || '';
+    document.getElementById('taskDescription').value = task?.description || '';
+    this._setTaskPhoto(task?.photo || null);
     const sel    = document.getElementById('taskAssignee');
     const owners = await this.db.getOwners();
     sel.innerHTML = `<option value="">— Не назначен —</option>` +
@@ -2242,14 +2329,30 @@ class App {
     if (isRoot) this._renderVisChips('taskVisChips', task?.visibility || []);
 
     this.openModal('taskModal');
-    setTimeout(() => document.getElementById('taskText').focus(), 350);
+    setTimeout(() => document.getElementById('taskTitle').focus(), 350);
+  }
+
+  _setTaskPhoto(b64) {
+    this._taskPhoto = b64 || null;
+    const prev = document.getElementById('taskPhotoPreview');
+    const ph   = document.getElementById('taskPhotoPlaceholder');
+    const rm   = document.getElementById('taskPhotoRemove');
+    if (b64) {
+      prev.src = b64; prev.classList.remove('hidden');
+      ph.classList.add('hidden'); rm.classList.remove('hidden');
+    } else {
+      prev.src = ''; prev.classList.add('hidden');
+      ph.classList.remove('hidden'); rm.classList.add('hidden');
+    }
   }
 
   async saveTask() {
-    const text       = document.getElementById('taskText').value.trim();
-    const assigneeId = document.getElementById('taskAssignee').value || null;
-    if (!text) { this.toast('Введите описание задачи'); return; }
-    const payload = { text, assigneeId };
+    const title       = document.getElementById('taskTitle').value.trim();
+    const description = document.getElementById('taskDescription').value.trim();
+    const assigneeId  = document.getElementById('taskAssignee').value || null;
+    if (!title) { this.toast('Введите название задачи'); return; }
+    // text дублируем названием — для обратной совместимости
+    const payload = { title, text: title, description, assigneeId, photo: this._taskPhoto || null };
     if (this.currentUser?.role === 'root') payload.visibility = this._readVis('taskVisChips');
     if (this._editingTaskId) {
       await this.db.patchTask(this._editingTaskId, payload);
@@ -2258,6 +2361,7 @@ class App {
       await this.db.addTask(payload);
     }
     this._editingTaskId = null;
+    this._taskPhoto = null;
     this.closeModal('taskModal');
     this.renderProjectTasks();
   }
