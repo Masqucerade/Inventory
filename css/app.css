@@ -1601,52 +1601,67 @@ html, body {
 
 /* =============================================
    DESKTOP / macOS  (только веб-версия, не Telegram)
-   Полный экран, но контент по центру и в комфортной ширине
+   На всю ширину + сетка карточек + крупнее и удобнее
    ============================================= */
 @media (min-width: 820px) {
-  /* --edge: боковой отступ = центрирование контента в колонке ~760px */
+  /* Контент на всю ширину, комфортные боковые отступы */
   html.is-web .view-body {
-    --edge: max(24px, calc((100% - 760px) / 2));
-    padding-left: var(--edge);
-    padding-right: var(--edge);
-    padding-top: 20px;
+    padding: 22px 32px var(--pad-bot);
   }
-
-  /* Шапка: фон во всю ширину, содержимое — по центру в той же колонке */
   html.is-web .inv-header,
-  html.is-web .simple-header {
-    --edge: max(24px, calc((100% - 760px) / 2));
-    padding-left: var(--edge);
-    padding-right: var(--edge);
-  }
-  html.is-web .simple-header { padding-top: 6px; padding-bottom: 6px; }
-  html.is-web .view-title { font-size: 26px; letter-spacing: -0.8px; }
-  html.is-web .brand-name { font-size: 21px; }
+  html.is-web .simple-header { padding-left: 32px; padding-right: 32px; }
+  html.is-web .simple-header { padding-top: 6px; padding-bottom: 8px; }
+  html.is-web .view-title { font-size: 27px; letter-spacing: -0.8px; }
+  html.is-web .brand-name { font-size: 22px; }
+  html.is-web .header-row { height: 56px; }
 
-  /* Выпадающее меню — фон во всю ширину, контент центрирован */
-  html.is-web .header-menu-body {
-    --edge: max(24px, calc((100% - 760px) / 2));
-    padding-left: var(--edge);
-    padding-right: var(--edge);
+  /* Товары — сетка карточек во всю ширину (а не один длинный список) */
+  html.is-web .items-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+    background: transparent;
+    border: none; border-radius: 0; overflow: visible;
   }
+  html.is-web .item-card {
+    background: var(--card);
+    border: 1px solid var(--card-b);
+    border-radius: 16px; overflow: hidden;
+    min-height: 78px;
+    transition: background .13s, transform .13s, box-shadow .13s;
+  }
+  html.is-web .item-card:not(:last-child) > .item-info { border-bottom: none; }
+  html.is-web .item-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.28);
+  }
+  [data-theme="light"] html.is-web .item-card:hover { box-shadow: 0 8px 22px rgba(0,0,0,.10); }
+  html.is-web .item-thumb { width: 78px; }
+  html.is-web .item-info  { padding: 14px 16px; gap: 3px; }
+  html.is-web .item-name  { font-size: 15.5px; }
+  html.is-web .item-type-size { font-size: 12px; }
 
-  /* Нижнее меню — компактная плашка по центру, а не через весь экран */
+  /* Статистика — больше колонок на широком экране */
+  html.is-web .stats-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+  /* Нижнее меню — компактная плашка по центру, кнопки рядом */
   html.is-web .bottom-nav {
     left: 50%; right: auto;
     transform: translateX(-50%);
-    width: min(540px, calc(100% - 40px));
+    width: min(560px, calc(100% - 40px));
+    height: calc(var(--nav-h) + 6px);
   }
+  html.is-web .nav-label { font-size: 11px; }
+  html.is-web .nav-icon  { width: 23px; height: 23px; }
 
-  /* Кнопка «+» — у правого края контентной колонки, в досягаемости */
-  html.is-web .fab {
-    right: max(28px, calc((100% - 760px) / 2 + 4px));
-  }
+  /* Кнопка «+» — крупнее и в углу контента */
+  html.is-web .fab { right: 32px; width: 52px; height: 52px; }
 
   /* Модалки — аккуратный центрированный диалог (в стиле macOS) */
   html.is-web .modal {
     inset: auto;
     left: 50%; top: 50%;
-    width: min(480px, calc(100% - 48px));
+    width: min(500px, calc(100% - 48px));
     height: auto; max-height: 86vh;
     border-radius: 20px; overflow: hidden;
     transform: translate(-50%, -48%) scale(.98);
@@ -1672,12 +1687,9 @@ html, body {
   html.is-web .nav-btn:hover   { color: var(--text2); }
   html.is-web .fab:hover       { transform: scale(1.06); }
   html.is-web .settings-row:hover,
-  html.is-web .item-card:hover,
   html.is-web .chip:hover,
   html.is-web .sale-entry:hover,
   html.is-web .pay-entry:hover { background: var(--fill); }
-  html.is-web .item-card { transition: background .13s, transform .13s; }
-  html.is-web .item-card:hover { transform: translateY(-1px); }
   html.is-web * { cursor: default; }
   html.is-web button,
   html.is-web .item-card,
