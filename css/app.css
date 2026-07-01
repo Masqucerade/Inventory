@@ -680,6 +680,9 @@ html, body {
 .detail-notes { background: var(--card); border: 1px solid var(--card-b); border-radius: var(--r); padding: 12px 14px; font-size: 13px; line-height: 1.5; color: var(--text2); }
 .detail-delete-btn { width: 100%; padding: 12px; border-radius: var(--r); background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.16); color: #f87171; font-family: inherit; font-size: 14px; font-weight: 500; letter-spacing: -0.2px; cursor: pointer; transition: all .12s; }
 .detail-delete-btn:active { opacity: .6; }
+.detail-sell-btn { width: 100%; padding: 13px; margin-bottom: 8px; border-radius: var(--r); background: rgba(124,109,250,.1); border: 1px solid rgba(124,109,250,.28); color: var(--accent); font-family: inherit; font-size: 14px; font-weight: 600; letter-spacing: -0.2px; cursor: pointer; transition: opacity .12s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.detail-sell-btn:active { opacity: .6; }
+[data-theme="light"] .detail-sell-btn { background: rgba(124,109,250,.08); border-color: rgba(124,109,250,.32); color: #6d28d9; }
 
 /* =============================================
    TOAST
@@ -903,6 +906,20 @@ html, body {
 .balance-amount.neg { color: #f87171; }
 [data-theme="light"] .balance-amount.pos { color: #16a34a; }
 [data-theme="light"] .balance-amount.neg { color: #dc2626; }
+
+.budget-breakdown {
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--card-b);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.budget-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12.5px; color: var(--text2);
+}
+.budget-row .pos { color: #4ade80; font-weight: 600; }
+.budget-row .neg { color: #f87171; font-weight: 600; }
+[data-theme="light"] .budget-row .pos { color: #16a34a; }
+[data-theme="light"] .budget-row .neg { color: #dc2626; }
 
 .finance-actions {
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px;

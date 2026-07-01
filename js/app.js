@@ -915,8 +915,19 @@ class App {
       </div>
       ${item.notes ? `<div class="detail-notes">${this.esc(item.notes)}</div>` : ''}
       ${this._itemHistoryHtml(item)}
+      <button class="detail-sell-btn" id="detailSellBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+          <circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>Продать товар
+      </button>
       <button class="detail-delete-btn" id="detailDeleteBtn">Удалить товар</button>
     `;
+
+    document.getElementById('detailSellBtn').addEventListener('click', () => {
+      this.closeModal('detailModal');
+      this.openSaleModal(id);
+    });
 
     document.getElementById('detailDeleteBtn').addEventListener('click', () => this.deleteItem(id));
 
@@ -1250,13 +1261,19 @@ class App {
       this.db.getSales(),
     ]);
 
-    const balance = payments.reduce((s, p) =>
-      p.type === 'deposit' ? s + (p.amount || 0) : s - (p.amount || 0), 0)
-      + sales.reduce((s, x) => s + (x.netProfit || 0), 0);
+    const payBalance   = payments.reduce((s, p) =>
+      p.type === 'deposit' ? s + (p.amount || 0) : s - (p.amount || 0), 0);
+    const salesProfit  = sales.reduce((s, x) => s + (x.netProfit || 0), 0);
+    // Расходы сотрудников из своих денег вычитаются из бюджета компании
+    const empExpenses  = empPayments.reduce((s, p) => p.isExpense ? s + (p.amount || 0) : s, 0);
+    const balance = payBalance + salesProfit - empExpenses;
     const pos = balance >= 0;
 
+    // Остаток средств сотрудника = пополнения (начисления) − выплаты.
+    // Расходы из своих в остаток не входят — они идут в бюджет компании.
     const empBals = {};
     empPayments.forEach(p => {
+      if (p.isExpense) return;
       empBals[p.ownerId] = (empBals[p.ownerId] || 0) +
         (p.type === 'credit' ? (p.amount || 0) : -(p.amount || 0));
     });
@@ -1381,8 +1398,13 @@ class App {
 
     el.innerHTML = `
       <div class="balance-card">
-        <div class="balance-label">Баланс компании</div>
+        <div class="balance-label">Бюджет компании</div>
         <div class="balance-amount ${pos ? 'pos' : 'neg'}">${pos ? '' : '−'}${fmtMoney(Math.abs(balance))}</div>
+        ${(salesProfit || empExpenses) ? `
+        <div class="budget-breakdown">
+          ${salesProfit ? `<div class="budget-row"><span>Прибыль с продаж</span><span class="pos">+${fmtMoney(salesProfit)}</span></div>` : ''}
+          ${empExpenses ? `<div class="budget-row"><span>Расходы сотрудников из своих</span><span class="neg">−${fmtMoney(empExpenses)}</span></div>` : ''}
+        </div>` : ''}
       </div>
       <div class="finance-actions">
         <button class="fin-btn deposit" id="depositBtn">
@@ -1403,9 +1425,9 @@ class App {
         </button>
       </div>
       ${salesSectionHtml}
-      ${plansSectionHtml}
       ${payHistHtml}
       ${empSectionHtml}
+      ${plansSectionHtml}
     `;
 
     document.getElementById('depositBtn').addEventListener('click', () => this.openPaymentModal('deposit'));
@@ -1494,13 +1516,13 @@ class App {
     const salary   = payments.reduce((s, p) => p.type === 'credit' && !p.isExpense ? s + (p.amount || 0) : s, 0);
     const expenses = payments.reduce((s, p) => p.type === 'credit' &&  p.isExpense ? s + (p.amount || 0) : s, 0);
     const debits   = payments.reduce((s, p) => p.type === 'debit'                  ? s + (p.amount || 0) : s, 0);
-    const balance  = salary + expenses - debits;
+    // Остаток = начисления − выплаты. Расходы из своих сюда не входят (идут в бюджет компании).
+    const balance  = salary - debits;
     const pos      = balance >= 0;
 
     const balanceExtra = expenses > 0
       ? `<div class="emp-bal-split">
-           <span>💼 ${fmtMoney(salary)} зарплата</span>
-           <span>🧾 ${fmtMoney(expenses)} к возврату</span>
+           <span>🧾 ${fmtMoney(expenses)} потрачено из своих → в бюджет компании</span>
          </div>`
       : '';
 
@@ -1520,8 +1542,8 @@ class App {
              </div>
              ${isExpense
                ? `<div class="pay-amount-col">
-                    <div class="pay-amount expense">+${fmtMoney(p.amount)}</div>
-                    <div class="pay-return-label">↩ вернуть</div>
+                    <div class="pay-amount expense">${fmtMoney(p.amount)}</div>
+                    <div class="pay-return-label">→ в бюджет</div>
                   </div>`
                : `<div class="pay-amount ${cls}">${isCredit ? '+' : '−'}${fmtMoney(p.amount)}</div>`}
              <button class="pay-del" data-id="${p.id}">
@@ -1540,7 +1562,7 @@ class App {
 
     el.innerHTML = `
       <div class="balance-card">
-        <div class="balance-label">К выплате</div>
+        <div class="balance-label">Остаток средств</div>
         <div class="balance-amount ${pos ? 'pos' : 'neg'}">${pos ? '' : '−'}${fmtMoney(Math.abs(balance))}</div>
         ${balanceExtra}
       </div>
@@ -2120,11 +2142,11 @@ class App {
   /* ──────────────────────────────────────────
      SALE MODAL
      ────────────────────────────────────────── */
-  async openSaleModal() {
+  async openSaleModal(prefillId = null) {
     const items = await this.db.getItems();
     const sel   = document.getElementById('saleItemSelect');
     sel.innerHTML = `<option value="">— Выберите товар —</option>` +
-      items.map(i => `<option value="${i.id}" data-buy="${i.buyPrice||0}" data-price="${i.price||0}" data-delivery="${i.deliveryCost||0}" data-sizes="${this.esc(JSON.stringify(i.sizes||[]))}">${this.esc(i.name)}</option>`).join('');
+      items.map(i => `<option value="${i.id}" data-buy="${i.buyPrice||0}" data-price="${i.price||0}" data-delivery="${i.deliveryCost||0}" data-sizes="${encodeURIComponent(JSON.stringify(i.sizes||[]))}">${this.esc(i.name)}</option>`).join('');
 
     document.getElementById('saleSalePrice').value    = '';
     document.getElementById('saleBuyPrice').value     = '';
@@ -2132,8 +2154,15 @@ class App {
     document.getElementById('saleNote').value         = '';
     document.getElementById('saleSizeGroup').style.display   = 'none';
     document.getElementById('saleSizeDivider').style.display = 'none';
-    this._updateSalePreview();
+
+    if (prefillId) {
+      sel.value = prefillId;
+      this._onSaleItemChange();   // подставит закуп/доставку/размеры выбранного товара
+    } else {
+      this._updateSalePreview();
+    }
     this.openModal('saleModal');
+    setTimeout(() => document.getElementById('saleSalePrice').focus(), 350);
   }
 
   _onSaleItemChange() {
@@ -2148,7 +2177,7 @@ class App {
     document.getElementById('saleDeliveryCost').value = opt.dataset.delivery || '0';
 
     let sizes = [];
-    try { sizes = JSON.parse(opt.dataset.sizes || '[]'); } catch {}
+    try { sizes = JSON.parse(decodeURIComponent(opt.dataset.sizes || '')); } catch {}
     const hasSizes = sizes.length > 1 || (sizes.length === 1 && sizes[0].size);
     document.getElementById('saleSizeGroup').style.display   = hasSizes ? '' : 'none';
     document.getElementById('saleSizeDivider').style.display = hasSizes ? '' : 'none';
