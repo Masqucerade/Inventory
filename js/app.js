@@ -1785,6 +1785,8 @@ class App {
     const maxOwV = Math.max(...Object.values(byOwner).map(v => v.val), 1);
     const maxTyQ = Math.max(...Object.values(byType).map(v => v.qty), 1);
 
+    const noData = '<span style="font-size:14px;color:var(--hint)">Нет данных</span>';
+
     const statusBars = STATUSES.filter(s => byStatus[s.id]).map(s => {
       const qty = byStatus[s.id];
       return `<div class="bar-row">
@@ -1823,8 +1825,6 @@ class App {
         <span class="bar-count">${v.qty} шт / ${fmtMoney(v.val)}</span>
       </div>`
     ).join('');
-
-    const noData = '<span style="font-size:14px;color:var(--hint)">Нет данных</span>';
 
     el.innerHTML = `
       <div class="stats-grid">
@@ -2124,7 +2124,7 @@ class App {
     const items = await this.db.getItems();
     const sel   = document.getElementById('saleItemSelect');
     sel.innerHTML = `<option value="">— Выберите товар —</option>` +
-      items.map(i => `<option value="${i.id}" data-buy="${i.buyPrice||0}" data-price="${i.price||0}" data-delivery="${i.deliveryCost||0}" data-sizes='${JSON.stringify(i.sizes||[])}'>${this.esc(i.name)}</option>`).join('');
+      items.map(i => `<option value="${i.id}" data-buy="${i.buyPrice||0}" data-price="${i.price||0}" data-delivery="${i.deliveryCost||0}" data-sizes="${this.esc(JSON.stringify(i.sizes||[]))}">${this.esc(i.name)}</option>`).join('');
 
     document.getElementById('saleSalePrice').value    = '';
     document.getElementById('saleBuyPrice').value     = '';
@@ -2494,7 +2494,7 @@ class App {
     const catName   = id => this.categories.find(c => c.id === id)?.name || id || '—';
     const statusName= id => STATUSES.find(s => s.id === id)?.label || id || '—';
     const fmtVal    = (field, val) => {
-      if (!val) return '—';
+      if (val == null || val === '') return '—';
       if (field === 'ownerId')    return ownerName(val);
       if (field === 'categoryId') return catName(val);
       if (field === 'status')     return statusName(val);
