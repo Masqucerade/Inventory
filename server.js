@@ -4,7 +4,13 @@ const path    = require('path');
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
-app.use(express.static(path.join(__dirname)));
+// HTML не кэшируем (css/js версионируются через ?v=), чтобы разметка и скрипты
+// всегда были одной версии — иначе на старом index.html новый app.js падает.
+app.use(express.static(path.join(__dirname), {
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.html')) res.set('Cache-Control', 'no-cache');
+  },
+}));
 
 const DATA_DIR  = process.env.DATA_DIR  || path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'db.json');

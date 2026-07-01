@@ -117,7 +117,8 @@ class App {
     if (!this._booted) {
       await this.db.init();
       this.initTelegram();
-      this.bindGlobal();
+      // Ошибка в одной привязке не должна мешать рендеру экрана
+      try { this.bindGlobal(); } catch (e) { console.error('bindGlobal error:', e); }
       this._booted = true;
     }
     this._updateProfileBadge();
@@ -857,19 +858,19 @@ class App {
     document.getElementById('taskModalClose').addEventListener('click', () => this.closeModal('taskModal'));
     document.getElementById('taskModalSave').addEventListener('click', () => this.saveTask());
 
-    /* Task photo */
-    document.getElementById('taskPhotoPicker').addEventListener('click', (e) => {
+    /* Task photo (null-safe — не роняем bindGlobal, если HTML устарел в кэше) */
+    document.getElementById('taskPhotoPicker')?.addEventListener('click', (e) => {
       if (e.target.closest('#taskPhotoRemove')) return;
-      document.getElementById('taskPhotoInput').click();
+      document.getElementById('taskPhotoInput')?.click();
     });
-    document.getElementById('taskPhotoInput').addEventListener('change', async (e) => {
+    document.getElementById('taskPhotoInput')?.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       try { this._setTaskPhoto(await resizeImage(file)); }
       catch (_) { this.toast('Ошибка загрузки фото'); }
       e.target.value = '';
     });
-    document.getElementById('taskPhotoRemove').addEventListener('click', (e) => {
+    document.getElementById('taskPhotoRemove')?.addEventListener('click', (e) => {
       e.stopPropagation();
       this._setTaskPhoto(null);
     });
@@ -897,8 +898,8 @@ class App {
     });
 
     /* User modal (root) */
-    document.getElementById('userModalClose').addEventListener('click', () => this.closeModal('userModal'));
-    document.getElementById('userModalSave').addEventListener('click', () => this.saveUser());
+    document.getElementById('userModalClose')?.addEventListener('click', () => this.closeModal('userModal'));
+    document.getElementById('userModalSave')?.addEventListener('click', () => this.saveUser());
 
     /* Owner modal */
     document.getElementById('ownerModalClose').addEventListener('click', () => this.closeModal('ownerModal'));
@@ -2337,6 +2338,7 @@ class App {
     const prev = document.getElementById('taskPhotoPreview');
     const ph   = document.getElementById('taskPhotoPlaceholder');
     const rm   = document.getElementById('taskPhotoRemove');
+    if (!prev || !ph || !rm) return;
     if (b64) {
       prev.src = b64; prev.classList.remove('hidden');
       ph.classList.add('hidden'); rm.classList.remove('hidden');
