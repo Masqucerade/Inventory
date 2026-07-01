@@ -2146,7 +2146,7 @@ class App {
     const items = await this.db.getItems();
     const sel   = document.getElementById('saleItemSelect');
     sel.innerHTML = `<option value="">— Выберите товар —</option>` +
-      items.map(i => `<option value="${i.id}" data-buy="${i.buyPrice||0}" data-price="${i.price||0}" data-delivery="${i.deliveryCost||0}" data-sizes="${encodeURIComponent(JSON.stringify(i.sizes||[]))}">${this.esc(i.name)}</option>`).join('');
+      items.map(i => `<option value="${i.id}" data-buy="${i.buyPrice||0}" data-price="${i.price||0}" data-delivery="${i.deliveryCost||0}" data-qty="${i.quantity||0}" data-sizes="${encodeURIComponent(JSON.stringify(i.sizes||[]))}">${this.esc(i.name)}</option>`).join('');
 
     document.getElementById('saleSalePrice').value    = '';
     document.getElementById('saleBuyPrice').value     = '';
@@ -2218,9 +2218,22 @@ class App {
     const sizeEl = document.getElementById('saleSizeSelect');
     const size   = document.getElementById('saleSizeGroup').style.display !== 'none' ? sizeEl.value : '';
 
+    // Проверка наличия на складе
+    const opt = sel.options[sel.selectedIndex];
+    let inStock = 0;
+    try {
+      const sizes = JSON.parse(decodeURIComponent(opt?.dataset.sizes || ''));
+      inStock = sizes.length
+        ? (parseInt((sizes.find(s => (s.size || '') === (size || '')) || sizes[0])?.qty) || 0)
+        : (parseInt(opt?.dataset.qty) || 0);
+    } catch { inStock = parseInt(opt?.dataset.qty) || 0; }
+    if (inStock <= 0) { this.toast(`Нет в наличии${size ? ` · размер ${size}` : ''}`); return; }
+
     await this.db.addSale({ itemId, itemName, size, salePrice, buyPrice, deliveryCost: delivery, note });
     await this.db.logAction('sale', `Продажа: «${itemName}»${size ? ` (${size})` : ''}`, { salePrice, buyPrice, deliveryCost: delivery });
     this.closeModal('saleModal');
+    await this.loadData();          // обновить остатки в кэше
+    this.renderInventoryList();     // отразить списание в списке товаров
     this.renderFinance();
     this.toast(`Продажа записана · +${fmtMoney(salePrice - buyPrice - delivery)} ₽`);
   }

@@ -325,10 +325,27 @@ app.delete('/api/plans/:id', (req, res) => {
 /* ─── SALES ─── */
 app.get('/api/sales', (req, res) => res.json(load().sales || []));
 
+// Изменить остаток товара на складе на delta штук (delta<0 — списание, >0 — возврат)
+function adjustStock(db, itemId, size, delta) {
+  const item = (db.items || []).find(i => i.id === itemId);
+  if (!item) return;
+  if (item.sizes && item.sizes.length) {
+    const sz = item.sizes.find(s => (s.size || '') === (size || '')) || item.sizes[0];
+    if (sz) sz.qty = Math.max(0, (parseInt(sz.qty) || 0) + delta);
+    item.quantity = item.sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
+  } else {
+    item.quantity = Math.max(0, (parseInt(item.quantity) || 0) + delta);
+  }
+  item.total = Math.round((item.quantity * (item.price || 0)) * 100) / 100;
+  item.updatedAt = new Date().toISOString();
+}
+
 app.post('/api/sales', (req, res) => {
   const db   = load();
   const sale = { id: uid(), soldAt: new Date().toISOString(), ...req.body };
+  sale.qty       = Math.max(1, parseInt(sale.qty) || 1);
   sale.netProfit = (sale.salePrice || 0) - (sale.buyPrice || 0) - (sale.deliveryCost || 0);
+  if (sale.itemId) adjustStock(db, sale.itemId, sale.size, -sale.qty);
   if (!db.sales) db.sales = [];
   db.sales.unshift(sale);
   save(db);
@@ -336,7 +353,10 @@ app.post('/api/sales', (req, res) => {
 });
 
 app.delete('/api/sales/:id', (req, res) => {
-  const db = load();
+  const db   = load();
+  const sale = (db.sales || []).find(s => s.id === req.params.id);
+  // Удаление записи продажи возвращает товар на склад
+  if (sale && sale.itemId) adjustStock(db, sale.itemId, sale.size, Math.max(1, parseInt(sale.qty) || 1));
   db.sales = (db.sales || []).filter(s => s.id !== req.params.id);
   save(db);
   res.json({ ok: true });
