@@ -1935,12 +1935,13 @@ html, body {
   html.is-web #itemModal { width: min(560px, calc(100% - 48px)); }
 
   /* Задачи и FAQ — комфортная колонка, ховеры */
-  html.is-web .task-list { max-width: 860px; }
+  html.is-web .task-list { max-width: 860px; margin-left: auto; margin-right: auto; }
   html.is-web .task-item:hover { background: var(--fill); }
   html.is-web .task-btns { opacity: .45; transition: opacity .13s; }
   html.is-web .task-item:hover .task-btns { opacity: 1; }
-  html.is-web .faq-list { max-width: 860px; }
+  html.is-web .faq-list { max-width: 860px; margin-left: auto; margin-right: auto; }
   html.is-web .faq-head:hover { background: var(--fill); }
+  html.is-web .quick-list { max-width: 860px; margin-left: auto; margin-right: auto; }
   html.is-web .task-photo-thumb { width: 96px; height: 96px; }
 }
 
