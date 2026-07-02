@@ -16,14 +16,35 @@ const DATA_DIR  = process.env.DATA_DIR  || path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'db.json');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
+// БД держим в памяти: читаем/парсим файл один раз при старте, дальше отдаём
+// из ОЗУ. Иначе каждый из ~10 запросов на загрузку страницы заново читал и
+// парсил весь db.json с диска (с base64-фото) — отсюда и тормоза.
+let _db = null;
 function load() {
-  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
-  catch { return { items: [], owners: [], logs: [] }; }
+  if (_db) return _db;
+  try { _db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
+  catch { _db = { items: [], owners: [], logs: [] }; }
+  return _db;
 }
 
+// Запись на диск дебаунсим, чтобы серия изменений не блокировала event loop
+// множеством синхронных записей многомегабайтного файла.
+let _saveTimer = null;
 function save(db) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(db));
+  _db = db;
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    try { fs.writeFileSync(DATA_FILE, JSON.stringify(_db)); }
+    catch (e) { console.error('save failed:', e.message); }
+  }, 150);
 }
+// Гарантируем запись перед остановкой процесса
+function flush() {
+  clearTimeout(_saveTimer);
+  try { if (_db) fs.writeFileSync(DATA_FILE, JSON.stringify(_db)); } catch (_) {}
+}
+process.on('SIGTERM', () => { flush(); process.exit(0); });
+process.on('SIGINT',  () => { flush(); process.exit(0); });
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -81,8 +102,10 @@ app.post('/api/login', (req, res) => {
 
 // Всё остальное под /api требует валидный токен
 app.use('/api', (req, res, next) => {
-  // Не кэшируем данные API — иначе можно увидеть чужие/устаревшие записи
-  res.set('Cache-Control', 'no-store');
+  // private+no-cache: браузер всегда сверяется с сервером (ETag), но если
+  // данные не менялись — получает крошечный 304 вместо повторной загрузки
+  // всех фото. Свежесть/видимость сохраняются, страницы грузятся быстрее.
+  res.set('Cache-Control', 'private, no-cache');
   const user = currentUser(req);
   if (!user) return res.status(401).json({ error: 'unauthorized' });
   req.user = user;
