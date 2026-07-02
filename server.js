@@ -87,6 +87,22 @@ function visibleTo(rec, user) {
   return v.includes(user.id);
 }
 
+/* ─── ДОСТУП К РАЗДЕЛАМ (критические точки) ───
+   У пользователя может быть access: ['inventory','stats','finance','project','faq'].
+   Root видит всё. Если access не задан — полный доступ (обратная совместимость). */
+const SECTIONS = ['inventory', 'stats', 'finance', 'project', 'faq'];
+function hasAccess(user, section) {
+  if (user.role === 'root') return true;
+  if (!Array.isArray(user.access)) return true;
+  return user.access.includes(section);
+}
+function requireAccess(section) {
+  return (req, res, next) => {
+    if (!hasAccess(req.user, section)) return res.status(403).json({ error: 'Нет доступа к разделу' });
+    next();
+  };
+}
+
 // Публичный вход
 app.post('/api/login', (req, res) => {
   const db = load(); seedRoot(db);
@@ -97,7 +113,7 @@ app.post('/api/login', (req, res) => {
   const token = uid() + uid();
   db.sessions.push({ token, userId: user.id, createdAt: new Date().toISOString() });
   save(db);
-  res.json({ token, user: { id: user.id, name: user.name, login: user.login, role: user.role } });
+  res.json({ token, user: { id: user.id, name: user.name, login: user.login, role: user.role, access: user.access || null } });
 });
 
 // Всё остальное под /api требует валидный токен
@@ -112,9 +128,15 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
+// Серверная защита критических разделов (не только скрытие в интерфейсе)
+app.use(['/api/payments', '/api/employee-payments', '/api/plans', '/api/sales'], (req, res, next) => requireAccess('finance')(req, res, next));
+app.use('/api/tasks',       (req, res, next) => requireAccess('project')(req, res, next));
+app.use('/api/quickaccess', (req, res, next) => requireAccess('project')(req, res, next));
+app.use('/api/faq',         (req, res, next) => requireAccess('faq')(req, res, next));
+
 app.get('/api/me', (req, res) => {
   const u = req.user;
-  res.json({ id: u.id, name: u.name, login: u.login, role: u.role });
+  res.json({ id: u.id, name: u.name, login: u.login, role: u.role, access: u.access || null });
 });
 
 // Пользователь меняет свой собственный пароль
@@ -140,7 +162,7 @@ app.post('/api/logout', (req, res) => {
 /* ─── USERS (только root) ─── */
 app.get('/api/users', (req, res) => {
   if (!requireRoot(req, res)) return;
-  res.json((load().users || []).map(u => ({ id: u.id, login: u.login, password: u.password, name: u.name, role: u.role })));
+  res.json((load().users || []).map(u => ({ id: u.id, login: u.login, password: u.password, name: u.name, role: u.role, access: u.access || null })));
 });
 
 app.post('/api/users', (req, res) => {
@@ -152,7 +174,8 @@ app.post('/api/users', (req, res) => {
   if (!login || !password) return res.status(400).json({ error: 'Логин и пароль обязательны' });
   if ((db.users || []).some(u => (u.login || '').toLowerCase() === login.toLowerCase()))
     return res.status(409).json({ error: 'Такой логин уже существует' });
-  const user = { id: uid(), login, password, name, role: 'user', createdAt: new Date().toISOString() };
+  const access = Array.isArray(req.body.access) ? req.body.access.filter(s => SECTIONS.includes(s)) : null;
+  const user = { id: uid(), login, password, name, role: 'user', access, createdAt: new Date().toISOString() };
   db.users.push(user);
   save(db);
   res.json(user);
@@ -169,6 +192,7 @@ app.put('/api/users/:id', (req, res) => {
   if (login) u.login = login;
   if (req.body.password != null && req.body.password !== '') u.password = String(req.body.password);
   if (req.body.name != null) u.name = String(req.body.name).trim() || u.name;
+  if (Array.isArray(req.body.access)) u.access = req.body.access.filter(s => SECTIONS.includes(s));
   save(db);
   res.json(u);
 });

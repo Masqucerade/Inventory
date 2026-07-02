@@ -123,8 +123,30 @@ class App {
     }
     this._updateProfileBadge();
     await this.loadData();
-    this.renderView('inventory');
+    const startView = ['inventory','stats','finance','project','settings'].find(v => this.hasAccess(v)) || 'inventory';
+    this.renderView(startView);
+    this._applyAccess();
     this.backup.checkAutoBackup();
+  }
+
+  /* ── Доступ к разделам ── */
+  hasAccess(section) {
+    if (section === 'settings') section = 'faq';   // вкладка FAQ = view "settings"
+    const u = this.currentUser;
+    if (!u) return false;
+    if (u.role === 'root') return true;
+    if (!Array.isArray(u.access)) return true;   // не настроено = полный доступ
+    return u.access.includes(section);
+  }
+
+  // Скрыть вкладки, к которым нет доступа; уйти с запрещённого экрана
+  _applyAccess() {
+    document.querySelectorAll('.nav-btn').forEach(b =>
+      b.classList.toggle('hidden', !this.hasAccess(b.dataset.view)));
+    if (!this.hasAccess(this.currentView)) {
+      const first = ['inventory','stats','finance','project','settings'].find(v => this.hasAccess(v));
+      if (first) this.renderView(first);
+    }
   }
 
   // Аватар текущего профиля справа вверху
@@ -435,7 +457,7 @@ class App {
         <div class="settings-row-icon" style="background:rgba(124,109,250,.12);color:var(--accent);font-weight:700">${(usr.name || usr.login || '?')[0].toUpperCase()}</div>
         <div class="settings-row-info">
           <div class="settings-row-title">${this.esc(usr.name || usr.login)}${usr.role === 'root' ? ' · root' : ''}</div>
-          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · пароль: ${this.esc(usr.password || '')}`}</div>
+          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · пароль: ${this.esc(usr.password || '')} · ${!Array.isArray(usr.access) || usr.access.length >= 5 ? 'все разделы' : `разделов: ${usr.access.length}/5`}`}</div>
         </div>
         ${usr.role === 'root' ? '' : `
           <button class="menu-del-btn user-edit-btn" data-uid="${usr.id}">${svgEdit}</button>
@@ -471,22 +493,44 @@ class App {
     document.getElementById('userName').value     = usr?.name     || '';
     document.getElementById('userLogin').value    = usr?.login    || '';
     document.getElementById('userPassword').value = usr?.password || '';
+    this._renderAccessChips(usr?.access || null);
     this.openModal('userModal');
     setTimeout(() => document.getElementById('userName').focus(), 350);
+  }
+
+  // Чипы «доступ к разделам»: null = все включены
+  _renderAccessChips(access) {
+    const el = document.getElementById('userAccessChips');
+    if (!el) return;
+    const LABELS = { inventory: '📦 Товары', stats: '📊 Статистика', finance: '💳 Счёт', project: '📁 Проект', faq: '💬 FAQ' };
+    const on = s => !Array.isArray(access) || access.includes(s);
+    el.innerHTML = Object.entries(LABELS).map(([s, label]) =>
+      `<button type="button" class="vis-chip${on(s) ? ' active' : ''}" data-acc="${s}">${label}</button>`
+    ).join('');
+    el.onclick = (e) => {
+      const chip = e.target.closest('.vis-chip');
+      if (chip) chip.classList.toggle('active');
+    };
+  }
+
+  _readAccessChips() {
+    return [...document.querySelectorAll('#userAccessChips .vis-chip.active')].map(c => c.dataset.acc);
   }
 
   async saveUser() {
     const name     = document.getElementById('userName').value.trim();
     const login    = document.getElementById('userLogin').value.trim();
     const password = document.getElementById('userPassword').value;
+    const access   = this._readAccessChips();
     if (!login)    { this.toast('Введите логин');  return; }
     if (!password) { this.toast('Введите пароль'); return; }
+    if (!access.length) { this.toast('Откройте хотя бы один раздел'); return; }
     try {
       if (this._editingUserId) {
-        await this.db.updateUser(this._editingUserId, { name, login, password });
+        await this.db.updateUser(this._editingUserId, { name, login, password, access });
         this.toast('Пользователь обновлён ✓');
       } else {
-        await this.db.addUser({ name, login, password });
+        await this.db.addUser({ name, login, password, access });
         this.toast('Пользователь добавлен ✓');
       }
       this._editingUserId = null;
@@ -929,6 +973,7 @@ class App {
      VIEW ROUTING
      ────────────────────────────────────────── */
   renderView(view) {
+    if (!this.hasAccess(view)) return;   // раздел закрыт для этого пользователя
     this.currentView = view;
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -2261,7 +2306,7 @@ class App {
           <span class="task-text">${this.esc(title)}</span>
           ${desc ? `<span class="task-desc">${this.esc(desc)}</span>` : ''}
           ${t.photo ? `<img class="task-photo-thumb" src="${t.photo}" alt="фото задачи">` : ''}
-          <span class="task-meta-row">${assignee ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}${this._visBadge(t)}</span>
+          <span class="task-meta-row">${assignee ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}${t.createdAt ? `<span class="task-date">${this.fmtDate(t.createdAt)}</span>` : ''}${this._visBadge(t)}</span>
         </div>
         <div class="task-btns">
           <button class="task-edit" data-task-id="${t.id}" title="Изменить">${svgEdit}</button>

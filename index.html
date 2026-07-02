@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=33">
+  <link rel="stylesheet" href="css/app.css?v=34">
 </head>
 <body>
 
@@ -632,6 +632,11 @@
           <label class="form-label">Пароль</label>
           <input type="text" class="form-input" id="userPassword" placeholder="Пароль" autocomplete="off">
         </div>
+        <div class="form-group">
+          <label class="form-label">Доступ к разделам</label>
+          <div class="vis-chips" id="userAccessChips"></div>
+          <div class="form-hint">Выключенные разделы пользователь не увидит вообще</div>
+        </div>
       </div>
     </div>
   </div>
@@ -718,8 +723,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=33"></script>
-<script src="js/backup.js?v=33"></script>
-<script src="js/app.js?v=33"></script>
+<script src="js/db.js?v=34"></script>
+<script src="js/backup.js?v=34"></script>
+<script src="js/app.js?v=34"></script>
 </body>
 </html>
