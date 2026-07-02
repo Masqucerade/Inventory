@@ -49,8 +49,12 @@ class InventoryDB {
     if (!r.ok) throw new Error(d.error || 'Ошибка');
     return d;
   }
-  async reimburseExpenses() {
-    const r = await fetch('/api/employee-payments/reimburse', { method: 'POST' });
+  async reimburseExpenses(ids = null) {
+    const r = await fetch('/api/employee-payments/reimburse', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(ids ? { ids } : {}),
+    });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Ошибка');
     return d;

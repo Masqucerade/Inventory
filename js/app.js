@@ -895,6 +895,7 @@ class App {
 
     /* Plan modal */
     document.getElementById('planModalClose').addEventListener('click', () => this.closeModal('planModal'));
+    document.getElementById('debtModalClose').addEventListener('click', () => this.closeModal('debtModal'));
     document.getElementById('planModalSave').addEventListener('click', () => this.savePlan());
     document.getElementById('planTitle').addEventListener('keydown', e => { if (e.key === 'Enter') this.savePlan(); });
 
@@ -1733,6 +1734,20 @@ class App {
       </div>
       ${salesListHtml}`;
 
+    /* Детальный список непогашенных долгов — свёрнут, раскрывается по тапу */
+    const debtEntries = empPayments.filter(p => p.isExpense && !p.reimbursed);
+    const debtDetailHtml = debtEntries.map(p => {
+      const o = this.owners.find(x => x.id === p.ownerId);
+      return `<div class="debt-detail-row">
+        <span class="owner-dot" style="background:${o?.color || '#666'}"></span>
+        <div class="debt-detail-info">
+          <span class="debt-detail-name">${this.esc(o?.name || p.ownerName || '—')}</span>
+          <span class="debt-detail-meta">${p.desc ? this.esc(p.desc) + ' · ' : ''}${this.fmtDate(p.ts)}</span>
+        </div>
+        <span class="neg">−${fmtMoney(p.amount)}</span>
+      </div>`;
+    }).join('');
+
     el.innerHTML = `
       <div class="balance-card">
         <div class="balance-label">Бюджет компании</div>
@@ -1742,11 +1757,18 @@ class App {
           ${salesProfit ? `<div class="budget-row"><span>Прибыль с продаж</span><span class="pos">+${fmtMoney(salesProfit)}</span></div>` : ''}
           ${paidDebt ? `<div class="budget-row"><span>Погашено сотрудникам</span><span class="neg">−${fmtMoney(paidDebt)}</span></div>` : ''}
           ${pendingDebt ? `
-            <div class="budget-row debt">
-              <span>Долг сотрудникам (потрачено из своих)</span>
+            <div class="budget-row debt debt-toggle" id="debtToggle">
+              <span>Долг сотрудникам
+                <svg class="debt-chevron" id="debtChevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </span>
               <span class="neg">−${fmtMoney(pendingDebt)}</span>
             </div>
-            <button class="debt-pay-btn" id="payDebtsBtn">Погасить долги · ${fmtMoney(pendingDebt)}</button>
+            <div class="debt-details hidden" id="debtDetails">
+              ${debtDetailHtml}
+              <button class="debt-pay-btn" id="payDebtsBtn">Погасить долги…</button>
+            </div>
           ` : ''}
         </div>` : ''}
       </div>
@@ -1779,15 +1801,17 @@ class App {
     document.getElementById('sellBtn').addEventListener('click',    () => this.openSaleModal());
     document.getElementById('addPlanBtn').addEventListener('click', () => this.openPlanModal());
 
-    document.getElementById('payDebtsBtn')?.addEventListener('click', async () => {
-      const ok = await this.confirm(`Погасить долги сотрудникам на ${fmtMoney(pendingDebt)}? Сумма спишется из бюджета компании.`);
-      if (!ok) return;
-      try {
-        const r = await this.db.reimburseExpenses();
-        this.toast(`Погашено ${fmtMoney(r.total || 0)} ✓`);
-        this.renderFinance();
-      } catch (e) { this.toast(e.message || 'Ошибка'); }
+    /* Тап по строке долга — раскрыть/свернуть детали */
+    document.getElementById('debtToggle')?.addEventListener('click', () => {
+      const det = document.getElementById('debtDetails');
+      const chv = document.getElementById('debtChevron');
+      const open = det.classList.toggle('hidden');
+      chv.style.transform = open ? '' : 'rotate(180deg)';
     });
+
+    /* Погасить долги — открыть модалку выбора */
+    document.getElementById('payDebtsBtn')?.addEventListener('click', () =>
+      this.openDebtModal(debtEntries));
 
     el.querySelectorAll('.pay-del[data-id]').forEach(btn =>
       btn.addEventListener('click', async (e) => {
@@ -1833,6 +1857,68 @@ class App {
         this.renderFinance();
       })
     );
+  }
+
+  /* ──────────────────────────────────────────
+     DEBT PAYOFF — выбор долгов для погашения
+     ────────────────────────────────────────── */
+  openDebtModal(debts) {
+    this._debtSelection = new Set(debts.map(d => d.id));   // по умолчанию все
+    const list = document.getElementById('debtSelectList');
+
+    list.innerHTML = debts.map(p => {
+      const o = this.owners.find(x => x.id === p.ownerId);
+      return `<div class="debt-select-row selected" data-debt-id="${p.id}">
+        <div class="debt-select-check">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <span class="owner-dot" style="background:${o?.color || '#666'}"></span>
+        <div class="debt-detail-info">
+          <span class="debt-detail-name">${this.esc(o?.name || p.ownerName || '—')}</span>
+          <span class="debt-detail-meta">${p.desc ? this.esc(p.desc) + ' · ' : ''}${this.fmtDate(p.ts)}</span>
+        </div>
+        <span class="debt-select-amount">−${fmtMoney(p.amount)}</span>
+      </div>`;
+    }).join('');
+
+    const updateTotal = () => {
+      const total = debts.filter(d => this._debtSelection.has(d.id))
+                         .reduce((s, d) => s + (Number(d.amount) || 0), 0);
+      const btn = document.getElementById('debtModalPay');
+      btn.textContent = this._debtSelection.size
+        ? `Погасить ${fmtMoney(total)}`
+        : 'Выберите долги';
+      btn.disabled = !this._debtSelection.size;
+    };
+
+    list.onclick = (e) => {
+      const row = e.target.closest('[data-debt-id]');
+      if (!row) return;
+      const id = row.dataset.debtId;
+      this._debtSelection.has(id) ? this._debtSelection.delete(id) : this._debtSelection.add(id);
+      row.classList.toggle('selected', this._debtSelection.has(id));
+      updateTotal();
+    };
+
+    document.getElementById('debtModalPay').onclick = async () => {
+      if (!this._debtSelection.size) return;
+      const ids   = [...this._debtSelection];
+      const total = debts.filter(d => ids.includes(d.id))
+                         .reduce((s, d) => s + (Number(d.amount) || 0), 0);
+      const ok = await this.confirm(`Погасить выбранные долги на ${fmtMoney(total)}? Сумма спишется из бюджета компании.`);
+      if (!ok) return;
+      try {
+        const r = await this.db.reimburseExpenses(ids);
+        this.closeModal('debtModal');
+        this.toast(`Погашено ${fmtMoney(r.total || 0)} ✓`);
+        this.renderFinance();
+      } catch (e) { this.toast(e.message || 'Ошибка'); }
+    };
+
+    updateTotal();
+    this.openModal('debtModal');
   }
 
   openPlanModal() {

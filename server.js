@@ -429,25 +429,29 @@ app.delete('/api/employee-payments/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// Погасить долги перед сотрудниками (их расходы из своих) — списывается из бюджета
+// Погасить долги перед сотрудниками (их расходы из своих) — списывается из бюджета.
+// body.ids — какие именно долги гасить; без ids гасятся все непогашенные.
 app.post('/api/employee-payments/reimburse', (req, res) => {
   if (!requireRoot(req, res)) return;
   const db  = load();
   const now = new Date().toISOString();
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
   let total = 0, count = 0;
+  const names = [];
   (db.employeePayments || []).forEach(p => {
-    if (p.isExpense && !p.reimbursed) {
+    if (p.isExpense && !p.reimbursed && (!ids || ids.includes(p.id))) {
       p.reimbursed = true;
       p.reimbursedAt = now;
       total += Number(p.amount) || 0;
       count++;
+      if (p.ownerName && !names.includes(p.ownerName)) names.push(p.ownerName);
     }
   });
   save(db);
   if (total > 0) {
     logToTelegram({
       type: 'emp_payment', ts: now,
-      desc: `✅ Погашены долги сотрудникам: −${total.toLocaleString('ru-RU')} ₽ (${count} шт) — вычтено из бюджета компании`,
+      desc: `✅ Погашены долги (${names.join(', ') || 'сотрудники'}): −${total.toLocaleString('ru-RU')} ₽ (${count} шт) — вычтено из бюджета компании`,
     });
   }
   res.json({ ok: true, total, count });

@@ -457,6 +457,24 @@
   </div>
 </div>
 
+<!-- Debt payoff — выбор долгов для погашения -->
+<div class="modal" id="debtModal">
+  <div class="modal-header">
+    <button class="modal-close" id="debtModalClose">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+      </svg>
+    </button>
+    <span class="modal-title">Погашение долгов</span>
+    <span style="width:28px"></span>
+  </div>
+  <div class="modal-body">
+    <p class="debt-modal-hint">Выберите долги, которые нужно погасить из бюджета компании</p>
+    <div class="form-card" id="debtSelectList"></div>
+    <button class="debt-pay-btn" id="debtModalPay">Погасить</button>
+  </div>
+</div>
+
 <!-- Plan Modal -->
 <div class="modal" id="planModal">
   <div class="modal-header">
