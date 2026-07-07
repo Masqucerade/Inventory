@@ -2350,39 +2350,80 @@ class App {
      PROJECT — sub-tabs
      ────────────────────────────────────────── */
   async renderProject() {
-    const [tasks, notes, quick] = await Promise.all([
-      this.db.getTasks(), this.db.getProjectNotes(), this.db.getQuickItems(),
+    const [tasks, notes, quick, owners] = await Promise.all([
+      this.db.getTasks(), this.db.getProjectNotes(), this.db.getQuickItems(), this.db.getOwners(),
     ]);
 
-    /* ── Hero: прогресс проекта ── */
-    const total = tasks.length;
-    const done  = tasks.filter(t => t.done).length;
-    const pct   = total ? Math.round(done / total * 100) : 0;
-    const hero  = document.getElementById('projHero');
-    if (hero) hero.innerHTML = `
-      <div class="proj-hero-inner">
-        <div class="proj-hero-top">
-          <div>
-            <div class="proj-hero-label">Прогресс проекта</div>
-            <div class="proj-hero-pct">${pct}<span>%</span></div>
+    const total  = tasks.length;
+    const done   = tasks.filter(t => t.done).length;
+    const active = total - done;
+    const pct    = total ? Math.round(done / total * 100) : 0;
+    const hero   = document.getElementById('projHero');
+    const isRoot = this.currentUser?.role === 'root';
+    hero?.classList.toggle('emp', !isRoot);
+
+    if (isRoot) {
+      /* ── Root: панель прогресса проекта ── */
+      if (hero) hero.innerHTML = `
+        <div class="proj-hero-inner">
+          <div class="proj-hero-top">
+            <div>
+              <div class="proj-hero-label">Прогресс проекта</div>
+              <div class="proj-hero-pct">${pct}<span>%</span></div>
+            </div>
+            <div class="proj-hero-frac">${done} <em>из</em> ${total}</div>
           </div>
-          <div class="proj-hero-frac">${done} <em>из</em> ${total}</div>
-        </div>
-        <div class="proj-progress-track">
-          <div class="proj-progress-fill" style="width:0%"></div>
-        </div>
-        <div class="proj-hero-chips">
-          <span class="proj-chip"><b>${total - done}</b> в работе</span>
-          <span class="proj-chip"><b>${done}</b> готово</span>
-          <span class="proj-chip"><b>${notes.length}</b> заметок</span>
-          <span class="proj-chip"><b>${quick.length}</b> доступов</span>
-        </div>
-      </div>`;
-    /* Анимация заполнения прогресса после вставки в DOM */
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const fill = hero?.querySelector('.proj-progress-fill');
-      if (fill) fill.style.width = pct + '%';
-    }));
+          <div class="proj-progress-track">
+            <div class="proj-progress-fill" style="width:0%"></div>
+          </div>
+          <div class="proj-hero-chips">
+            <span class="proj-chip"><b>${active}</b> в работе</span>
+            <span class="proj-chip"><b>${done}</b> готово</span>
+            <span class="proj-chip"><b>${notes.length}</b> заметок</span>
+            <span class="proj-chip"><b>${quick.length}</b> доступов</span>
+          </div>
+        </div>`;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const fill = hero?.querySelector('.proj-progress-fill');
+        if (fill) fill.style.width = pct + '%';
+      }));
+    } else {
+      /* ── Сотрудник: личное приветствие ── */
+      const name  = this.currentUser?.name || '';
+      const h     = new Date().getHours();
+      const greet = h >= 5 && h < 12 ? 'Доброе утро' : h >= 12 && h < 17 ? 'Добрый день' : h >= 17 && h < 23 ? 'Добрый вечер' : 'Доброй ночи';
+      const plural = (n) => { const m = n % 100, d = n % 10; if (m > 10 && m < 20) return 'задач'; if (d > 1 && d < 5) return 'задачи'; if (d === 1) return 'задача'; return 'задач'; };
+      const myOwnerId = owners.find(o => (o.name || '').toLowerCase() === name.toLowerCase())?.id || null;
+      const mine = myOwnerId ? tasks.filter(t => !t.done && t.assigneeId === myOwnerId).length : 0;
+      const C = 2 * Math.PI * 23;   // окружность кольца r=23
+
+      if (hero) hero.innerHTML = `
+        <div class="emp-hero">
+          <div class="emp-hero-greet">${greet}, ${this.esc(name)}</div>
+          <div class="emp-hero-sub">${active
+            ? `Сейчас <b>${active}</b> ${plural(active)} в работе${mine ? ` · <b>${mine}</b> для тебя` : ''}`
+            : 'Все задачи выполнены — отличная работа'}</div>
+          <div class="emp-hero-card">
+            <div class="emp-ring-wrap">
+              <svg width="56" height="56" viewBox="0 0 56 56">
+                <circle class="emp-ring-bg" cx="28" cy="28" r="23"/>
+                <circle class="emp-ring-fg" cx="28" cy="28" r="23"
+                  stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
+              </svg>
+              <span class="emp-ring-pct">${pct}%</span>
+            </div>
+            <div class="emp-hero-stats">
+              <div class="emp-stat"><b>${active}</b><span>в работе</span></div>
+              <div class="emp-stat"><b>${done}</b><span>готово</span></div>
+              ${mine ? `<div class="emp-stat mine"><b>${mine}</b><span>твои</span></div>` : ''}
+            </div>
+          </div>
+        </div>`;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const ring = hero?.querySelector('.emp-ring-fg');
+        if (ring) ring.style.strokeDashoffset = String(C * (1 - pct / 100));
+      }));
+    }
 
     /* ── Счётчики на вкладках ── */
     const setCnt = (id, n) => {
@@ -2405,7 +2446,12 @@ class App {
         this._renderProjectPane(true);
       };
     });
-    requestAnimationFrame(() => this._moveProjGlider());
+    requestAnimationFrame(() => requestAnimationFrame(() => this._moveProjGlider()));
+    setTimeout(() => this._moveProjGlider(), 120);   // страховка: шрифты/layout
+    if (!this._gliderResizeBound) {
+      this._gliderResizeBound = true;
+      window.addEventListener('resize', () => this._moveProjGlider());
+    }
     this._renderProjectPane();
   }
 
@@ -2449,15 +2495,23 @@ class App {
 
     const ownerName = id => owners.find(o => o.id === id)?.name || '';
 
+    /* «Мои» задачи сотрудника — наверх и с меткой */
+    const isRoot    = this.currentUser?.role === 'root';
+    const myName    = (this.currentUser?.name || '').toLowerCase();
+    const myOwnerId = !isRoot ? (owners.find(o => (o.name || '').toLowerCase() === myName)?.id || null) : null;
+    const isMine    = t => myOwnerId && t.assigneeId === myOwnerId;
+
     const todo = tasks.filter(t => !t.done);
     const done = tasks.filter(t =>  t.done);
+    if (myOwnerId) todo.sort((a, b) => isMine(b) - isMine(a));
 
     const renderList = list => list.map(t => {
       const assignee = t.assigneeId ? ownerName(t.assigneeId) : '';
       const title = t.title || t.text || '';
       const desc  = t.description || '';
+      const mine  = isMine(t) && !t.done;
       return `
-      <div class="task-item${t.done ? ' done' : ''}" data-task-id="${t.id}">
+      <div class="task-item${t.done ? ' done' : ''}${mine ? ' task-mine' : ''}" data-task-id="${t.id}">
         <button class="task-check" data-task-id="${t.id}" title="${t.done ? 'Вернуть' : 'Выполнено'}">
           ${t.done ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
         </button>
@@ -2465,7 +2519,7 @@ class App {
           <span class="task-text">${this.esc(title)}</span>
           ${desc ? `<span class="task-desc">${this.esc(desc)}</span>` : ''}
           ${t.photo ? `<img class="task-photo-thumb" src="${t.photo}" alt="фото задачи">` : ''}
-          <span class="task-meta-row">${assignee ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}${t.createdAt ? `<span class="task-date">${this.fmtDate(t.createdAt)}</span>` : ''}${this._visBadge(t)}</span>
+          <span class="task-meta-row">${mine ? `<span class="task-mine-badge">Для тебя</span>` : ''}${assignee && !mine ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}${t.createdAt ? `<span class="task-date">${this.fmtDate(t.createdAt)}</span>` : ''}${this._visBadge(t)}</span>
         </div>
         <div class="task-btns">
           <button class="task-edit" data-task-id="${t.id}" title="Изменить">${svgEdit}</button>
