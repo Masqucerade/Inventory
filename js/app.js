@@ -675,7 +675,8 @@ class App {
     /* FAB */
     document.getElementById('fabBtn').addEventListener('click', () => {
       if (this.currentView === 'project') {
-        if (this._projectSubTab === 'quick') this.openQuickModal();
+        if (this._projectSubTab === 'quick')      this.openQuickModal();
+        else if (this._projectSubTab === 'notes') this.openNoteModal();
         else this.openTaskModal();
       } else if (this.currentView === 'settings') this.openFaqModal();
       else this.openItemModal();
@@ -921,6 +922,17 @@ class App {
     });
     document.getElementById('quickModalClose').addEventListener('click', () => this.closeModal('quickModal'));
     document.getElementById('quickModalSave').addEventListener('click', () => this.saveQuickItem());
+
+    /* Note modal */
+    document.getElementById('noteModalClose').addEventListener('click', () => this.closeModal('noteModal'));
+    document.getElementById('noteModalSave').addEventListener('click', () => this.saveNoteItem());
+    document.getElementById('noteColorPicker').addEventListener('click', (e) => {
+      const dot = e.target.closest('.color-dot');
+      if (!dot) return;
+      this._noteColor = dot.dataset.color;
+      document.querySelectorAll('#noteColorPicker .color-dot').forEach(d =>
+        d.classList.toggle('selected', d.dataset.color === this._noteColor));
+    });
 
     /* FAQ modal */
     document.getElementById('faqModalClose').addEventListener('click', () => this.closeModal('faqModal'));
@@ -2337,22 +2349,83 @@ class App {
   /* ──────────────────────────────────────────
      PROJECT — sub-tabs
      ────────────────────────────────────────── */
-  renderProject() {
-    document.querySelectorAll('.proj-subtab').forEach(btn => {
+  async renderProject() {
+    const [tasks, notes, quick] = await Promise.all([
+      this.db.getTasks(), this.db.getProjectNotes(), this.db.getQuickItems(),
+    ]);
+
+    /* ── Hero: прогресс проекта ── */
+    const total = tasks.length;
+    const done  = tasks.filter(t => t.done).length;
+    const pct   = total ? Math.round(done / total * 100) : 0;
+    const hero  = document.getElementById('projHero');
+    if (hero) hero.innerHTML = `
+      <div class="proj-hero-inner">
+        <div class="proj-hero-top">
+          <div>
+            <div class="proj-hero-label">Прогресс проекта</div>
+            <div class="proj-hero-pct">${pct}<span>%</span></div>
+          </div>
+          <div class="proj-hero-frac">${done} <em>из</em> ${total}</div>
+        </div>
+        <div class="proj-progress-track">
+          <div class="proj-progress-fill" style="width:0%"></div>
+        </div>
+        <div class="proj-hero-chips">
+          <span class="proj-chip"><b>${total - done}</b> в работе</span>
+          <span class="proj-chip"><b>${done}</b> готово</span>
+          <span class="proj-chip"><b>${notes.length}</b> заметок</span>
+          <span class="proj-chip"><b>${quick.length}</b> доступов</span>
+        </div>
+      </div>`;
+    /* Анимация заполнения прогресса после вставки в DOM */
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const fill = hero?.querySelector('.proj-progress-fill');
+      if (fill) fill.style.width = pct + '%';
+    }));
+
+    /* ── Счётчики на вкладках ── */
+    const setCnt = (id, n) => {
+      const c = document.getElementById(id);
+      if (c) { c.textContent = n || ''; c.style.display = n ? '' : 'none'; }
+    };
+    setCnt('cntTasks', total - done);
+    setCnt('cntNotes', notes.length);
+    setCnt('cntQuick', quick.length);
+
+    /* ── Вкладки со скользящим глайдером ── */
+    document.querySelectorAll('.proj-tab').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.subtab === this._projectSubTab);
       btn.onclick = () => {
+        if (this._projectSubTab === btn.dataset.subtab) return;
         this._projectSubTab = btn.dataset.subtab;
-        document.querySelectorAll('.proj-subtab').forEach(b =>
-          b.classList.toggle('active', b.dataset.subtab === this._projectSubTab));
-        this._renderProjectPane();
+        document.querySelectorAll('.proj-tab').forEach(b =>
+          b.classList.toggle('active', b === btn));
+        this._moveProjGlider();
+        this._renderProjectPane(true);
       };
     });
+    requestAnimationFrame(() => this._moveProjGlider());
     this._renderProjectPane();
   }
 
-  _renderProjectPane() {
-    if (this._projectSubTab === 'tasks') this.renderProjectTasks();
-    else this.renderProjectQuick();
+  _moveProjGlider() {
+    const bar = document.getElementById('projTabs');
+    const act = bar?.querySelector('.proj-tab.active');
+    const gl  = bar?.querySelector('.proj-tabs-glider');
+    if (!bar || !act || !gl) return;
+    gl.style.width     = act.offsetWidth + 'px';
+    gl.style.transform = `translateX(${act.offsetLeft - 4}px)`;
+  }
+
+  async _renderProjectPane(animate = false) {
+    if (this._projectSubTab === 'tasks')      await this.renderProjectTasks();
+    else if (this._projectSubTab === 'notes') await this.renderProjectNotes();
+    else                                      await this.renderProjectQuick();
+    if (animate) {
+      const el = document.getElementById('projectContent');
+      if (el) { el.classList.remove('pane-in'); void el.offsetWidth; el.classList.add('pane-in'); }
+    }
   }
 
   /* ── Задачи ── */
@@ -2412,7 +2485,7 @@ class App {
         const t = tasks.find(x => x.id === btn.dataset.taskId);
         if (!t) return;
         await this.db.patchTask(t.id, { done: !t.done });
-        this.renderProjectTasks();
+        this.renderProject();
       })
     );
     el.querySelectorAll('.task-edit').forEach(btn =>
@@ -2426,7 +2499,7 @@ class App {
         const ok = await this.confirm('Удалить задачу?');
         if (!ok) return;
         await this.db.deleteTask(btn.dataset.taskId);
-        this.renderProjectTasks();
+        this.renderProject();
       })
     );
     el.querySelectorAll('.task-photo-thumb').forEach(img =>
@@ -2496,7 +2569,7 @@ class App {
     this._editingTaskId = null;
     this._taskPhoto = null;
     this.closeModal('taskModal');
-    this.renderProjectTasks();
+    this.renderProject();
   }
 
   /* ── Быстрый доступ ── */
@@ -2591,9 +2664,91 @@ class App {
         const ok = await this.confirm('Удалить реквизит?');
         if (!ok) return;
         await this.db.deleteQuickItem(btn.dataset.quickId);
-        this.renderProjectQuick();
+        this.renderProject();
       })
     );
+  }
+
+  /* ── Заметки проекта ── */
+  async renderProjectNotes() {
+    const el = document.getElementById('projectContent');
+    if (!el) return;
+    const notes = await this.db.getProjectNotes();
+
+    if (!notes.length) {
+      el.innerHTML = `<div class="faq-empty">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <path d="M14 3v4a2 2 0 0 0 2 2h4"/>
+          <path d="M20 9v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8l6 6z"/>
+          <line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>
+        </svg>
+        <p>Нет заметок — нажмите + чтобы добавить</p>
+      </div>`;
+      return;
+    }
+
+    const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
+    const list = notes.slice().reverse();
+    el.innerHTML = `<div class="note-grid">${list.map((n, idx) => `
+      <div class="note-card" style="--nc:${n.color || '#7c6dfa'};animation-delay:${Math.min(idx * 35, 240)}ms" data-note-id="${n.id}">
+        <div class="note-text">${this.esc(n.text)}</div>
+        <div class="note-foot">
+          <span class="note-date">${this.fmtDate(n.createdAt)}</span>
+          <span class="note-btns">
+            <button class="note-edit" data-note-id="${n.id}" title="Изменить">${svgEdit}</button>
+            <button class="note-del"  data-note-id="${n.id}" title="Удалить">${svgDel}</button>
+          </span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+
+    el.querySelectorAll('.note-edit').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const n = notes.find(x => x.id === btn.dataset.noteId);
+        if (n) this.openNoteModal(n);
+      })
+    );
+    el.querySelectorAll('.note-del').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const ok = await this.confirm('Удалить заметку?');
+        if (!ok) return;
+        await this.db.deleteProjectNote(btn.dataset.noteId);
+        this.renderProject();
+      })
+    );
+  }
+
+  openNoteModal(note = null) {
+    this._editingNoteId = note?.id || null;
+    this._noteColor     = note?.color || '#7c6dfa';
+    document.getElementById('noteModalTitle').textContent = note ? 'Редактировать' : 'Новая заметка';
+    document.getElementById('noteModalSave').textContent  = note ? 'Сохранить' : 'Добавить';
+    document.getElementById('noteText').value             = note?.text || '';
+
+    const COLORS = ['#7c6dfa', '#38bdf8', '#4ade80', '#fbbf24', '#f87171', '#f472b6'];
+    document.getElementById('noteColorPicker').innerHTML = COLORS.map(c =>
+      `<div class="color-dot ${c === this._noteColor ? 'selected' : ''}" data-color="${c}" style="background:${c}"></div>`
+    ).join('');
+
+    this.openModal('noteModal');
+    setTimeout(() => document.getElementById('noteText').focus(), 350);
+  }
+
+  async saveNoteItem() {
+    const text = document.getElementById('noteText').value.trim();
+    if (!text) { this.toast('Введите текст заметки'); return; }
+    if (this._editingNoteId) {
+      await this.db.patchProjectNote(this._editingNoteId, { text, color: this._noteColor });
+      this.toast('Заметка обновлена ✓');
+    } else {
+      await this.db.addProjectNote({ text, color: this._noteColor });
+      this.toast('Заметка добавлена ✓');
+    }
+    this._editingNoteId = null;
+    this.closeModal('noteModal');
+    this.renderProject();
   }
 
   openQuickModal(item = null) {
@@ -2630,7 +2785,7 @@ class App {
     }
     this._editingQuickId = null;
     this.closeModal('quickModal');
-    this.renderProjectQuick();
+    this.renderProject();
   }
 
   /* ──────────────────────────────────────────

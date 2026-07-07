@@ -1387,24 +1387,151 @@ html, body {
 /* =============================================
    PROJECT SUB-TABS
    ============================================= */
-.proj-subtab-bar {
-  display: flex; gap: 6px;
-  padding: 10px 16px 0;
-  background: var(--bg);
-  position: sticky; top: 0; z-index: 2;
+/* ── Project hero (web3) ── */
+.proj-hero {
+  position: relative; border-radius: 18px; padding: 1px;
+  background: linear-gradient(135deg, rgba(124,109,250,.55) 0%, rgba(124,109,250,.10) 38%, rgba(56,189,248,.10) 62%, rgba(56,189,248,.45) 100%);
+  margin-bottom: 12px;
 }
-.proj-subtab {
-  flex: 1; padding: 7px 0;
-  border: 1px solid var(--sep); border-radius: 20px;
-  background: none; color: var(--text2);
-  font-size: 13px; font-weight: 500; cursor: pointer;
-  transition: all .18s;
+.proj-hero:empty { display: none; }
+.proj-hero-inner {
+  position: relative; border-radius: 17px; overflow: hidden;
+  background: rgba(12,12,16,.94);
+  padding: 15px 16px 14px;
 }
-.proj-subtab.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff; font-weight: 600;
+[data-theme="light"] .proj-hero-inner { background: rgba(250,250,252,.96); }
+.proj-hero-inner::before {
+  content: ''; position: absolute; pointer-events: none;
+  top: -60px; left: 50%; transform: translateX(-50%);
+  width: 240px; height: 120px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(124,109,250,.28), transparent);
+  filter: blur(10px);
 }
+.proj-hero-top {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 11px; position: relative;
+}
+.proj-hero-label {
+  font-size: 10px; font-weight: 600; letter-spacing: .6px;
+  text-transform: uppercase; color: var(--text3); margin-bottom: 3px;
+}
+.proj-hero-pct {
+  font-size: 32px; font-weight: 800; letter-spacing: -1.5px; line-height: 1;
+  background: linear-gradient(100deg, #fff 20%, #a99bff 80%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+[data-theme="light"] .proj-hero-pct {
+  background: linear-gradient(100deg, #1a1a1e 20%, #6050e0 80%);
+  -webkit-background-clip: text; background-clip: text;
+}
+.proj-hero-pct span { font-size: 17px; font-weight: 700; }
+.proj-hero-frac { font-size: 13px; font-weight: 600; color: var(--text2); }
+.proj-hero-frac em { font-style: normal; font-weight: 400; color: var(--text3); font-size: 11px; }
+
+.proj-progress-track {
+  height: 6px; border-radius: 3px; background: var(--fill2);
+  overflow: hidden; position: relative;
+}
+.proj-progress-fill {
+  height: 100%; border-radius: 3px; position: relative;
+  background: linear-gradient(90deg, #7c6dfa, #38bdf8);
+  transition: width .7s cubic-bezier(.22,1,.36,1);
+}
+.proj-progress-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.45) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: progShimmer 2.4s infinite;
+}
+@keyframes progShimmer { 0% { background-position: 180% 0; } 100% { background-position: -80% 0; } }
+
+.proj-hero-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.proj-chip {
+  font-size: 11px; color: var(--text3);
+  background: var(--fill); border: 1px solid var(--sep);
+  border-radius: 100px; padding: 3px 9px;
+}
+.proj-chip b { color: var(--text); font-weight: 700; }
+
+/* ── Project tabs: скользящий глайдер ── */
+.proj-tabs {
+  position: relative; display: flex;
+  background: var(--fill); border: 1px solid var(--sep);
+  border-radius: 14px; padding: 4px;
+  margin-bottom: 12px;
+}
+.proj-tabs-glider {
+  position: absolute; top: 4px; bottom: 4px; left: 4px;
+  width: 0; border-radius: 10px;
+  background: linear-gradient(135deg, #7c6dfa, #6050e0);
+  box-shadow: 0 2px 14px rgba(124,109,250,.45), inset 0 1px 0 rgba(255,255,255,.18);
+  transition: transform .32s cubic-bezier(.22,1,.36,1), width .32s cubic-bezier(.22,1,.36,1);
+}
+.proj-tab {
+  flex: 1; position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 8px 0; border: none; background: none;
+  font-family: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--text2); cursor: pointer; transition: color .22s;
+}
+.proj-tab.active { color: #fff; }
+.proj-tab-count {
+  font-size: 10px; font-weight: 700; line-height: 1;
+  padding: 3px 6px; border-radius: 100px;
+  background: var(--fill2); color: var(--text3);
+  transition: all .22s;
+}
+.proj-tab.active .proj-tab-count { background: rgba(255,255,255,.22); color: #fff; }
+
+/* Появление панели при переключении */
+.pane-in { animation: paneIn .3s cubic-bezier(.22,1,.36,1) both; }
+@keyframes paneIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Списки внутри projectContent — без двойных отступов */
+#projectContent .task-list,
+#projectContent .quick-list { padding: 0; }
+
+/* ── Заметки (стикеры) ── */
+.note-grid { display: flex; flex-direction: column; gap: 8px; }
+.note-card {
+  position: relative;
+  background: var(--card); border: 1px solid var(--sep);
+  border-radius: 14px; padding: 12px 14px 9px 16px;
+  overflow: hidden;
+  animation: cellIn .3s ease both;
+}
+.note-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, var(--nc), transparent 130%);
+}
+.note-card::after {
+  content: ''; position: absolute; pointer-events: none;
+  top: -30px; left: -20px; width: 120px; height: 80px; border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--nc) 14%, transparent), transparent);
+}
+.note-text {
+  font-size: 13.5px; line-height: 1.55; color: var(--text);
+  white-space: pre-wrap; word-break: break-word;
+  position: relative;
+}
+.note-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 7px;
+}
+.note-date { font-size: 10.5px; color: var(--text3); }
+.note-btns { display: flex; gap: 2px; }
+.note-edit, .note-del {
+  width: 26px; height: 26px; border-radius: 8px;
+  border: none; background: none; color: var(--text3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s;
+}
+.note-edit:active { background: var(--fill2); color: var(--text); }
+.note-del:active  { background: var(--fill2); color: var(--danger); }
 
 /* ── Tasks ── */
 .task-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
@@ -1989,6 +2116,17 @@ html, body {
   html.is-web .faq-head:hover { background: var(--fill); }
   html.is-web .quick-list { max-width: 860px; margin-left: auto; margin-right: auto; }
   html.is-web .task-photo-thumb { width: 96px; height: 96px; }
+
+  /* Проект: hero, вкладки и заметки — та же колонка + ховеры */
+  html.is-web .proj-hero,
+  html.is-web .proj-tabs,
+  html.is-web #projectContent { max-width: 860px; margin-left: auto; margin-right: auto; }
+  html.is-web .proj-hero { margin-bottom: 14px; }
+  html.is-web .proj-tabs { margin-bottom: 14px; }
+  html.is-web .proj-tab:not(.active):hover { color: var(--text); }
+  html.is-web .note-card:hover { border-color: color-mix(in srgb, var(--nc) 45%, transparent); }
+  html.is-web .note-btns { opacity: .45; transition: opacity .13s; }
+  html.is-web .note-card:hover .note-btns { opacity: 1; }
 }
 
 /* =============================================

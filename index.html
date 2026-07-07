@@ -129,11 +129,16 @@
     <div class="view-header simple-header">
       <h1 class="view-title">Проект</h1>
     </div>
-    <div class="proj-subtab-bar">
-      <button class="proj-subtab active" data-subtab="tasks">Задачи</button>
-      <button class="proj-subtab" data-subtab="quick">Быстрый доступ</button>
+    <div class="view-body" id="projectBody">
+      <div class="proj-hero" id="projHero"></div>
+      <div class="proj-tabs" id="projTabs">
+        <div class="proj-tabs-glider"></div>
+        <button class="proj-tab active" data-subtab="tasks">Задачи<span class="proj-tab-count" id="cntTasks"></span></button>
+        <button class="proj-tab" data-subtab="notes">Заметки<span class="proj-tab-count" id="cntNotes"></span></button>
+        <button class="proj-tab" data-subtab="quick">Доступы<span class="proj-tab-count" id="cntQuick"></span></button>
+      </div>
+      <div id="projectContent"></div>
     </div>
-    <div class="view-body" id="projectContent"></div>
   </div>
 
   <!-- ═══ SETTINGS VIEW ═══ -->
@@ -588,6 +593,29 @@
         <div class="form-group vis-group" id="quickVisGroup" style="display:none">
           <label class="form-label">Кому видно</label>
           <div class="vis-chips" id="quickVisChips"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ NOTE MODAL ═══ -->
+  <div class="modal" id="noteModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <button class="modal-close" id="noteModalClose">
+          <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+        <span class="modal-title" id="noteModalTitle">Новая заметка</span>
+        <button class="modal-action-btn" id="noteModalSave">Добавить</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Текст</label>
+          <textarea class="form-input" id="noteText" placeholder="Идея, ссылка, напоминание…" rows="5" style="resize:vertical;min-height:90px"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Цвет</label>
+          <div class="color-grid" id="noteColorPicker"></div>
         </div>
       </div>
     </div>
