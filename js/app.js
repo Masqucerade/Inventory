@@ -2357,72 +2357,42 @@ class App {
     const total  = tasks.length;
     const done   = tasks.filter(t => t.done).length;
     const active = total - done;
-    const pct    = total ? Math.round(done / total * 100) : 0;
     const hero   = document.getElementById('projHero');
     const isRoot = this.currentUser?.role === 'root';
     hero?.classList.toggle('emp', !isRoot);
 
+    const plural = (n) => { const m = n % 100, d = n % 10; if (m > 10 && m < 20) return 'задач'; if (d > 1 && d < 5) return 'задачи'; if (d === 1) return 'задача'; return 'задач'; };
+
     if (isRoot) {
-      /* ── Root: панель прогресса проекта ── */
+      /* ── Root: сводка активных задач ── */
       if (hero) hero.innerHTML = `
         <div class="proj-hero-inner">
-          <div class="proj-hero-top">
+          <div class="proj-hero-top" style="margin-bottom:0">
             <div>
-              <div class="proj-hero-label">Прогресс проекта</div>
-              <div class="proj-hero-pct">${pct}<span>%</span></div>
+              <div class="proj-hero-label">Сейчас в работе</div>
+              <div class="proj-hero-pct">${active}<span> ${plural(active)}</span></div>
             </div>
-            <div class="proj-hero-frac">${done} <em>из</em> ${total}</div>
-          </div>
-          <div class="proj-progress-track">
-            <div class="proj-progress-fill" style="width:0%"></div>
           </div>
           <div class="proj-hero-chips">
-            <span class="proj-chip"><b>${active}</b> в работе</span>
-            <span class="proj-chip"><b>${done}</b> готово</span>
             <span class="proj-chip"><b>${notes.length}</b> заметок</span>
             <span class="proj-chip"><b>${quick.length}</b> доступов</span>
           </div>
         </div>`;
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        const fill = hero?.querySelector('.proj-progress-fill');
-        if (fill) fill.style.width = pct + '%';
-      }));
     } else {
-      /* ── Сотрудник: личное приветствие ── */
+      /* ── Сотрудник: личное приветствие, только активные ── */
       const name  = this.currentUser?.name || '';
       const h     = new Date().getHours();
       const greet = h >= 5 && h < 12 ? 'Доброе утро' : h >= 12 && h < 17 ? 'Добрый день' : h >= 17 && h < 23 ? 'Добрый вечер' : 'Доброй ночи';
-      const plural = (n) => { const m = n % 100, d = n % 10; if (m > 10 && m < 20) return 'задач'; if (d > 1 && d < 5) return 'задачи'; if (d === 1) return 'задача'; return 'задач'; };
       const myOwnerId = owners.find(o => (o.name || '').toLowerCase() === name.toLowerCase())?.id || null;
       const mine = myOwnerId ? tasks.filter(t => !t.done && t.assigneeId === myOwnerId).length : 0;
-      const C = 2 * Math.PI * 23;   // окружность кольца r=23
 
       if (hero) hero.innerHTML = `
         <div class="emp-hero">
           <div class="emp-hero-greet">${greet}, ${this.esc(name)}</div>
           <div class="emp-hero-sub">${active
             ? `Сейчас <b>${active}</b> ${plural(active)} в работе${mine ? ` · <b>${mine}</b> для тебя` : ''}`
-            : 'Все задачи выполнены — отличная работа'}</div>
-          <div class="emp-hero-card">
-            <div class="emp-ring-wrap">
-              <svg width="56" height="56" viewBox="0 0 56 56">
-                <circle class="emp-ring-bg" cx="28" cy="28" r="23"/>
-                <circle class="emp-ring-fg" cx="28" cy="28" r="23"
-                  stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
-              </svg>
-              <span class="emp-ring-pct">${pct}%</span>
-            </div>
-            <div class="emp-hero-stats">
-              <div class="emp-stat"><b>${active}</b><span>в работе</span></div>
-              <div class="emp-stat"><b>${done}</b><span>готово</span></div>
-              ${mine ? `<div class="emp-stat mine"><b>${mine}</b><span>твои</span></div>` : ''}
-            </div>
-          </div>
+            : 'Активных задач нет'}</div>
         </div>`;
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        const ring = hero?.querySelector('.emp-ring-fg');
-        if (ring) ring.style.strokeDashoffset = String(C * (1 - pct / 100));
-      }));
     }
 
     /* ── Счётчики на вкладках ── */
