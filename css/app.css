@@ -383,9 +383,9 @@ html, body {
 .stats-hero { padding: 18px 4px 6px; margin-bottom: 14px; }
 .stats-hero .stat-label { margin: 0 0 6px 2px; }
 .stats-hero-value {
-  font-size: clamp(44px, 13vw, 64px);
+  font-size: clamp(34px, 9.5vw, 46px);
   font-weight: 800; line-height: .98;
-  letter-spacing: -3px; color: var(--text);
+  letter-spacing: -2px; color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -938,8 +938,8 @@ html, body {
   text-transform: uppercase; color: var(--text3); margin-bottom: 10px;
 }
 .balance-amount {
-  font-size: clamp(44px, 13vw, 60px);
-  font-weight: 800; letter-spacing: -2.5px; line-height: 1;
+  font-size: clamp(34px, 9.5vw, 44px);
+  font-weight: 800; letter-spacing: -1.8px; line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .balance-amount.pos { color: #4ade80; }
@@ -2029,8 +2029,8 @@ html, body {
   html.is-web .stats-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
   html.is-web .stat-card.wide { grid-column: auto; }
   html.is-web .stat-card:hover { transform: translateY(-2px); border-color: rgba(124,109,250,.3); }
-  html.is-web .stats-hero-value { font-size: 76px; }
-  html.is-web .balance-amount { font-size: 68px; }
+  html.is-web .stats-hero-value { font-size: 54px; }
+  html.is-web .balance-amount { font-size: 48px; }
 
   /* Нижнее меню — компактная плашка по центру, кнопки рядом */
   html.is-web .bottom-nav {

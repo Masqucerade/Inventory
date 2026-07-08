@@ -46,13 +46,16 @@ function runCountUps(root) {
     const dur    = 750;
     const t0     = performance.now();
     const out    = v => fmt === 'money' ? fmtMoney(Math.round(v)) : fmtNum(Math.round(v));
-    if (!target) { el.textContent = out(0); return; }
+    if (!target || document.hidden) { el.textContent = out(target); return; }
+    /* Страховка: если rAF заморожен (фоновая вкладка/WebView) —
+       через dur+250мс просто ставим финальное значение */
+    const failsafe = setTimeout(() => { el.textContent = out(target); }, dur + 250);
     const step = (t) => {
       const p = Math.min(1, (t - t0) / dur);
       const e = 1 - Math.pow(1 - p, 3);         // easeOutCubic
       el.textContent = out(target * e);
       if (p < 1) requestAnimationFrame(step);
-      else el.textContent = out(target);
+      else { clearTimeout(failsafe); el.textContent = out(target); }
     };
     requestAnimationFrame(step);
   });
