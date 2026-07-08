@@ -831,8 +831,17 @@ class App {
     document.getElementById('fieldPrice').addEventListener('input', () => this.updateTotal());
     document.getElementById('fieldBuyPrice').addEventListener('input', () => this.updateTotal());
 
-    /* Photo */
+    /* Photo.
+       Защита от iOS ghost-click: после тапа по чипам/селектам Safari может
+       синтезировать click по координатам пальца — если туда попала фото-зона,
+       открывалась галерея. Открываем пикер только если нажатие (pointerdown)
+       началось внутри самой фото-зоны. */
+    this._photoPickerArmed = false;
+    document.addEventListener('pointerdown', (e) => {
+      this._photoPickerArmed = !!e.target.closest('#photoPicker');
+    }, true);
     document.getElementById('photoPicker').addEventListener('click', (e) => {
+      if (!this._photoPickerArmed) return;
       if (e.target.closest('#photoRemove')) return;
       document.getElementById('photoInput').click();
     });
