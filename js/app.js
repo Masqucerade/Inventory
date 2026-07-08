@@ -36,6 +36,41 @@ const fmtNum = (n) => n == null ? '' : Number(n).toLocaleString('ru-RU', { maxim
 const fmtMoney = (n) => (!n && n !== 0) ? '0 ₽' : fmtNum(n) + ' ₽';
 const debounce = (fn, ms = 280) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
+/* ── Микровзаимодействия ──
+   runCountUps: числа [data-count][data-fmt] «набегают» от нуля.
+   animateSection: секции появляются каскадом, полосы графиков растут. */
+function runCountUps(root) {
+  root.querySelectorAll('[data-count]').forEach(el => {
+    const target = parseFloat(el.dataset.count) || 0;
+    const fmt    = el.dataset.fmt || 'num';
+    const dur    = 750;
+    const t0     = performance.now();
+    const out    = v => fmt === 'money' ? fmtMoney(Math.round(v)) : fmtNum(Math.round(v));
+    if (!target) { el.textContent = out(0); return; }
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3);         // easeOutCubic
+      el.textContent = out(target * e);
+      if (p < 1) requestAnimationFrame(step);
+      else el.textContent = out(target);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+function animateSection(root) {
+  [...root.children].forEach((c, i) => {
+    c.classList.add('reveal');
+    c.style.animationDelay = Math.min(i * 60, 420) + 'ms';
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    root.querySelectorAll('.bar-fill[data-w]').forEach((b, i) => {
+      b.style.transitionDelay = Math.min(i * 50, 400) + 'ms';
+      b.style.width = b.dataset.w + '%';
+    });
+  }));
+}
+
 /* ============================================= */
 class App {
   constructor() {
@@ -1795,15 +1830,15 @@ class App {
       <div class="sales-summary">
         <div class="sales-stat-card">
           <div class="sales-stat-label">Выручка</div>
-          <div class="sales-stat-val">${fmtMoney(totalRevenue)}</div>
+          <div class="sales-stat-val" data-count="${totalRevenue}" data-fmt="money">0 ₽</div>
         </div>
         <div class="sales-stat-card">
           <div class="sales-stat-label">Издержки</div>
-          <div class="sales-stat-val neg">−${fmtMoney(totalCosts)}</div>
+          <div class="sales-stat-val neg">−<span data-count="${totalCosts}" data-fmt="money">0 ₽</span></div>
         </div>
         <div class="sales-stat-card profit">
           <div class="sales-stat-label">Чистая прибыль</div>
-          <div class="sales-stat-val ${profitPos ? 'pos' : 'neg'}">${profitPos ? '+' : '−'}${fmtMoney(Math.abs(totalProfit))}</div>
+          <div class="sales-stat-val ${profitPos ? 'pos' : 'neg'}">${profitPos ? '+' : '−'}<span data-count="${Math.abs(totalProfit)}" data-fmt="money">0 ₽</span></div>
         </div>
       </div>
       ${salesListHtml}`;
@@ -1825,7 +1860,7 @@ class App {
     el.innerHTML = `
       <div class="balance-card">
         <div class="balance-label">Бюджет компании</div>
-        <div class="balance-amount ${pos ? 'pos' : 'neg'}">${pos ? '' : '−'}${fmtMoney(Math.abs(balance))}</div>
+        <div class="balance-amount ${pos ? 'pos' : 'neg'}">${pos ? '' : '−'}<span data-count="${Math.abs(balance)}" data-fmt="money">0 ₽</span></div>
         ${(salesProfit || pendingDebt || paidDebt) ? `
         <div class="budget-breakdown">
           ${salesProfit ? `<div class="budget-row"><span>Прибыль с продаж</span><span class="pos">+${fmtMoney(salesProfit)}</span></div>` : ''}
@@ -1869,6 +1904,9 @@ class App {
       ${empSectionHtml}
       ${plansSectionHtml}
     `;
+
+    runCountUps(el);
+    animateSection(el);
 
     document.getElementById('depositBtn').addEventListener('click', () => this.openPaymentModal('deposit'));
     document.getElementById('chargeBtn').addEventListener('click',  () => this.openPaymentModal('charge'));
@@ -2079,7 +2117,7 @@ class App {
     el.innerHTML = `
       <div class="balance-card">
         <div class="balance-label">Остаток средств</div>
-        <div class="balance-amount ${pos ? 'pos' : 'neg'}">${pos ? '' : '−'}${fmtMoney(Math.abs(balance))}</div>
+        <div class="balance-amount ${pos ? 'pos' : 'neg'}">${pos ? '' : '−'}<span data-count="${Math.abs(balance)}" data-fmt="money">0 ₽</span></div>
         ${balanceExtra}
       </div>
       <div class="finance-actions" style="grid-template-columns:1fr 1fr 1fr">
@@ -2102,6 +2140,9 @@ class App {
       </div>
       ${histHtml}
     `;
+
+    runCountUps(el);
+    animateSection(el);
 
     document.getElementById('empCreditBtn').addEventListener('click', () =>
       this.openPaymentModal('credit', ownerId)
@@ -2329,7 +2370,7 @@ class App {
       const qty = byStatus[s.id];
       return `<div class="bar-row">
         <span class="bar-label">${s.icon} ${s.label}</span>
-        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(qty/maxSt*100)}%;background:${s.color}"></div></div>
+        <div class="bar-track"><div class="bar-fill" data-w="${Math.round(qty/maxSt*100)}" style="width:0;background:${s.color}"></div></div>
         <span class="bar-count">${qty} шт</span>
       </div>`;
     }).join('') || noData;
@@ -2345,7 +2386,7 @@ class App {
           <div class="owner-stat-info">
             <div class="owner-stat-name">${this.esc(n)}</div>
             <div class="bar-track" style="margin-top:5px">
-              <div class="bar-fill" style="width:${Math.round(v.val/maxOwV*100)}%;background:${c}"></div>
+              <div class="bar-fill" data-w="${Math.round(v.val/maxOwV*100)}" style="width:0;background:${c}"></div>
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
@@ -2359,28 +2400,28 @@ class App {
     const typeRows   = typeSorted.map(([t, v]) =>
       `<div class="bar-row">
         <span class="bar-label">${this.esc(t)}</span>
-        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v.qty/maxTyQ*100)}%;background:var(--a1)"></div></div>
+        <div class="bar-track"><div class="bar-fill" data-w="${Math.round(v.qty/maxTyQ*100)}" style="width:0;background:var(--accent)"></div></div>
         <span class="bar-count">${v.qty} шт / ${fmtMoney(v.val)}</span>
       </div>`
     ).join('');
 
     el.innerHTML = `
+      <div class="stats-hero">
+        <div class="stat-label">Общая стоимость склада</div>
+        <div class="stats-hero-value" data-count="${totalVal}" data-fmt="money">0 ₽</div>
+      </div>
       <div class="stats-grid">
-        <div class="stat-card accent">
-          <div class="stat-value">${fmtMoney(totalVal)}</div>
-          <div class="stat-label">Общая стоимость</div>
-        </div>
         <div class="stat-card">
-          <div class="stat-value">${items.length}</div>
+          <div class="stat-value" data-count="${items.length}">0</div>
           <div class="stat-label">Позиций</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">${totalQty}</div>
+          <div class="stat-value" data-count="${totalQty}">0</div>
           <div class="stat-label">Штук всего</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-value">${fmtMoney(avgPrice)}</div>
-          <div class="stat-label">Средняя цена</div>
+        <div class="stat-card wide">
+          <div class="stat-value" data-count="${avgPrice}" data-fmt="money">0 ₽</div>
+          <div class="stat-label">Средняя цена за штуку</div>
         </div>
       </div>
       <div class="section-title">По статусам</div>
@@ -2389,6 +2430,9 @@ class App {
       <div class="stats-section">${ownerRows}</div>
       ${typeSorted.length ? `<div class="section-title">По типам</div><div class="stats-section">${typeRows}</div>` : ''}
     `;
+
+    runCountUps(el);
+    animateSection(el);
   }
 
   /* ──────────────────────────────────────────

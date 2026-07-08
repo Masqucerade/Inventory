@@ -379,20 +379,54 @@ html, body {
 /* =============================================
    STATS
    ============================================= */
+/* Журнальное hero-число (awwwards style) */
+.stats-hero { padding: 18px 4px 6px; margin-bottom: 14px; }
+.stats-hero .stat-label { margin: 0 0 6px 2px; }
+.stats-hero-value {
+  font-size: clamp(44px, 13vw, 64px);
+  font-weight: 800; line-height: .98;
+  letter-spacing: -3px; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-.stat-card { background: var(--card); border: 1px solid var(--card-b); border-radius: var(--r); padding: 14px 12px; }
+.stat-card {
+  background: var(--card); border: 1px solid var(--card-b);
+  border-radius: var(--r); padding: 16px 14px;
+  transition: transform .18s cubic-bezier(.22,1,.36,1), border-color .18s;
+}
+.stat-card.wide { grid-column: 1 / -1; }
 .stat-card.accent { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.14); }
-.stat-value { font-size: 20px; font-weight: 800; letter-spacing: -0.7px; color: var(--text); }
-.stat-label { font-size: 10px; font-weight: 600; color: var(--text3); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-value {
+  font-size: 26px; font-weight: 800; letter-spacing: -1.2px; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.stat-label { font-size: 10px; font-weight: 600; color: var(--text3); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
 .section-title { font-size: 11px; color: var(--text3); font-weight: 600; margin: 20px 0 8px 2px; text-transform: uppercase; letter-spacing: 0.6px; }
 .stats-section { background: var(--card); border: 1px solid var(--card-b); border-radius: var(--r); padding: 12px 14px; margin-bottom: 8px; }
 
+/* Журнальные заголовки секций — только в Статистике и Счёте */
+#statsContent .section-title,
+#financeContent .section-title {
+  font-size: 19px; font-weight: 800;
+  text-transform: none; letter-spacing: -0.5px;
+  color: var(--text);
+  margin: 26px 0 10px 2px;
+}
+
+/* Каскадное появление секций */
+.reveal { opacity: 0; animation: revealUp .55s cubic-bezier(.22,1,.36,1) both; }
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
 .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
 .bar-row:last-child { margin-bottom: 0; }
 .bar-label { font-size: 12px; color: var(--text); min-width: 80px; flex-shrink: 0; }
-.bar-track  { flex: 1; height: 2px; background: var(--fill2); border-radius: 2px; overflow: hidden; }
-.bar-fill   { height: 100%; border-radius: 2px; transition: width .5s ease; }
+.bar-track  { flex: 1; height: 5px; background: var(--fill2); border-radius: 3px; overflow: hidden; }
+.bar-fill   { height: 100%; border-radius: 2px; transition: width .8s cubic-bezier(.22,1,.36,1); }
 .bar-count  { font-size: 11px; color: var(--text2); min-width: 60px; text-align: right; }
 
 .owner-stat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -904,7 +938,9 @@ html, body {
   text-transform: uppercase; color: var(--text3); margin-bottom: 10px;
 }
 .balance-amount {
-  font-size: 38px; font-weight: 800; letter-spacing: -1.5px;
+  font-size: clamp(44px, 13vw, 60px);
+  font-weight: 800; letter-spacing: -2.5px; line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 .balance-amount.pos { color: #4ade80; }
 .balance-amount.neg { color: #f87171; }
@@ -963,7 +999,7 @@ html, body {
 }
 .sales-stat-card.profit { border: 1.5px solid rgba(124,109,250,.3); }
 .sales-stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .4px; }
-.sales-stat-val   { font-size: 15px; font-weight: 700; color: var(--text); }
+.sales-stat-val   { font-size: 18px; font-weight: 800; letter-spacing: -0.6px; color: var(--text); font-variant-numeric: tabular-nums; }
 .sales-stat-val.pos { color: #4ade80; }
 .sales-stat-val.neg { color: var(--danger); }
 [data-theme="light"] .sales-stat-val.pos { color: #16a34a; }
@@ -1991,6 +2027,10 @@ html, body {
 
   /* Статистика — больше колонок на широком экране */
   html.is-web .stats-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  html.is-web .stat-card.wide { grid-column: auto; }
+  html.is-web .stat-card:hover { transform: translateY(-2px); border-color: rgba(124,109,250,.3); }
+  html.is-web .stats-hero-value { font-size: 76px; }
+  html.is-web .balance-amount { font-size: 68px; }
 
   /* Нижнее меню — компактная плашка по центру, кнопки рядом */
   html.is-web .bottom-nav {
