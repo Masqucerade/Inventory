@@ -938,6 +938,8 @@ class App {
 
     /* Project modal */
     document.getElementById('taskModalClose').addEventListener('click', () => this.closeModal('taskModal'));
+    document.getElementById('taskPersonalRow')?.addEventListener('click', () =>
+      this._setTaskPersonal(!this._taskPersonal));
     document.getElementById('taskModalSave').addEventListener('click', () => this.saveTask());
 
     /* Task photo (null-safe — не роняем bindGlobal, если HTML устарел в кэше) */
@@ -2522,9 +2524,12 @@ class App {
     const myOwnerId = !isRoot ? (owners.find(o => (o.name || '').toLowerCase() === myName)?.id || null) : null;
     const isMine    = t => myOwnerId && t.assigneeId === myOwnerId;
 
-    const todo = tasks.filter(t => !t.done);
-    const done = tasks.filter(t =>  t.done);
+    const personal = tasks.filter(t => t.personal && !t.done);
+    const todo     = tasks.filter(t => !t.personal && !t.done);
+    const done     = tasks.filter(t =>  t.done);
     if (myOwnerId) todo.sort((a, b) => isMine(b) - isMine(a));
+
+    const svgLock = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
 
     const renderList = list => list.map(t => {
       const assignee = t.assigneeId ? ownerName(t.assigneeId) : '';
@@ -2532,7 +2537,7 @@ class App {
       const desc  = t.description || '';
       const mine  = isMine(t) && !t.done;
       return `
-      <div class="task-item${t.done ? ' done' : ''}${mine ? ' task-mine' : ''}" data-task-id="${t.id}">
+      <div class="task-item${t.done ? ' done' : ''}${mine ? ' task-mine' : ''}${t.personal ? ' task-personal' : ''}" data-task-id="${t.id}">
         <button class="task-check" data-task-id="${t.id}" title="${t.done ? 'Вернуть' : 'Выполнено'}">
           ${t.done ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
         </button>
@@ -2540,7 +2545,7 @@ class App {
           <span class="task-text">${this.esc(title)}</span>
           ${desc ? `<span class="task-desc">${this.esc(desc)}</span>` : ''}
           ${t.photo ? `<img class="task-photo-thumb" src="${t.photo}" alt="фото задачи">` : ''}
-          <span class="task-meta-row">${mine ? `<span class="task-mine-badge">Для тебя</span>` : ''}${assignee && !mine ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}${t.createdAt ? `<span class="task-date">${this.fmtDate(t.createdAt)}</span>` : ''}${this._visBadge(t)}</span>
+          <span class="task-meta-row">${t.personal ? `<span class="task-personal-badge">${svgLock} Личная</span>` : ''}${mine ? `<span class="task-mine-badge">Для тебя</span>` : ''}${assignee && !mine ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}${t.createdAt ? `<span class="task-date">${this.fmtDate(t.createdAt)}</span>` : ''}${this._visBadge(t)}</span>
         </div>
         <div class="task-btns">
           <button class="task-edit" data-task-id="${t.id}" title="Изменить">${svgEdit}</button>
@@ -2550,8 +2555,13 @@ class App {
     }).join('');
 
     el.innerHTML = `<div class="task-list">
+      ${personal.length ? `
+        <div class="task-section-head personal">${svgLock}<span>Личное</span><em>видно только вам</em></div>
+        ${renderList(personal)}
+        ${todo.length ? '<div class="task-section-head team"><span>Команда</span></div>' : ''}
+      ` : ''}
       ${renderList(todo)}
-      ${done.length && todo.length ? '<div class="task-divider">Выполнено</div>' : ''}
+      ${done.length && (todo.length || personal.length) ? '<div class="task-divider">Выполнено</div>' : ''}
       ${renderList(done)}
     </div>`;
 
@@ -2598,6 +2608,7 @@ class App {
     // back-compat: старые задачи хранили всё в .text
     document.getElementById('taskTitle').value       = task?.title || task?.text || '';
     document.getElementById('taskDescription').value = task?.description || '';
+    this._setTaskPersonal(!!task?.personal);
     this._setTaskPhoto(task?.photo || null);
     const sel    = document.getElementById('taskAssignee');
     const owners = await this.db.getOwners();
@@ -2605,11 +2616,24 @@ class App {
       owners.map(o => `<option value="${o.id}"${task?.assigneeId === o.id ? ' selected' : ''}>${this.esc(o.name)}</option>`).join('');
 
     const isRoot = this.currentUser?.role === 'root';
-    document.getElementById('taskVisGroup').style.display = isRoot ? '' : 'none';
+    document.getElementById('taskVisGroup').style.display = (isRoot && !this._taskPersonal) ? '' : 'none';
     if (isRoot) this._renderVisChips('taskVisChips', task?.visibility || []);
 
     this.openModal('taskModal');
     setTimeout(() => document.getElementById('taskTitle').focus(), 350);
+  }
+
+  _setTaskPersonal(on) {
+    this._taskPersonal = on;
+    const track = document.getElementById('taskPersonalToggle');
+    const row   = document.getElementById('taskPersonalRow');
+    if (!track) return;
+    track.style.background = on ? 'var(--accent)' : 'var(--muted)';
+    track.querySelector('.toggle-thumb').style.transform = `translateX(${on ? 18 : 0}px)`;
+    row?.classList.toggle('on', on);
+    /* «Кому видно» не имеет смысла для личной задачи */
+    const vis = document.getElementById('taskVisGroup');
+    if (vis) vis.style.display = (this.currentUser?.role === 'root' && !on) ? '' : 'none';
   }
 
   _setTaskPhoto(b64) {
@@ -2633,7 +2657,7 @@ class App {
     const assigneeId  = document.getElementById('taskAssignee').value || null;
     if (!title) { this.toast('Введите название задачи'); return; }
     // text дублируем названием — для обратной совместимости
-    const payload = { title, text: title, description, assigneeId, photo: this._taskPhoto || null };
+    const payload = { title, text: title, description, assigneeId, photo: this._taskPhoto || null, personal: !!this._taskPersonal };
     if (this.currentUser?.role === 'root') payload.visibility = this._readVis('taskVisChips');
     if (this._editingTaskId) {
       await this.db.patchTask(this._editingTaskId, payload);

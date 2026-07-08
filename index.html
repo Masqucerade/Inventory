@@ -552,6 +552,23 @@
             <option value="">— Не назначен —</option>
           </select>
         </div>
+        <div class="form-group">
+          <div class="task-personal-row" id="taskPersonalRow">
+            <div class="task-personal-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <div class="settings-row-info">
+              <div class="settings-row-title">Личная задача</div>
+              <div class="settings-row-sub">Видна только вам — больше никому</div>
+            </div>
+            <div class="toggle-track" id="taskPersonalToggle">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+        </div>
         <div class="form-group vis-group" id="taskVisGroup" style="display:none">
           <label class="form-label">Кому видно</label>
           <div class="vis-chips" id="taskVisChips"></div>
@@ -697,9 +714,9 @@
         </div>
         <div class="form-group">
           <label class="form-label">Уведомления в Telegram</label>
-          <input type="text" class="form-input" id="userTgChat" placeholder="Chat ID (узнать: @userinfobot)" autocomplete="off" inputmode="numeric" style="margin-bottom:8px">
+          <input type="text" class="form-input" id="userTgChat" placeholder="Chat ID или @username" autocomplete="off" style="margin-bottom:8px">
           <div class="vis-chips" id="userNotifyChips"></div>
-          <div class="form-hint">Какие события присылать этому аккаунту в бот</div>
+          <div class="form-hint">Какие события присылать этому аккаунту в бот. Если указан @username — человек должен один раз нажать Start у бота</div>
         </div>
       </div>
     </div>

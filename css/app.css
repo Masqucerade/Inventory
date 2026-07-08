@@ -1479,6 +1479,66 @@ html, body {
   box-shadow: 0 2px 8px rgba(124,109,250,.35);
 }
 
+/* ── Личные задачи (золотая тема) ── */
+.task-section-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  text-transform: uppercase; padding: 6px 4px 2px;
+}
+.task-section-head em { font-style: normal; font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 10.5px; }
+.task-section-head.personal { color: #e8b64c; }
+.task-section-head.personal em { color: rgba(232,182,76,.55); }
+.task-section-head.team { color: var(--text3); margin-top: 8px; }
+[data-theme="light"] .task-section-head.personal { color: #b8860b; }
+[data-theme="light"] .task-section-head.personal em { color: rgba(184,134,11,.6); }
+
+#projectContent .task-item.task-personal {
+  position: relative;
+  background: linear-gradient(150deg, rgba(232,182,76,.09) 0%, rgba(255,255,255,.045) 45%);
+  border-color: rgba(232,182,76,.30);
+  overflow: hidden;
+}
+#projectContent .task-item.task-personal::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, #e8b64c, rgba(232,182,76,.15));
+}
+[data-theme="light"] #projectContent .task-item.task-personal {
+  background: linear-gradient(150deg, rgba(232,182,76,.12) 0%, #fff 50%);
+  border-color: rgba(184,134,11,.30);
+}
+
+.task-personal-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 4px; margin-right: 5px;
+  font-size: 11px; font-weight: 700; letter-spacing: .3px;
+  color: #1a1406; background: linear-gradient(135deg, #f0c05e, #d99a2b);
+  padding: 2px 8px; border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(232,182,76,.3);
+}
+
+/* Тумблер «личная задача» в форме */
+.task-personal-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px; cursor: pointer;
+  background: var(--fill); border: 1px solid var(--sep);
+  border-radius: 12px;
+  transition: border-color .2s, background .2s;
+}
+.task-personal-row.on {
+  background: rgba(232,182,76,.07);
+  border-color: rgba(232,182,76,.35);
+}
+.task-personal-icon {
+  width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(232,182,76,.14); color: #e8b64c;
+  transition: all .2s;
+}
+.task-personal-row.on .task-personal-icon {
+  background: linear-gradient(135deg, #f0c05e, #d99a2b); color: #1a1406;
+  box-shadow: 0 2px 10px rgba(232,182,76,.4);
+}
+
 /* ── Project tabs: скользящий глайдер ── */
 .proj-tabs {
   position: relative; display: flex;

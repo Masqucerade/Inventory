@@ -348,6 +348,43 @@ function tgSend(token, chatId, text) {
   }).catch(() => {});
 }
 
+/* @username → chat_id. Личным чатам Telegram не шлёт по юзернейму,
+   поэтому собираем соответствия из getUpdates (пользователь должен
+   один раз нажать Start у бота). Кэш живёт в db.tgChats. */
+let _tgChatsRefreshedAt = 0;
+async function refreshTgChats(token) {
+  if (Date.now() - _tgChatsRefreshedAt < 60_000) return;   // не чаще раза в минуту
+  _tgChatsRefreshedAt = Date.now();
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${token}/getUpdates?limit=100`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    const d = await r.json();
+    if (!d.ok) return;
+    const db = load();
+    db.tgChats = db.tgChats || {};
+    (d.result || []).forEach(u => {
+      const chat = u.message?.chat || u.edited_message?.chat;
+      if (chat?.type === 'private' && chat.username) {
+        db.tgChats[chat.username.toLowerCase()] = String(chat.id);
+      }
+    });
+    save(db);
+  } catch (_) {}
+}
+
+async function resolveTgChat(token, idOrName) {
+  const v = String(idOrName || '').trim();
+  if (!v) return null;
+  if (!v.startsWith('@')) return v;                 // числовой ID — как есть
+  const uname = v.slice(1).toLowerCase();
+  let map = load().tgChats || {};
+  if (map[uname]) return map[uname];
+  await refreshTgChats(token);                       // попробуем подтянуть из getUpdates
+  map = load().tgChats || {};
+  return map[uname] || null;
+}
+
 function logToTelegram(entry) {
   const token = process.env.TG_LOG_TOKEN;
   if (!token) return;
@@ -362,15 +399,19 @@ function logToTelegram(entry) {
   // Главный чат (как раньше)
   if (process.env.TG_LOG_CHAT) tgSend(token, process.env.TG_LOG_CHAT, text);
 
-  // Персональные подписки пользователей
-  const cat  = notifyCategoryOf(entry.type);
-  const sent = new Set([String(process.env.TG_LOG_CHAT || '')]);
-  (load().users || []).forEach(u => {
-    if (!u.tgChatId || sent.has(String(u.tgChatId))) return;
-    if (!Array.isArray(u.notify) || !u.notify.includes(cat)) return;
-    sent.add(String(u.tgChatId));
-    tgSend(token, u.tgChatId, text);
-  });
+  // Персональные подписки пользователей (fire-and-forget)
+  (async () => {
+    const cat  = notifyCategoryOf(entry.type);
+    const sent = new Set([String(process.env.TG_LOG_CHAT || '')]);
+    for (const u of (load().users || [])) {
+      if (!u.tgChatId) continue;
+      if (!Array.isArray(u.notify) || !u.notify.includes(cat)) continue;
+      const chatId = await resolveTgChat(token, u.tgChatId);
+      if (!chatId || sent.has(String(chatId))) continue;
+      sent.add(String(chatId));
+      tgSend(token, chatId, text);
+    }
+  })().catch(() => {});
 }
 
 /* ─── LOGS ─── */
@@ -650,13 +691,21 @@ app.delete('/api/categories/:id', (req, res) => {
 });
 
 /* ─── TASKS ─── */
+/* Личная задача видна только своему создателю (даже root чужие не видит) */
+function taskVisible(t, user) {
+  if (t.personal) return t.createdBy === user.id;
+  return visibleTo(t, user);
+}
+
 app.get('/api/tasks', (req, res) => {
-  res.json((load().tasks || []).filter(t => visibleTo(t, req.user)));
+  res.json((load().tasks || []).filter(t => taskVisible(t, req.user)));
 });
 
 app.post('/api/tasks', (req, res) => {
   const db   = load();
   const task = { id: uid(), createdAt: new Date().toISOString(), done: false, ...req.body };
+  task.personal  = !!req.body.personal;
+  task.createdBy = req.user.id;
   if (!db.tasks) db.tasks = [];
   db.tasks.push(task);
   save(db);
@@ -667,14 +716,17 @@ app.patch('/api/tasks/:id', (req, res) => {
   const db  = load();
   const idx = (db.tasks || []).findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  db.tasks[idx] = { ...db.tasks[idx], ...req.body, id: req.params.id };
+  if (!taskVisible(db.tasks[idx], req.user)) return res.status(404).json({ error: 'not found' });
+  db.tasks[idx] = { ...db.tasks[idx], ...req.body, id: req.params.id, createdBy: db.tasks[idx].createdBy };
   save(db);
   res.json(db.tasks[idx]);
 });
 
 app.delete('/api/tasks/:id', (req, res) => {
   const db = load();
-  db.tasks = (db.tasks || []).filter(t => t.id !== req.params.id);
+  const t  = (db.tasks || []).find(x => x.id === req.params.id);
+  if (t && !taskVisible(t, req.user)) return res.status(404).json({ error: 'not found' });
+  db.tasks = (db.tasks || []).filter(x => x.id !== req.params.id);
   save(db);
   res.json({ ok: true });
 });
