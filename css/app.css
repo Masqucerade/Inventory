@@ -1399,25 +1399,26 @@ html, body {
 .proj-hero:empty { display: none; }
 .proj-hero-inner {
   position: relative; border-radius: 17px; overflow: hidden;
-  background: rgba(12,12,16,.94);
+  background: linear-gradient(160deg, rgba(42,36,74,.92) 0%, rgba(20,18,32,.96) 55%);
   padding: 15px 16px 14px;
 }
-[data-theme="light"] .proj-hero-inner { background: rgba(250,250,252,.96); }
+[data-theme="light"] .proj-hero-inner { background: linear-gradient(160deg, rgba(240,238,255,.98) 0%, rgba(250,250,253,.98) 60%); }
 .proj-hero-inner::before {
   content: ''; position: absolute; pointer-events: none;
   top: -60px; left: 50%; transform: translateX(-50%);
-  width: 240px; height: 120px; border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(124,109,250,.28), transparent);
-  filter: blur(10px);
+  width: 280px; height: 140px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(139,120,255,.42), transparent);
+  filter: blur(12px);
 }
 .proj-hero-top {
   display: flex; align-items: flex-end; justify-content: space-between;
   margin-bottom: 11px; position: relative;
 }
 .proj-hero-label {
-  font-size: 10px; font-weight: 600; letter-spacing: .6px;
-  text-transform: uppercase; color: var(--text3); margin-bottom: 3px;
+  font-size: 10px; font-weight: 700; letter-spacing: .7px;
+  text-transform: uppercase; color: rgba(190,180,255,.85); margin-bottom: 3px;
 }
+[data-theme="light"] .proj-hero-label { color: #6050e0; }
 .proj-hero-pct {
   font-size: 32px; font-weight: 800; letter-spacing: -1.5px; line-height: 1;
   background: linear-gradient(100deg, #fff 20%, #a99bff 80%);
@@ -1451,10 +1452,11 @@ html, body {
 
 .proj-hero-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 .proj-chip {
-  font-size: 11px; color: var(--text3);
-  background: var(--fill); border: 1px solid var(--sep);
-  border-radius: 100px; padding: 3px 9px;
+  font-size: 11px; color: var(--text2);
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 100px; padding: 3px 10px;
 }
+[data-theme="light"] .proj-chip { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.10); }
 .proj-chip b { color: var(--text); font-weight: 700; }
 
 /* ── Hero сотрудника (Apple-style) ── */
@@ -1480,10 +1482,11 @@ html, body {
 /* ── Project tabs: скользящий глайдер ── */
 .proj-tabs {
   position: relative; display: flex;
-  background: var(--fill); border: 1px solid var(--sep);
+  background: var(--fill2); border: 1px solid var(--sep);
   border-radius: 14px; padding: 4px;
   margin-bottom: 12px;
 }
+.proj-tab:not(.active) { color: var(--text2); }
 .proj-tabs-glider {
   position: absolute; top: 4px; bottom: 4px; left: 4px;
   width: 0; border-radius: 10px;
@@ -1517,6 +1520,22 @@ html, body {
 /* Списки внутри projectContent — без двойных отступов */
 #projectContent .task-list,
 #projectContent .quick-list { padding: 0; }
+
+/* Карточки внутри проекта — заметнее границы и фон (не так тускло) */
+#projectContent .task-item,
+#projectContent .quick-item,
+#projectContent .note-card {
+  background: rgba(255,255,255,.055);
+  border-color: rgba(255,255,255,.11);
+}
+[data-theme="light"] #projectContent .task-item,
+[data-theme="light"] #projectContent .quick-item,
+[data-theme="light"] #projectContent .note-card {
+  background: #fff;
+  border-color: rgba(0,0,0,.09);
+}
+#projectContent .task-text { font-size: 14.5px; }
+#projectContent .task-desc { color: var(--text2); }
 
 /* ── Заметки (стикеры) ── */
 .note-grid { display: flex; flex-direction: column; gap: 8px; }

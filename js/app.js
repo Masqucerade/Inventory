@@ -457,7 +457,7 @@ class App {
         <div class="settings-row-icon" style="background:rgba(124,109,250,.12);color:var(--accent);font-weight:700">${(usr.name || usr.login || '?')[0].toUpperCase()}</div>
         <div class="settings-row-info">
           <div class="settings-row-title">${this.esc(usr.name || usr.login)}${usr.role === 'root' ? ' · root' : ''}</div>
-          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · пароль: ${this.esc(usr.password || '')} · ${!Array.isArray(usr.access) || usr.access.length >= 5 ? 'все разделы' : `разделов: ${usr.access.length}/5`}`}</div>
+          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · пароль: ${this.esc(usr.password || '')} · ${!Array.isArray(usr.access) || usr.access.length >= 5 ? 'все разделы' : `разделов: ${usr.access.length}/5`}${usr.hideCosts ? ' · без закупа' : ''}${usr.notify?.length ? ` · 🔔 ${usr.notify.length}` : ''}`}</div>
         </div>
         ${usr.role === 'root' ? '' : `
           <button class="menu-del-btn user-edit-btn" data-uid="${usr.id}">${svgEdit}</button>
@@ -493,9 +493,40 @@ class App {
     document.getElementById('userName').value     = usr?.name     || '';
     document.getElementById('userLogin').value    = usr?.login    || '';
     document.getElementById('userPassword').value = usr?.password || '';
+    document.getElementById('userTgChat').value   = usr?.tgChatId || '';
     this._renderAccessChips(usr?.access || null);
+    this._setHideCostsToggle(!!usr?.hideCosts);
+    this._renderNotifyChips(usr?.notify || []);
     this.openModal('userModal');
     setTimeout(() => document.getElementById('userName').focus(), 350);
+  }
+
+  _setHideCostsToggle(on) {
+    this._userHideCosts = on;
+    const track = document.getElementById('userHideCostsToggle');
+    if (!track) return;
+    track.style.background = on ? 'var(--accent)' : 'var(--muted)';
+    track.querySelector('.toggle-thumb').style.transform = `translateX(${on ? 18 : 0}px)`;
+  }
+
+  _renderNotifyChips(selected) {
+    const el = document.getElementById('userNotifyChips');
+    if (!el) return;
+    const CATS = {
+      item_add:    '➕ Новый товар',
+      item_edit:   '✏️ Изменение товара',
+      item_delete: '🗑 Удаление товара',
+      finance:     '💳 Финансы',
+      owners:      '👥 Сотрудники',
+      system:      '⚙️ Система / бэкапы',
+    };
+    el.innerHTML = Object.entries(CATS).map(([c, label]) =>
+      `<button type="button" class="vis-chip${selected.includes(c) ? ' active' : ''}" data-ncat="${c}">${label}</button>`
+    ).join('');
+    el.onclick = (e) => {
+      const chip = e.target.closest('.vis-chip');
+      if (chip) chip.classList.toggle('active');
+    };
   }
 
   // Чипы «доступ к разделам»: null = все включены
@@ -522,15 +553,20 @@ class App {
     const login    = document.getElementById('userLogin').value.trim();
     const password = document.getElementById('userPassword').value;
     const access   = this._readAccessChips();
+    const hideCosts = !!this._userHideCosts;
+    const tgChatId  = document.getElementById('userTgChat').value.trim();
+    const notify    = [...document.querySelectorAll('#userNotifyChips .vis-chip.active')].map(c => c.dataset.ncat);
     if (!login)    { this.toast('Введите логин');  return; }
     if (!password) { this.toast('Введите пароль'); return; }
     if (!access.length) { this.toast('Откройте хотя бы один раздел'); return; }
+    if (notify.length && !tgChatId) { this.toast('Укажите Chat ID для уведомлений'); return; }
+    const payload = { name, login, password, access, hideCosts, tgChatId, notify };
     try {
       if (this._editingUserId) {
-        await this.db.updateUser(this._editingUserId, { name, login, password, access });
+        await this.db.updateUser(this._editingUserId, payload);
         this.toast('Пользователь обновлён ✓');
       } else {
-        await this.db.addUser({ name, login, password, access });
+        await this.db.addUser(payload);
         this.toast('Пользователь добавлен ✓');
       }
       this._editingUserId = null;
@@ -957,6 +993,8 @@ class App {
     /* User modal (root) */
     document.getElementById('userModalClose')?.addEventListener('click', () => this.closeModal('userModal'));
     document.getElementById('userModalSave')?.addEventListener('click', () => this.saveUser());
+    document.getElementById('userHideCostsRow')?.addEventListener('click', () =>
+      this._setHideCostsToggle(!this._userHideCosts));
 
     /* Owner modal */
     document.getElementById('ownerModalClose').addEventListener('click', () => this.closeModal('ownerModal'));
@@ -1207,14 +1245,22 @@ class App {
       ? `<span style="color:${margin >= 0 ? '#34d399' : '#f87171'}">${margin >= 0 ? '+' : ''}${fmtMoney(margin)}</span>`
       : '—';
 
-    const priceRows = [
-      ['Тип',          item.type         || '—'],
-      ['Цена закупа',  item.buyPrice     ? fmtMoney(item.buyPrice)     : '—'],
-      ['Доставка',     item.deliveryCost ? fmtMoney(item.deliveryCost) : '—'],
-      ['Цена продажи', item.price        ? fmtMoney(item.price)        : '—'],
-      ['Маржа / шт',   marginStr],
-      ['Итого',        fmtMoney(item.total), 'big'],
-    ].map(([k,v,c]) =>
+    const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
+    const priceRows = (hideCosts
+      ? [
+          ['Тип',          item.type  || '—'],
+          ['Цена',         item.price ? fmtMoney(item.price) : '—'],
+          ['Итого',        fmtMoney(item.total), 'big'],
+        ]
+      : [
+          ['Тип',          item.type         || '—'],
+          ['Цена закупа',  item.buyPrice     ? fmtMoney(item.buyPrice)     : '—'],
+          ['Доставка',     item.deliveryCost ? fmtMoney(item.deliveryCost) : '—'],
+          ['Цена продажи', item.price        ? fmtMoney(item.price)        : '—'],
+          ['Маржа / шт',   marginStr],
+          ['Итого',        fmtMoney(item.total), 'big'],
+        ]
+    ).map(([k,v,c]) =>
       `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val ${c||''}">${v}</span></div>`
     ).join('');
 
@@ -1371,6 +1417,11 @@ class App {
     ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost'].forEach(k => document.getElementById(k).value = '');
     document.getElementById('fieldIsMonarc').checked  = false;
     document.getElementById('fieldIsForSale').checked = false;
+
+    /* hideCosts: скрываем закупочные поля в форме */
+    const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
+    document.querySelectorAll('#itemModal .cost-field').forEach(el =>
+      el.classList.toggle('hidden', hideCosts));
     document.getElementById('totalDisplay').textContent = '0 ₽';
     document.getElementById('marginDisplay').textContent = '—';
     document.getElementById('marginDisplay').style.color = 'var(--text2)';

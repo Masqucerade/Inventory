@@ -113,7 +113,7 @@ app.post('/api/login', (req, res) => {
   const token = uid() + uid();
   db.sessions.push({ token, userId: user.id, createdAt: new Date().toISOString() });
   save(db);
-  res.json({ token, user: { id: user.id, name: user.name, login: user.login, role: user.role, access: user.access || null } });
+  res.json({ token, user: { id: user.id, name: user.name, login: user.login, role: user.role, access: user.access || null, hideCosts: !!user.hideCosts } });
 });
 
 // Всё остальное под /api требует валидный токен
@@ -136,7 +136,7 @@ app.use('/api/faq',         (req, res, next) => requireAccess('faq')(req, res, n
 
 app.get('/api/me', (req, res) => {
   const u = req.user;
-  res.json({ id: u.id, name: u.name, login: u.login, role: u.role, access: u.access || null });
+  res.json({ id: u.id, name: u.name, login: u.login, role: u.role, access: u.access || null, hideCosts: !!u.hideCosts });
 });
 
 // Пользователь меняет свой собственный пароль
@@ -162,7 +162,13 @@ app.post('/api/logout', (req, res) => {
 /* ─── USERS (только root) ─── */
 app.get('/api/users', (req, res) => {
   if (!requireRoot(req, res)) return;
-  res.json((load().users || []).map(u => ({ id: u.id, login: u.login, password: u.password, name: u.name, role: u.role, access: u.access || null })));
+  res.json((load().users || []).map(u => ({
+    id: u.id, login: u.login, password: u.password, name: u.name, role: u.role,
+    access: u.access || null,
+    hideCosts: !!u.hideCosts,
+    tgChatId:  u.tgChatId || '',
+    notify:    u.notify   || [],
+  })));
 });
 
 app.post('/api/users', (req, res) => {
@@ -175,7 +181,13 @@ app.post('/api/users', (req, res) => {
   if ((db.users || []).some(u => (u.login || '').toLowerCase() === login.toLowerCase()))
     return res.status(409).json({ error: 'Такой логин уже существует' });
   const access = Array.isArray(req.body.access) ? req.body.access.filter(s => SECTIONS.includes(s)) : null;
-  const user = { id: uid(), login, password, name, role: 'user', access, createdAt: new Date().toISOString() };
+  const user = {
+    id: uid(), login, password, name, role: 'user', access,
+    hideCosts: !!req.body.hideCosts,
+    tgChatId:  String(req.body.tgChatId || '').trim(),
+    notify:    Array.isArray(req.body.notify) ? req.body.notify.filter(c => NOTIFY_CATS.includes(c)) : [],
+    createdAt: new Date().toISOString(),
+  };
   db.users.push(user);
   save(db);
   res.json(user);
@@ -193,6 +205,9 @@ app.put('/api/users/:id', (req, res) => {
   if (req.body.password != null && req.body.password !== '') u.password = String(req.body.password);
   if (req.body.name != null) u.name = String(req.body.name).trim() || u.name;
   if (Array.isArray(req.body.access)) u.access = req.body.access.filter(s => SECTIONS.includes(s));
+  if (req.body.hideCosts != null) u.hideCosts = !!req.body.hideCosts;
+  if (req.body.tgChatId  != null) u.tgChatId  = String(req.body.tgChatId).trim();
+  if (Array.isArray(req.body.notify)) u.notify = req.body.notify.filter(c => NOTIFY_CATS.includes(c));
   save(db);
   res.json(u);
 });
@@ -208,6 +223,13 @@ app.delete('/api/users/:id', (req, res) => {
 });
 
 /* ─── ITEMS ─── */
+// Пользователю с hideCosts не отдаём закупочные цены, доставку и историю изменений
+function stripCosts(item, user) {
+  if (!user?.hideCosts || user.role === 'root') return item;
+  const { buyPrice, deliveryCost, history, ...rest } = item;
+  return rest;
+}
+
 app.get('/api/items', (req, res) => {
   let rows = load().items || [];
   const { ownerId, orderStatus, search } = req.query;
@@ -223,18 +245,27 @@ app.get('/api/items', (req, res) => {
     );
   }
   rows.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  res.json(rows);
+  res.json(rows.map(i => stripCosts(i, req.user)));
 });
 
 app.get('/api/items/:id', (req, res) => {
   const item = (load().items || []).find(i => i.id === req.params.id);
-  item ? res.json(item) : res.status(404).json({ error: 'Not found' });
+  item ? res.json(stripCosts(item, req.user)) : res.status(404).json({ error: 'Not found' });
 });
 
 app.put('/api/items', (req, res) => {
   const db  = load();
   const now = new Date().toISOString();
   const item = { ...req.body };
+  // hideCosts-пользователь не видит закупочные поля — сохраняем их из старой записи
+  if (req.user?.hideCosts && req.user.role !== 'root' && item.id) {
+    const old = (db.items || []).find(i => i.id === item.id);
+    if (old) {
+      item.buyPrice     = old.buyPrice;
+      item.deliveryCost = old.deliveryCost;
+      item.history      = old.history;
+    }
+  }
   if (!item.id) { item.id = uid(); item.createdAt = now; }
   item.updatedAt = now;
   const totQty = item.sizes?.length > 0
@@ -296,10 +327,30 @@ const TG_ICONS = {
   backup:       '💾', restore:      '📂', clear:        '🧹',
 };
 
+/* Категории уведомлений: каждому типу события — категория,
+   пользователю можно включить набор категорий (user.notify = ['item_add', ...]) */
+const NOTIFY_CATS = ['item_add', 'item_edit', 'item_delete', 'finance', 'owners', 'system'];
+function notifyCategoryOf(type) {
+  if (type === 'item_add')    return 'item_add';
+  if (type === 'item_edit')   return 'item_edit';
+  if (type === 'item_delete') return 'item_delete';
+  if (type === 'payment' || type === 'emp_payment' || type === 'sale') return 'finance';
+  if (type && type.startsWith('owner_')) return 'owners';
+  return 'system';   // backup, restore, clear и прочее
+}
+
+function tgSend(token, chatId, text) {
+  fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    signal: AbortSignal.timeout(6000),
+  }).catch(() => {});
+}
+
 function logToTelegram(entry) {
-  const token  = process.env.TG_LOG_TOKEN;
-  const chatId = process.env.TG_LOG_CHAT;
-  if (!token || !chatId) return;
+  const token = process.env.TG_LOG_TOKEN;
+  if (!token) return;
 
   const icon = TG_ICONS[entry.type] || '•';
   const date = new Date(entry.ts).toLocaleString('ru-RU', {
@@ -308,12 +359,18 @@ function logToTelegram(entry) {
   });
   const text = `${icon} <b>${entry.desc}</b>\n<i>${date}</i>`;
 
-  fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
-    signal: AbortSignal.timeout(6000),
-  }).catch(() => {});
+  // Главный чат (как раньше)
+  if (process.env.TG_LOG_CHAT) tgSend(token, process.env.TG_LOG_CHAT, text);
+
+  // Персональные подписки пользователей
+  const cat  = notifyCategoryOf(entry.type);
+  const sent = new Set([String(process.env.TG_LOG_CHAT || '')]);
+  (load().users || []).forEach(u => {
+    if (!u.tgChatId || sent.has(String(u.tgChatId))) return;
+    if (!Array.isArray(u.notify) || !u.notify.includes(cat)) return;
+    sent.add(String(u.tgChatId));
+    tgSend(token, u.tgChatId, text);
+  });
 }
 
 /* ─── LOGS ─── */
