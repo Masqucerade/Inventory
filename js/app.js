@@ -345,7 +345,8 @@ class App {
         <div class="settings-row" id="mDeliveryBtn">
           <div class="settings-row-icon gray">${svgTruck}</div>
           <div class="settings-row-info">
-            <div class="settings-row-title">Стоимость доставки</div>
+            <div class="settings-row-title">Выбрать товары</div>
+            <div class="settings-row-sub">Доставка, владелец, флаги — сразу нескольким</div>
           </div>${arrow}
         </div>
       </div>
@@ -834,10 +835,38 @@ class App {
     });
 
     /* Delivery */
-    document.getElementById('deliveryBarApply').addEventListener('click', () => this.openDeliveryModal());
+    document.getElementById('bulkDeliveryBtn').addEventListener('click', () => this.openDeliveryModal());
+    document.getElementById('bulkOwnerBtn').addEventListener('click', () => this.openBulkOwnerModal());
+    document.getElementById('bulkFlagsBtn').addEventListener('click', () => {
+      if (!this._selectedIds.size) return;
+      document.getElementById('bulkFlagsDesc').textContent = this._bulkDesc();
+      this.openModal('bulkFlagsModal');
+    });
     document.getElementById('deliveryBarCancel').addEventListener('click', () => this.exitSelectMode());
     document.getElementById('deliveryModalClose').addEventListener('click', () => this.closeModal('deliveryModal'));
     document.getElementById('deliveryModalSave').addEventListener('click', () => this.applyDelivery());
+
+    /* Bulk: владелец */
+    document.getElementById('bulkOwnerModalClose').addEventListener('click', () => this.closeModal('bulkOwnerModal'));
+    document.getElementById('bulkOwnerModalSave').addEventListener('click', () => this.applyBulkOwner());
+    document.getElementById('bulkOwnerChips').addEventListener('click', (e) => {
+      const chip = e.target.closest('.owner-chip');
+      if (!chip) return;
+      this._bulkOwnerId = chip.dataset.ownerId || null;
+      document.querySelectorAll('#bulkOwnerChips .owner-chip').forEach(c =>
+        c.classList.toggle('selected', c === chip));
+    });
+
+    /* Bulk: флаги */
+    document.getElementById('bulkFlagsModalClose').addEventListener('click', () => this.closeModal('bulkFlagsModal'));
+    document.querySelectorAll('.bulk-flag-btn').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const patch = JSON.parse(btn.dataset.patch);
+        const label = btn.querySelector('.settings-row-title').textContent;
+        this.closeModal('bulkFlagsModal');
+        await this.applyBulk(patch, label, `${label} ✓`);
+      })
+    );
 
     /* Item modal */
     document.getElementById('itemModalClose').addEventListener('click', () => this.closeModal('itemModal'));
@@ -1601,16 +1630,35 @@ class App {
     const n = this._selectedIds.size;
     const word = n === 1 ? 'товар' : n > 1 && n < 5 ? 'товара' : 'товаров';
     document.getElementById('deliveryBarCount').textContent =
-      n === 0 ? 'Выберите товары' : `Выбрано: ${n} ${word}`;
-    document.getElementById('deliveryBarApply').disabled = n === 0;
+      n === 0 ? 'Выберите товары' : `${n} ${word}`;
+    ['bulkDeliveryBtn', 'bulkOwnerBtn', 'bulkFlagsBtn'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) b.disabled = n === 0;
+    });
+  }
+
+  _bulkDesc() {
+    const n = this._selectedIds.size;
+    return `Применить к ${n} ${n === 1 ? 'товару' : 'товарам'}`;
+  }
+
+  /* Общий проход: патч по всем выбранным товарам */
+  async applyBulk(patch, logDesc, toastMsg) {
+    const ids = [...this._selectedIds];
+    for (const id of ids) {
+      const item = this.items.find(i => i.id === id);
+      if (!item) continue;
+      await this.db.saveItem({ ...item, ...patch });
+    }
+    await this.db.logAction('item_edit', `${logDesc} (${ids.length} тов.)`);
+    await this.loadData();
+    this.exitSelectMode();
+    this.toast(toastMsg);
   }
 
   openDeliveryModal() {
     if (!this._selectedIds.size) return;
-    const n    = this._selectedIds.size;
-    const word = n === 1 ? 'товару' : n < 5 ? 'товарам' : 'товарам';
-    document.getElementById('deliveryModalDesc').textContent =
-      `Применить к ${n} ${word}`;
+    document.getElementById('deliveryModalDesc').textContent = this._bulkDesc();
     document.getElementById('deliveryCostInput').value = '';
     this.openModal('deliveryModal');
     setTimeout(() => document.getElementById('deliveryCostInput').focus(), 350);
@@ -1618,20 +1666,38 @@ class App {
 
   async applyDelivery() {
     const cost = parseFloat(document.getElementById('deliveryCostInput').value) || 0;
-    const ids  = [...this._selectedIds];
-    for (const id of ids) {
-      const item = this.items.find(i => i.id === id);
-      if (!item) continue;
-      await this.db.saveItem({ ...item, deliveryCost: cost });
-    }
-    const n = ids.length;
-    await this.db.logAction('item_edit',
-      `Доставка ${fmtMoney(cost)} установлена для ${n} тов.`
-    );
-    await this.loadData();
     this.closeModal('deliveryModal');
-    this.exitSelectMode();
-    this.toast(`Доставка ${fmtMoney(cost)} установлена ✓`);
+    await this.applyBulk({ deliveryCost: cost },
+      `Доставка ${fmtMoney(cost)} установлена`,
+      `Доставка ${fmtMoney(cost)} установлена ✓`);
+  }
+
+  /* Bulk: владелец */
+  openBulkOwnerModal() {
+    if (!this._selectedIds.size) return;
+    this._bulkOwnerId = null;
+    document.getElementById('bulkOwnerDesc').textContent = this._bulkDesc();
+    const wrap = document.getElementById('bulkOwnerChips');
+    wrap.innerHTML = [
+      `<button type="button" class="owner-chip selected" data-owner-id="">
+         <span class="owner-chip-dot" style="background:#6b7280">—</span>Без владельца
+       </button>`,
+      ...this.owners.map(o =>
+        `<button type="button" class="owner-chip" data-owner-id="${o.id}">
+           <span class="owner-chip-dot" style="background:${o.color}">${o.name[0].toUpperCase()}</span>
+           ${this.esc(o.name)}
+         </button>`),
+    ].join('');
+    this.openModal('bulkOwnerModal');
+  }
+
+  async applyBulkOwner() {
+    const ownerId = this._bulkOwnerId || null;
+    const name    = ownerId ? (this.owners.find(o => o.id === ownerId)?.name || '') : 'Без владельца';
+    this.closeModal('bulkOwnerModal');
+    await this.applyBulk({ ownerId },
+      `Владелец «${name}» установлен`,
+      `Владелец: ${name} ✓`);
   }
 
   updateTotal() {

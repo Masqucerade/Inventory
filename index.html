@@ -393,8 +393,75 @@
 <!-- Delivery selection bar -->
 <div class="delivery-bar hidden" id="deliveryBar">
   <span id="deliveryBarCount" class="delivery-bar-count">Выберите товары</span>
-  <button id="deliveryBarApply" class="delivery-bar-apply" disabled>🚚 Установить</button>
+  <div class="select-bar-actions">
+    <button id="bulkDeliveryBtn" class="select-bar-btn" disabled title="Стоимость доставки">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 4v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
+    </button>
+    <button id="bulkOwnerBtn" class="select-bar-btn" disabled title="Сменить владельца">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </button>
+    <button id="bulkFlagsBtn" class="select-bar-btn" disabled title="Флаги">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+    </button>
+  </div>
   <button id="deliveryBarCancel" class="delivery-bar-cancel">✕</button>
+</div>
+
+<!-- Bulk: смена владельца -->
+<div class="modal" id="bulkOwnerModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="bulkOwnerModalClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title">Сменить владельца</span>
+      <button class="modal-action-btn" id="bulkOwnerModalSave">Применить</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <span id="bulkOwnerDesc" style="font-size:13px;color:var(--text2)"></span>
+      </div>
+      <div class="form-group">
+        <div class="owner-chips" id="bulkOwnerChips"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk: флаги -->
+<div class="modal" id="bulkFlagsModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="bulkFlagsModalClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title">Флаги</span>
+      <span style="width:28px"></span>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <span id="bulkFlagsDesc" style="font-size:13px;color:var(--text2)"></span>
+      </div>
+      <div class="settings-section">
+        <div class="settings-row bulk-flag-btn" data-patch='{"isForSale":true}'>
+          <div class="settings-row-icon purple">🏷</div>
+          <div class="settings-row-info"><div class="settings-row-title">Выставить на продажу</div></div>
+        </div>
+        <div class="settings-row bulk-flag-btn" data-patch='{"isForSale":false}'>
+          <div class="settings-row-icon gray">🏷</div>
+          <div class="settings-row-info"><div class="settings-row-title">Снять с продажи</div></div>
+        </div>
+        <div class="settings-row bulk-flag-btn" data-patch='{"isMonarc":true}'>
+          <div class="settings-row-icon purple">👁</div>
+          <div class="settings-row-info"><div class="settings-row-title">Перенести в Monarc</div></div>
+        </div>
+        <div class="settings-row bulk-flag-btn" data-patch='{"isMonarc":false}'>
+          <div class="settings-row-icon gray">👁</div>
+          <div class="settings-row-info"><div class="settings-row-title">Вернуть в общий список</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Delivery Modal -->

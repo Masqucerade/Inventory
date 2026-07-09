@@ -591,6 +591,9 @@ html, body {
   -webkit-overflow-scrolling: touch; scrollbar-width: none;
   display: flex; flex-direction: column; gap: 8px;
 }
+/* Дети flex-колонки НЕ сжимаются: иначе Safari плющит карточки
+   в полоски вместо скролла (обрезались строки в деталях товара) */
+.modal-body > * { flex-shrink: 0; }
 .modal-body::-webkit-scrollbar { display: none; }
 
 /* =============================================
@@ -776,14 +779,19 @@ html, body {
   animation: slideUp .22s cubic-bezier(.32,.72,0,1);
 }
 .delivery-bar.hidden { display: none; }
-.delivery-bar-count { font-size: 13px; color: var(--text2); flex: 1; }
-.delivery-bar-apply {
-  flex-shrink: 0; background: #fff; color: #000;
-  border: none; font-family: inherit; font-size: 13px; font-weight: 600;
-  padding: 8px 14px; border-radius: 12px; cursor: pointer; transition: opacity .15s;
+.delivery-bar-count { font-size: 13px; color: var(--text2); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.select-bar-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.select-bar-btn {
+  width: 38px; height: 38px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.07);
+  color: var(--text); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
 }
-.delivery-bar-apply:disabled { opacity: .35; pointer-events: none; }
-.delivery-bar-apply:active { opacity: .7; }
+.select-bar-btn:disabled { opacity: .3; pointer-events: none; }
+.select-bar-btn:active { background: #fff; color: #000; transform: scale(.94); }
 .delivery-bar-cancel {
   flex-shrink: 0; background: none; border: none;
   color: var(--text3); font-size: 22px; line-height: 1;
@@ -802,7 +810,15 @@ html, body {
   pointer-events: none;
   flex-shrink: 0;
 }
-.item-card.selected { outline: 2px solid rgba(255,255,255,0.4); outline-offset: -2px; }
+.item-card.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  box-shadow: inset 0 0 24px rgba(124,109,250,.14), 0 0 14px rgba(124,109,250,.28);
+  animation: selectGlow .3s cubic-bezier(.22,1,.36,1);
+}
+@keyframes selectGlow {
+  from { outline-color: rgba(124,109,250,0); box-shadow: none; }
+}
 .item-card.selected .select-check {
   background: #fff; border-color: #fff;
 }
