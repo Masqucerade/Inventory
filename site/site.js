@@ -3,11 +3,13 @@
 /* Юзернейм Telegram без @ — кнопки «Написать» ведут сюда */
 const TG_USERNAME = 'Masqucerade';
 
-const SECTION = location.pathname.replace(/\/+$/, '') === '/brands' ? 'brands' : 'type';
+const path    = location.pathname.replace(/\/+$/, '');
+const SECTION = (path === '/monarc' || path === '/brands') ? 'monarc' : 'type';
 const TITLES  = {
-  brands: { kicker: 'Коллекция Monarc', title: 'Brands' },
-  type:   { kicker: 'Люкс-качество',    title: 'Type'   },
+  monarc: { kicker: 'Оригинальные бренды',           title: 'Monarc'       },
+  type:   { kicker: 'Люкс-качество на каждый день',  title: 'Type Clothes' },
 };
+document.body.classList.add('theme-' + SECTION);
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -72,9 +74,8 @@ function cardHTML(i) {
   return `
     <article class="good-card" data-id="${esc(i.id)}">
       <div class="good-photo">
-        ${i.photo ? `<img src="${esc(i.photo)}" alt="${esc(i.name)}" loading="lazy">`
+        ${i.photo ? `<img src="${esc(i.photo)}" alt="${esc(i.name)}" loading="lazy" draggable="false">`
                   : '<span class="no-photo">Masqucerade</span>'}
-        ${i.isForSale ? '<span class="sale-badge">Sale</span>' : ''}
       </div>
       <div class="good-info">
         <div class="good-name">${esc(i.name)}</div>
@@ -134,7 +135,7 @@ document.getElementById('goodsGrid').addEventListener('click', (e) => {
 function openModal(i) {
   const cat = CATS.find(c => c.id === i.categoryId);
   document.getElementById('mPhoto').innerHTML = i.photo
-    ? `<img src="${esc(i.photo)}" alt="${esc(i.name)}">`
+    ? `<img src="${esc(i.photo)}" alt="${esc(i.name)}" draggable="false">`
     : '<span class="no-photo">Masqucerade</span>';
   document.getElementById('mCat').textContent   = cat ? cat.name : TITLES[SECTION].title;
   document.getElementById('mName').textContent  = i.name;

@@ -46,68 +46,106 @@ img { max-width: 100%; display: block; }
   background: radial-gradient(circle, rgba(120,90,50,.12), transparent 65%);
 }
 
-/* ─── Лендинг ─── */
-.landing-wrap {
-  position: relative; z-index: 2;
+/* ─── Лендинг: две половины ─── */
+.split-wrap {
+  position: relative;
+  display: flex;
   min-height: 100dvh;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: clamp(36px, 7vh, 64px);
-  padding: 32px 20px calc(24px + env(safe-area-inset-bottom));
-  text-align: center;
 }
+.split-half {
+  position: relative; flex: 1 1 50%;
+  display: flex; align-items: center;
+  overflow: hidden;
+  transition: flex-basis .55s cubic-bezier(.4, 0, .2, 1);
+}
+@media (hover: hover) and (min-width: 761px) {
+  .split-half:hover { flex-basis: 58%; }
+}
+.split-half .bg-grain, .split-half .bg-glow { position: absolute; }
+.half-inner {
+  position: relative; z-index: 2;
+  width: 100%; max-width: 480px;
+  margin: 0 auto;
+  padding: 60px clamp(26px, 5vw, 56px);
+  animation: half-in .8s cubic-bezier(.22, 1, .36, 1) both;
+}
+.half-type .half-inner { animation-delay: .12s; }
+@keyframes half-in { from { opacity: 0; transform: translateY(26px); } }
+@media (prefers-reduced-motion: reduce) {
+  .half-inner { animation: none; }
+  .split-half { transition: none; }
+}
+
+.half-kicker {
+  font-size: 11px; letter-spacing: .34em; text-transform: uppercase;
+}
+.half-title { margin-top: 14px; }
+.half-desc { margin-top: 16px; font-size: 14px; line-height: 1.7; max-width: 340px; }
+.half-cta {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin-top: 34px; font-size: 13px; letter-spacing: .08em;
+  transition: gap .3s;
+}
+.split-half:hover .half-cta { gap: 16px; }
+
+/* Слева — Monarc: тёмный люкс */
+.half-monarc { background: var(--bg); color: var(--text); }
+.half-monarc .half-kicker { color: var(--gold); }
+.half-monarc .half-title {
+  font-family: var(--font-d); font-weight: 500; font-style: italic;
+  font-size: clamp(46px, 6.5vw, 84px); letter-spacing: .03em; color: var(--gold-hi);
+}
+.half-monarc .half-desc { color: var(--text2); }
+.half-monarc .half-cta { color: var(--gold); }
+
+/* Справа — Type Clothes: светлый минимализм */
+.half-type { background: #f2f0eb; color: #17150f; }
+.half-type .half-kicker { color: #9b968a; }
+.half-type .half-title {
+  font-family: var(--font-b); font-weight: 600; text-transform: uppercase;
+  font-size: clamp(30px, 4.2vw, 54px); letter-spacing: .1em; line-height: 1.1;
+}
+.half-type .half-desc { color: #6d685c; }
+.half-type .half-cta {
+  color: #17150f; border-bottom: 1px solid #17150f; padding-bottom: 5px;
+}
+
+/* Медальон на шве */
+.split-seal {
+  position: absolute; z-index: 5;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 78px; height: 78px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(90deg, var(--bg) 50%, #f2f0eb 50%);
+  border: 1px solid rgba(150, 135, 105, .45);
+  font-family: var(--font-d); font-style: italic; font-size: 32px; color: var(--gold);
+  pointer-events: none;
+}
+
+.split-foot {
+  position: fixed; z-index: 6;
+  bottom: calc(14px + env(safe-area-inset-bottom)); left: 0; right: 0;
+  text-align: center;
+  font-size: 10.5px; letter-spacing: .18em;
+  color: #918c80; pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .split-wrap { flex-direction: column; }
+  .split-half { min-height: 50dvh; }
+  .half-inner { text-align: center; padding: 48px 26px; }
+  .half-desc { margin-left: auto; margin-right: auto; }
+  .split-seal { width: 64px; height: 64px; font-size: 26px;
+    background: linear-gradient(180deg, var(--bg) 50%, #f2f0eb 50%); }
+}
+
+/* Медальон в шапке каталога */
 .brand-mark {
-  width: 52px; height: 52px; margin: 0 auto 18px;
+  width: 52px; height: 52px;
   display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--line2); border-radius: 50%;
   font-family: var(--font-d); font-size: 26px; font-style: italic; color: var(--gold);
 }
-.landing-brand h1 {
-  font-family: var(--font-d); font-weight: 500;
-  font-size: clamp(34px, 7vw, 58px);
-  letter-spacing: .04em;
-}
-.landing-brand h1 span { font-style: italic; color: var(--gold); }
-.brand-tagline {
-  margin-top: 10px; color: var(--text3);
-  font-size: 12px; font-weight: 400; letter-spacing: .38em; text-transform: uppercase;
-}
-
-.portal-cards {
-  display: flex; gap: 22px; width: 100%; max-width: 720px;
-}
-.portal-card {
-  position: relative; flex: 1;
-  padding: 34px 30px 30px;
-  border: 1px solid var(--line); border-radius: var(--radius);
-  background: linear-gradient(160deg, rgba(212,180,131,.05), rgba(255,255,255,.015) 55%);
-  backdrop-filter: blur(6px);
-  text-align: left;
-  transition: border-color .3s, transform .3s, background .3s;
-  overflow: hidden;
-}
-.portal-card::after {
-  content: ''; position: absolute; inset: 0;
-  background: radial-gradient(420px 200px at 20% 0%, rgba(212,180,131,.12), transparent 70%);
-  opacity: 0; transition: opacity .3s;
-}
-.portal-card:hover, .portal-card:active {
-  border-color: var(--line2); transform: translateY(-4px);
-}
-.portal-card:hover::after { opacity: 1; }
-.portal-num {
-  font-size: 11px; letter-spacing: .3em; color: var(--text3); margin-bottom: 40px;
-}
-.portal-card h2 {
-  font-family: var(--font-d); font-weight: 500; font-size: 38px; letter-spacing: .03em;
-}
-.portal-card p { margin-top: 6px; color: var(--text2); font-size: 13.5px; }
-.portal-arrow {
-  position: absolute; right: 26px; bottom: 26px; color: var(--gold);
-  opacity: .55; transition: opacity .3s, transform .3s;
-}
-.portal-card:hover .portal-arrow { opacity: 1; transform: translateX(4px); }
-
-.landing-foot { color: var(--text3); font-size: 11.5px; letter-spacing: .12em; }
 
 /* ─── Каталог: шапка ─── */
 .site-header {
@@ -177,12 +215,14 @@ img { max-width: 100%; display: block; }
 .good-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
 .good-card:hover .good-photo img { transform: scale(1.04); }
 .good-photo .no-photo { color: var(--text3); font-family: var(--font-d); font-style: italic; font-size: 15px; }
-.sale-badge {
-  position: absolute; top: 12px; left: 12px;
-  padding: 5px 11px; border-radius: 99px;
-  background: rgba(20,16,10,.75); backdrop-filter: blur(6px);
-  border: 1px solid rgba(232,176,75,.4);
-  color: var(--sale); font-size: 10.5px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase;
+
+/* Фото — только витрина: без drag, лонг-тапа и «поиска по картинке» */
+.good-photo img, .item-modal-photo img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 .good-info { padding: 16px 18px 18px; }
 .good-name {
@@ -327,3 +367,50 @@ img { max-width: 100%; display: block; }
   .item-modal-info { padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); }
   .site-nav a { padding: 7px 12px; }
 }
+
+/* ─── Тема Type Clothes: светлый минимализм (COS-подход) ───
+   Переопределяем токены — вся разметка остаётся общей. */
+body.theme-type {
+  --bg:      #f6f5f1;
+  --bg2:     #ffffff;
+  --surface: #edebe5;
+  --line:    rgba(23, 21, 15, .10);
+  --line2:   rgba(23, 21, 15, .26);
+  --gold:    #17150f;   /* акцент — чернила вместо золота */
+  --gold-hi: #000000;
+  --text:    #17150f;
+  --text2:   #6d685c;
+  --text3:   #9b968a;
+  --radius:  12px;
+}
+body.theme-type .bg-grain { display: none; }
+body.theme-type .site-header {
+  background: rgba(246, 245, 241, .86);
+  border-bottom-color: rgba(23, 21, 15, .08);
+}
+body.theme-type .catalog-hero h1,
+body.theme-type .grid-heading,
+body.theme-type .collection-block h2,
+body.theme-type .faq-section h2 {
+  font-family: var(--font-b);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  font-size: clamp(26px, 4.2vw, 44px);
+}
+body.theme-type .good-name {
+  font-family: var(--font-b);
+  font-size: 13.5px; font-weight: 500; letter-spacing: .03em;
+}
+body.theme-type .good-card { background: #ffffff; }
+body.theme-type .good-photo .no-photo,
+body.theme-type .item-modal-photo .no-photo { color: #c4c0b4; }
+body.theme-type .item-modal-info h3 {
+  font-family: var(--font-b); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em; font-size: 22px;
+}
+body.theme-type .item-modal-backdrop { background: rgba(40, 38, 32, .45); }
+body.theme-type .tg-btn { background: #17150f; color: #f6f5f1; }
+body.theme-type .tg-btn:hover { background: #000; }
+body.theme-type .site-nav a.active { background: #17150f; color: #f6f5f1; }
+body.theme-type .cat-chip.active { background: #17150f; color: #f6f5f1; border-color: #17150f; }

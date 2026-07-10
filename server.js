@@ -8,9 +8,10 @@ app.use(express.json({ limit: '25mb' }));
 // админка (Mini App) живёт на /admin.
 const sendHtml = (res, file) =>
   res.sendFile(path.join(__dirname, file), { headers: { 'Cache-Control': 'no-cache' } });
-app.get('/',                 (req, res) => sendHtml(res, 'site/index.html'));
-app.get(['/brands', '/type'], (req, res) => sendHtml(res, 'site/catalog.html'));
-app.get('/admin',            (req, res) => sendHtml(res, 'index.html'));
+app.get('/',                  (req, res) => sendHtml(res, 'site/index.html'));
+app.get(['/monarc', '/type'], (req, res) => sendHtml(res, 'site/catalog.html'));
+app.get('/brands',            (req, res) => res.redirect(301, '/monarc'));
+app.get('/admin',             (req, res) => sendHtml(res, 'index.html'));
 
 // db.json (фото, пароли, финансы) не должен отдаваться статикой
 app.use('/data', (req, res) => res.status(404).end());
@@ -134,8 +135,8 @@ app.post('/api/login', (req, res) => {
 app.get('/api/public/items', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   let items = (load().items || []).filter(i => i.showOnSite && i.orderStatus !== 'done');
-  if (req.query.section === 'brands')    items = items.filter(i => i.isMonarc);
-  else if (req.query.section === 'type') items = items.filter(i => !i.isMonarc);
+  if (['brands', 'monarc'].includes(req.query.section)) items = items.filter(i => i.isMonarc);
+  else if (req.query.section === 'type')                items = items.filter(i => !i.isMonarc);
   res.json(items.map(i => ({
     id:          i.id,
     name:        i.name,
@@ -144,7 +145,6 @@ app.get('/api/public/items', (req, res) => {
     sizes:       Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0) : null,
     description: i.description || '',
     categoryId:  i.categoryId || null,
-    isForSale:   !!i.isForSale,
     quantity:    i.quantity ?? null,
   })));
 });
@@ -159,8 +159,8 @@ app.get('/api/public/collections', (req, res) => {
   const db = load();
   // Наружу попадают только id товаров, реально видимых в этом разделе витрины
   let visible = (db.items || []).filter(i => i.showOnSite && i.orderStatus !== 'done');
-  if (req.query.section === 'brands')    visible = visible.filter(i => i.isMonarc);
-  else if (req.query.section === 'type') visible = visible.filter(i => !i.isMonarc);
+  if (['brands', 'monarc'].includes(req.query.section)) visible = visible.filter(i => i.isMonarc);
+  else if (req.query.section === 'type')                visible = visible.filter(i => !i.isMonarc);
   const pub = new Set(visible.map(i => i.id));
   res.json((db.collections || [])
     .map(c => ({

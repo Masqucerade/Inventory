@@ -299,14 +299,6 @@ html, body {
   justify-content: space-between; gap: 6px;
 }
 .item-top-badges { display: flex; flex-direction: row; align-items: center; gap: 5px; flex-shrink: 0; }
-.sale-tag {
-  display: inline-flex; align-items: center; justify-content: center;
-  color: #fbbf24;
-  background: rgba(251,191,36,0.10);
-  border: 1px solid rgba(251,191,36,0.28);
-  border-radius: 5px; padding: 3px 5px;
-}
-[data-theme="light"] .sale-tag { color: #b45309; background: rgba(180,83,9,0.07); border-color: rgba(180,83,9,0.20); }
 .site-tag {
   display: inline-flex; align-items: center; justify-content: center;
   color: #34d399;
@@ -932,8 +924,6 @@ html, body {
 }
 .monarc-toggle input:checked ~ .monarc-toggle-slider { background: #c4b5fd; }
 .monarc-toggle input:checked ~ .monarc-toggle-slider::before { transform: translateX(18px); }
-.sale-toggle input:checked ~ .monarc-toggle-slider { background: #fbbf24; }
-[data-theme="light"] .sale-toggle input:checked ~ .monarc-toggle-slider { background: #d97706; }
 .site-toggle input:checked ~ .monarc-toggle-slider { background: #34d399; }
 [data-theme="light"] .site-toggle input:checked ~ .monarc-toggle-slider { background: #059669; }
 
@@ -975,6 +965,10 @@ html, body {
   transition: color .15s, background .15s;
 }
 .col-delete-btn:hover { color: #f87171; background: rgba(248,113,113,.1); }
+
+/* FAQ-топик, опубликованный на сайте */
+.faq-item.faq-on-site { border: 1px solid rgba(52,211,153,.35); }
+.faq-title .site-tag { margin-left: 7px; vertical-align: 1px; }
 
 /* Generic toggle alias (used in owner modal etc.) */
 .toggle-switch { position: relative; display: inline-block; width: 44px; height: 26px; flex-shrink: 0; cursor: pointer; }
@@ -1254,24 +1248,11 @@ html, body {
 }
 .sort-dir-btn:active { opacity: .6; }
 
-/* ─── Sale filter button ─── */
 .chips-row {
   display: flex; align-items: center; gap: 0;
   overflow: hidden;
 }
-/* Чипы не растягиваются — кнопка-фильтр встаёт сразу за ними,
-   а не улетает к правому краю широкого экрана */
-.chips-row .chips-scroll { flex: 0 1 auto; min-width: 0; }
-
-.sale-filter-btn {
-  flex-shrink: 0; width: 26px; height: 26px;
-  margin-left: 4px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--sep); background: none; cursor: pointer;
-  color: var(--text3); transition: color .15s, border-color .15s;
-}
-.sale-filter-btn.active { color: #fbbf24; border-color: rgba(251,191,36,.4); }
-.sale-filter-btn svg { display: block; }
+.chips-row .chips-scroll { flex: 1; min-width: 0; }
 
 /* ─── Hamburger menu dropdown ─── */
 .inv-header { position: relative; overflow: visible; }

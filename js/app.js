@@ -110,7 +110,6 @@ class App {
     this._selectedIds  = new Set();
 
     this._filterMonarc      = false;
-    this._filterSale        = false;
     this._filterCat         = null;
     this._projectSubTab     = 'tasks';
     this.categories         = [];
@@ -833,13 +832,6 @@ class App {
       this.renderInventoryList();
     });
 
-    /* Sale filter */
-    document.getElementById('saleFilterBtn').addEventListener('click', () => {
-      this._filterSale = !this._filterSale;
-      document.getElementById('saleFilterBtn').classList.toggle('active', this._filterSale);
-      this.renderInventoryList();
-    });
-
     /* Inventory list item click (delegated) */
     document.getElementById('inventoryList').addEventListener('click', (e) => {
       const card = e.target.closest('.item-card');
@@ -1243,9 +1235,6 @@ class App {
     // Category filter
     if (this._filterCat) items = items.filter(i => i.categoryId === this._filterCat);
 
-    // Sale filter
-    if (this._filterSale) items = items.filter(i => i.isForSale);
-
     // Archive split: done items go to collapsed section unless explicitly filtering by done
     let activeItems   = items;
     let archivedItems = [];
@@ -1325,11 +1314,7 @@ class App {
             <div class="item-type-size">${this.esc(item.type)}</div>
           </div>
           <div class="item-top-badges">
-            <span class="status-badge ${item.orderStatus}">${st.label}</span>${item.isForSale ? `<span class="sale-tag">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                <line x1="7" y1="7" x2="7.01" y2="7"/>
-              </svg></span>` : ''}${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
+            <span class="status-badge ${item.orderStatus}">${st.label}</span>${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="2" y1="12" x2="22" y2="12"/>
@@ -1402,13 +1387,6 @@ class App {
         ? `<span style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
              <span style="width:8px;height:8px;border-radius:50%;background:${owner.color};display:inline-block;flex-shrink:0"></span>
              ${this.esc(owner.name)}</span>`
-        : '—'],
-      ['На продаже', item.isForSale
-        ? `<span class="sale-tag">
-             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-               <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-               <line x1="7" y1="7" x2="7.01" y2="7"/>
-             </svg></span>`
         : '—'],
       ['Создан', this.fmtDate(item.createdAt)],
     ].map(([k,v]) =>
@@ -1549,7 +1527,6 @@ class App {
     /* Reset */
     ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc'].forEach(k => document.getElementById(k).value = '');
     document.getElementById('fieldIsMonarc').checked   = false;
-    document.getElementById('fieldIsForSale').checked  = false;
     document.getElementById('fieldShowOnSite').checked = false;
     document.getElementById('siteDescGroup').style.display = 'none';
 
@@ -1589,7 +1566,6 @@ class App {
         document.getElementById('fieldDeliveryCost').value  = item.deliveryCost || '';
         document.getElementById('fieldNotes').value = item.notes || '';
         document.getElementById('fieldIsMonarc').checked   = !!item.isMonarc;
-        document.getElementById('fieldIsForSale').checked  = !!item.isForSale;
         document.getElementById('fieldShowOnSite').checked = !!item.showOnSite;
         document.getElementById('fieldSiteDesc').value     = item.description || '';
         document.getElementById('siteDescGroup').style.display = item.showOnSite ? '' : 'none';
@@ -1803,7 +1779,6 @@ class App {
       ownerId:     this._selOwner  || null,
       orderStatus: this._selStatus || 'ordered',
       isMonarc:    document.getElementById('fieldIsMonarc').checked,
-      isForSale:   document.getElementById('fieldIsForSale').checked,
       showOnSite:  document.getElementById('fieldShowOnSite').checked,
       description: document.getElementById('fieldSiteDesc').value.trim(),
       photo:       this.currentPhoto || null,
@@ -3209,10 +3184,15 @@ class App {
             </div>`).join('')}
         </div>` : '';
 
+      const siteBadge = item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg></span>` : '';
       return `
-      <div class="faq-item" data-faq-id="${item.id}">
+      <div class="faq-item${item.showOnSite ? ' faq-on-site' : ''}" data-faq-id="${item.id}">
         <div class="faq-head">
-          <span class="faq-title">${this.esc(item.title)}${this._visBadge(item)}</span>
+          <span class="faq-title">${this.esc(item.title)}${siteBadge}${this._visBadge(item)}</span>
           <svg class="faq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
@@ -3411,7 +3391,7 @@ class App {
         <div class="col-pick-thumb">${i.photo ? `<img src="${i.photo}" alt="">` : '📦'}</div>
         <div class="col-pick-info">
           <div class="col-pick-name">${this.esc(i.name)}</div>
-          <div class="col-pick-sub">${i.isMonarc ? 'Brands' : 'Type'}${i.price ? ' · ' + fmtMoney(i.price) : ''}</div>
+          <div class="col-pick-sub">${i.isMonarc ? 'Monarc' : 'Type'}${i.price ? ' · ' + fmtMoney(i.price) : ''}</div>
         </div>
         <div class="col-pick-check">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>

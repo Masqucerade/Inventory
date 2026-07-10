@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=37">
+  <link rel="stylesheet" href="css/app.css?v=38">
 </head>
 <body>
 
@@ -68,12 +68,6 @@
       </div>
       <div class="chips-row">
         <div class="chips-scroll" id="ownerFilterChips"></div>
-        <button class="sale-filter-btn" id="saleFilterBtn" title="Только на продаже">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-            <line x1="7" y1="7" x2="7.01" y2="7" stroke-linecap="round" stroke-width="3"/>
-          </svg>
-        </button>
       </div>
       <div class="chips-scroll" id="catFilterChips" style="display:none"></div>
       <div class="chips-scroll" id="statusFilterChips">
@@ -314,17 +308,6 @@
             <span class="monarc-toggle-slider"></span>
           </label>
         </div>
-        <div class="form-divider"></div>
-        <div class="form-group monarc-form-row">
-          <div>
-            <span class="form-label" style="margin:0">Продаётся</span>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px">Пометить как выставленное на продажу</div>
-          </div>
-          <label class="monarc-toggle sale-toggle">
-            <input type="checkbox" id="fieldIsForSale">
-            <span class="monarc-toggle-slider"></span>
-          </label>
-        </div>
       </div>
 
       <div class="form-card">
@@ -460,14 +443,6 @@
         <span id="bulkFlagsDesc" style="font-size:13px;color:var(--text2)"></span>
       </div>
       <div class="settings-section">
-        <div class="settings-row bulk-flag-btn" data-patch='{"isForSale":true}'>
-          <div class="settings-row-icon purple">🏷</div>
-          <div class="settings-row-info"><div class="settings-row-title">Выставить на продажу</div></div>
-        </div>
-        <div class="settings-row bulk-flag-btn" data-patch='{"isForSale":false}'>
-          <div class="settings-row-icon gray">🏷</div>
-          <div class="settings-row-info"><div class="settings-row-title">Снять с продажи</div></div>
-        </div>
         <div class="settings-row bulk-flag-btn" data-patch='{"isMonarc":true}'>
           <div class="settings-row-icon purple">👁</div>
           <div class="settings-row-info"><div class="settings-row-title">Перенести в Monarc</div></div>
@@ -948,8 +923,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=37"></script>
-<script src="js/backup.js?v=37"></script>
-<script src="js/app.js?v=37"></script>
+<script src="js/db.js?v=38"></script>
+<script src="js/backup.js?v=38"></script>
+<script src="js/app.js?v=38"></script>
 </body>
 </html>
