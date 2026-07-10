@@ -293,6 +293,9 @@ class App {
 
     const svgKey = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
 
+    const chevron = `<svg class="menu-acc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>`;
+    const plus    = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+
     el.innerHTML = `
       <div class="account-hero">
         <div class="account-hero-avatar">${(u.name || u.login || '?')[0].toUpperCase()}</div>
@@ -303,128 +306,91 @@ class App {
             <span>@${this.esc(u.login || '')}</span>
           </div>
         </div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-row" id="mChangePassBtn">
-          <div class="settings-row-icon" style="background:rgba(56,189,248,.12);color:#38bdf8">${svgKey}</div>
-          <div class="settings-row-info"><div class="settings-row-title">Сменить пароль</div></div>${arrow}
+        <div class="hero-actions">
+          <button class="hero-action-btn" id="mChangePassBtn" title="Сменить пароль">${svgKey}</button>
+          <button class="hero-action-btn danger" id="mLogoutBtn" title="Выйти">${svgLogout}</button>
         </div>
-        <div class="settings-row" id="mLogoutBtn">
-          <div class="settings-row-icon" style="background:rgba(248,113,113,.12);color:#f87171">${svgLogout}</div>
-          <div class="settings-row-info"><div class="settings-row-title">Выйти</div></div>${arrow}
+      </div>
+
+      <div class="menu-grid">
+        <button class="menu-tile" id="mCollectionsBtn">
+          <div class="menu-tile-icon" style="background:rgba(52,211,153,.12);color:#34d399">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          </div>
+          <span>Подборки<br>на сайте</span>
+        </button>
+        <button class="menu-tile" id="mBtnTgBackup">
+          <div class="menu-tile-icon" style="background:rgba(56,189,248,.12);color:#38bdf8">${svgSend}</div>
+          <span>Бэкап<br>в Telegram</span>
+        </button>
+        <button class="menu-tile" id="mBtnBackup">
+          <div class="menu-tile-icon" style="background:var(--fill2);color:var(--text2)">${svgDownload}</div>
+          <span>Скачать<br>JSON</span>
+        </button>
+        <button class="menu-tile" id="mBtnRestore">
+          <div class="menu-tile-icon" style="background:rgba(251,146,60,.12);color:#fb923c">${svgUpload}</div>
+          <span>Восстановить<br>из файла</span>
+        </button>
+      </div>
+
+      <div class="menu-theme-row">
+        <span class="menu-theme-label">Тема оформления</span>
+        <div class="menu-theme-toggle" id="menuThemeToggle">
+          <button class="menu-theme-btn${theme === 'dark'  ? ' active' : ''}" data-t="dark">🌙</button>
+          <button class="menu-theme-btn${theme === 'light' ? ' active' : ''}" data-t="light">☀️</button>
         </div>
       </div>
 
       ${isRoot ? `
-      <div class="section-title">Пользователи</div>
-      <div class="settings-section">
-        <div class="settings-row" id="mAddUserBtn">
-          <div class="settings-row-icon green">${svgUserAdd}</div>
-          <div class="settings-row-info"><div class="settings-row-title">Добавить пользователя</div></div>${arrow}
-        </div>
-      </div>
-      <div id="menuUsersList"></div>` : ''}
+      <div class="menu-acc" data-acc="users">
+        <button class="menu-acc-head">
+          <span class="menu-acc-title">Пользователи</span>
+          <span class="menu-acc-count">${(this.users || []).length}</span>
+          <span class="menu-acc-add" id="mAddUserBtn" title="Добавить пользователя">${plus}</span>
+          ${chevron}
+        </button>
+        <div class="menu-acc-body"><div id="menuUsersList"></div></div>
+      </div>` : ''}
 
-      <div class="section-title">Внешний вид</div>
-      <div class="settings-section">
-        <div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon gray">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          </div>
-          <div class="settings-row-info"><div class="settings-row-title">Тема</div></div>
-          <div class="menu-theme-toggle" id="menuThemeToggle">
-            <button class="menu-theme-btn${theme === 'dark'  ? ' active' : ''}" data-t="dark">🌙</button>
-            <button class="menu-theme-btn${theme === 'light' ? ' active' : ''}" data-t="light">☀️</button>
-          </div>
-        </div>
+      <div class="menu-acc" data-acc="owners">
+        <button class="menu-acc-head">
+          <span class="menu-acc-title">Участники</span>
+          <span class="menu-acc-count">${(this.owners || []).length}</span>
+          <span class="menu-acc-add" id="mAddOwnerBtn" title="Добавить участника">${plus}</span>
+          ${chevron}
+        </button>
+        <div class="menu-acc-body"><div id="menuOwnersList"></div></div>
       </div>
 
-      <div class="section-title">Инструменты</div>
-      <div class="settings-section">
-        <div class="settings-row" id="mDeliveryBtn">
-          <div class="settings-row-icon gray">${svgTruck}</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Выбрать товары</div>
-            <div class="settings-row-sub">Доставка, владелец, флаги — сразу нескольким</div>
-          </div>${arrow}
-        </div>
-        <div class="settings-row" id="mCollectionsBtn">
-          <div class="settings-row-icon" style="background:rgba(52,211,153,.12);color:#34d399">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-          </div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Подборки на сайте</div>
-            <div class="settings-row-sub">Блоки товаров для витрины</div>
-          </div>${arrow}
-        </div>
+      <div class="menu-acc" data-acc="cats">
+        <button class="menu-acc-head">
+          <span class="menu-acc-title">Категории</span>
+          <span class="menu-acc-count">${(this.categories || []).length}</span>
+          <span class="menu-acc-add" id="mAddCatBtn" title="Добавить категорию">${plus}</span>
+          ${chevron}
+        </button>
+        <div class="menu-acc-body"><div id="menuCatList"></div></div>
       </div>
 
-      <div class="section-title">Резервная копия</div>
-      <div class="settings-section">
-        <div class="settings-row" id="mBtnTgBackup">
-          <div class="settings-row-icon blue">${svgSend}</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Отправить в Telegram</div>
-            <div class="settings-row-sub">Файл с данными — прямо в чат</div>
-          </div>${arrow}
-        </div>
-        <div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon green">${svgAuto}</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Авто-бэкап каждые 24 ч</div>
-            <div class="settings-row-sub">Последний: <strong>${lastBk}</strong></div>
-          </div>
-          <div class="auto-backup-badge">ON</div>
-        </div>
-        <div class="settings-row" id="mBtnBackup">
-          <div class="settings-row-icon gray">${svgDownload}</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Скачать JSON</div>
-            <div class="settings-row-sub">Сохранить файл локально</div>
-          </div>${arrow}
-        </div>
-        <div class="settings-row" id="mBtnRestore">
-          <div class="settings-row-icon orange">${svgUpload}</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Восстановить из файла</div>
-            <div class="settings-row-sub">Загрузить JSON-бэкап</div>
-          </div>${arrow}
-        </div>
-      </div>
-
-      <div class="section-title">Участники</div>
-      <div class="settings-section">
-        <div class="settings-row" id="mAddOwnerBtn">
-          <div class="settings-row-icon green">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          </div>
-          <div class="settings-row-info"><div class="settings-row-title">Добавить участника</div></div>${arrow}
-        </div>
-      </div>
-      <div id="menuOwnersList"></div>
-
-      <div class="section-title">Категории товаров</div>
-      <div class="settings-section">
-        <div class="settings-row" id="mAddCatBtn">
-          <div class="settings-row-icon" style="background:rgba(251,191,36,.12)">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </div>
-          <div class="settings-row-info"><div class="settings-row-title">Добавить категорию</div></div>${arrow}
-        </div>
-      </div>
-      <div id="menuCatList"></div>
-
-      <div class="section-title">О приложении</div>
-      <div class="settings-section">
-        <div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon" style="background:rgba(124,109,250,.12)">🏢</div>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Masqucerade INC.</div>
-            <div class="settings-row-sub">Версия 1.1 · Telegram Mini App</div>
-          </div>
-        </div>
+      <div class="menu-foot">
+        <span>Авто-бэкап каждые 24 ч · последний: ${lastBk}</span>
+        <span>Masqucerade INC. · v1.2</span>
       </div>
     `;
+
+    /* Аккордеоны: раскрытие секций, «+» не сворачивает */
+    el.querySelectorAll('.menu-acc-head').forEach(head => {
+      head.addEventListener('click', (e) => {
+        if (e.target.closest('.menu-acc-add')) return;
+        const acc = head.parentElement;
+        const open = acc.classList.toggle('open');
+        if (open) this._openAccs.add(acc.dataset.acc);
+        else this._openAccs.delete(acc.dataset.acc);
+      });
+    });
+    (this._openAccs || (this._openAccs = new Set())).forEach(k => {
+      el.querySelector(`.menu-acc[data-acc="${k}"]`)?.classList.add('open');
+    });
 
     document.getElementById('menuThemeToggle').addEventListener('click', e => {
       const btn = e.target.closest('.menu-theme-btn');
@@ -433,11 +399,6 @@ class App {
       document.querySelectorAll('.menu-theme-btn').forEach(b =>
         b.classList.toggle('active', b === btn)
       );
-    });
-
-    document.getElementById('mDeliveryBtn').addEventListener('click', () => {
-      this.closeMenu();
-      this.enterSelectMode();
     });
 
     document.getElementById('mCollectionsBtn').addEventListener('click', () => {
@@ -830,6 +791,11 @@ class App {
       this.filterOwnerId = chip.dataset.owner || null;
       this.renderOwnerFilterChips();
       this.renderInventoryList();
+    });
+
+    /* Кнопка режима выделения — тумблер */
+    document.getElementById('selectModeBtn').addEventListener('click', () => {
+      this._selectMode ? this.exitSelectMode() : this.enterSelectMode();
     });
 
     /* Inventory list item click (delegated) */
@@ -1642,6 +1608,7 @@ class App {
     this._selectMode  = true;
     this._selectedIds = new Set();
     document.getElementById('deliveryBar').classList.remove('hidden');
+    document.getElementById('selectModeBtn')?.classList.add('active');
     this.renderInventoryList();
     this.updateDeliveryBar();
     this.toast('Нажмите на товары для выбора');
@@ -1651,6 +1618,7 @@ class App {
     this._selectMode  = false;
     this._selectedIds = new Set();
     document.getElementById('deliveryBar').classList.add('hidden');
+    document.getElementById('selectModeBtn')?.classList.remove('active');
     this.renderInventoryList();
   }
 

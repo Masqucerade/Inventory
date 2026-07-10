@@ -1252,7 +1252,18 @@ html, body {
   display: flex; align-items: center; gap: 0;
   overflow: hidden;
 }
-.chips-row .chips-scroll { flex: 1; min-width: 0; }
+/* Чипы не растягиваются — кнопка выделения встаёт сразу за ними */
+.chips-row .chips-scroll { flex: 0 1 auto; min-width: 0; }
+
+.select-mode-btn {
+  flex-shrink: 0; width: 26px; height: 26px;
+  margin-left: 4px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--sep); background: none; cursor: pointer;
+  color: var(--text3); transition: color .15s, border-color .15s;
+}
+.select-mode-btn.active { color: var(--accent); border-color: rgba(124,109,250,.45); }
+.select-mode-btn svg { display: block; }
 
 /* ─── Hamburger menu dropdown ─── */
 .inv-header { position: relative; overflow: visible; }
@@ -1957,6 +1968,79 @@ html, body {
   background: var(--muted); color: var(--text2);
 }
 .account-badge.root { background: rgba(124,109,250,.16); color: var(--accent); }
+
+/* ─── Новое бургер-меню ─── */
+.hero-actions { margin-left: auto; display: flex; gap: 7px; flex-shrink: 0; }
+.hero-action-btn {
+  width: 36px; height: 36px; border-radius: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--sep); background: var(--fill);
+  color: var(--text2); transition: color .15s, background .15s, transform .1s;
+}
+.hero-action-btn:active { transform: scale(.94); }
+.hero-action-btn.danger { color: #f87171; }
+.hero-action-btn.danger:active { background: rgba(248,113,113,.12); }
+
+.menu-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  margin-bottom: 12px;
+}
+.menu-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 4px 10px; border-radius: 14px; cursor: pointer;
+  background: var(--card); border: 1px solid var(--card-b);
+  font-family: inherit; transition: transform .1s, background .15s;
+}
+.menu-tile:active { transform: scale(.96); background: var(--fill); }
+.menu-tile-icon {
+  width: 36px; height: 36px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+}
+.menu-tile span {
+  font-size: 10.5px; font-weight: 600; line-height: 1.25;
+  color: var(--text2); text-align: center; letter-spacing: -.1px;
+}
+
+.menu-theme-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; margin-bottom: 12px;
+  background: var(--card); border: 1px solid var(--card-b); border-radius: var(--r);
+}
+.menu-theme-label { font-size: 13.5px; font-weight: 600; color: var(--text); }
+
+.menu-acc {
+  background: var(--card); border: 1px solid var(--card-b);
+  border-radius: var(--r); margin-bottom: 8px; overflow: hidden;
+}
+.menu-acc-head {
+  width: 100%; display: flex; align-items: center; gap: 9px;
+  padding: 12px 14px; cursor: pointer;
+  background: none; border: none; font-family: inherit; text-align: left;
+}
+.menu-acc-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.menu-acc-count {
+  padding: 1px 8px; border-radius: 99px;
+  background: var(--fill2); color: var(--text2);
+  font-size: 11px; font-weight: 700;
+}
+.menu-acc-add {
+  margin-left: auto; width: 26px; height: 26px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(48,209,88,.12); color: #34d399;
+  transition: transform .1s;
+}
+.menu-acc-add:active { transform: scale(.9); }
+.menu-acc-chevron { color: var(--text3); transition: transform .2s; flex-shrink: 0; }
+.menu-acc.open .menu-acc-chevron { transform: rotate(180deg); }
+.menu-acc-body { display: none; padding: 0 8px 8px; }
+.menu-acc.open .menu-acc-body { display: block; }
+.menu-acc-body .settings-section { margin-bottom: 0; border: none; background: none; }
+
+.menu-foot {
+  display: flex; flex-direction: column; gap: 3px; align-items: center;
+  padding: 14px 0 4px;
+  font-size: 10.5px; color: var(--text3); letter-spacing: .1px;
+}
 
 /* Кнопка «Погасить долги» в бюджете */
 .budget-row.debt span:first-child { color: #f59e0b; }
