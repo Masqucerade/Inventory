@@ -19,7 +19,6 @@ const fmtPrice = (p) => p == null || p === '' ? '' :
 let ITEMS = [], CATS = [], activeCat = null;
 
 async function boot() {
-  document.getElementById('year').textContent = new Date().getFullYear();
   document.getElementById('sectionKicker').textContent = TITLES[SECTION].kicker;
   document.getElementById('sectionTitle').textContent  = TITLES[SECTION].title;
   document.title = `Masqucerade INC. — ${TITLES[SECTION].title}`;
