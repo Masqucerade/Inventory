@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/site/site.css?v=3">
+  <link rel="stylesheet" href="/site/site.css?v=4">
 </head>
 <body class="catalog">
 
@@ -67,6 +67,19 @@
         <p class="m-price" id="mPrice"></p>
         <div class="m-sizes" id="mSizes"></div>
         <p class="m-desc" id="mDesc"></p>
+        <div class="m-fit" id="mFit" hidden>
+          <button class="m-fit-head" id="mFitHead" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+              <path d="M21.3 8.7 15.3 2.7a1 1 0 0 0-1.4 0l-11.2 11.2a1 1 0 0 0 0 1.4l6 6a1 1 0 0 0 1.4 0l11.2-11.2a1 1 0 0 0 0-1.4z"/>
+              <path d="m7.5 10.5 1.5 1.5"/><path d="m10.5 7.5 1.5 1.5"/><path d="m13.5 4.5 1.5 1.5"/>
+            </svg>
+            Замеры и посадка
+            <svg class="m-fit-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          <div class="m-fit-body" id="mFitBody"></div>
+        </div>
         <a class="tg-btn" id="mTgBtn" href="#" target="_blank" rel="noopener">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M21.4 4.1 2.9 11.3c-1 .4-1 1.8.1 2.1l4.6 1.4 1.8 5.5c.3.9 1.4 1.1 2 .4l2.6-2.7 4.8 3.5c.8.6 1.9.2 2.1-.8l3-14.9c.2-1.1-.8-2-1.5-1.7zM8.5 14.4l9.4-6.9c.3-.2.6.2.4.4l-7.6 7.5-.3 3-1.9-4z"/>
@@ -77,6 +90,6 @@
     </div>
   </div>
 
-  <script src="/site/site.js?v=3"></script>
+  <script src="/site/site.js?v=4"></script>
 </body>
 </html>

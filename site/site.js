@@ -71,11 +71,13 @@ function sizesLabel(sizes) {
 }
 
 function cardHTML(i) {
+  const cover = (i.photos && i.photos[0]) || null;
   return `
     <article class="good-card" data-id="${esc(i.id)}">
       <div class="good-photo">
-        ${i.photo ? `<img src="${esc(i.photo)}" alt="${esc(i.name)}" loading="lazy" draggable="false">`
-                  : '<span class="no-photo">Masqucerade</span>'}
+        ${cover ? `<img src="${esc(cover)}" alt="${esc(i.name)}" loading="lazy" draggable="false">`
+                : '<span class="no-photo">Masqucerade</span>'}
+        ${(i.photos || []).length > 1 ? `<span class="photo-count">${i.photos.length}</span>` : ''}
       </div>
       <div class="good-info">
         <div class="good-name">${esc(i.name)}</div>
@@ -133,9 +135,15 @@ document.getElementById('goodsGrid').addEventListener('click', (e) => {
 });
 
 function openModal(i) {
-  const cat = CATS.find(c => c.id === i.categoryId);
-  document.getElementById('mPhoto').innerHTML = i.photo
-    ? `<img src="${esc(i.photo)}" alt="${esc(i.name)}" draggable="false">`
+  const cat    = CATS.find(c => c.id === i.categoryId);
+  const photos = i.photos || [];
+  document.getElementById('mPhoto').innerHTML = photos.length
+    ? `<img id="mPhotoMain" src="${esc(photos[0])}" alt="${esc(i.name)}" draggable="false">` +
+      (photos.length > 1
+        ? `<div class="m-thumbs">${photos.map((p, idx) =>
+            `<button class="m-thumb${idx === 0 ? ' active' : ''}" data-src="${esc(p)}"><img src="${esc(p)}" alt="" draggable="false"></button>`
+          ).join('')}</div>`
+        : '')
     : '<span class="no-photo">Masqucerade</span>';
   document.getElementById('mCat').textContent   = cat ? cat.name : TITLES[SECTION].title;
   document.getElementById('mName').textContent  = i.name;
@@ -143,6 +151,16 @@ function openModal(i) {
   document.getElementById('mSizes').innerHTML   = (i.sizes || [])
     .filter(s => s.size).map(s => `<span class="m-size">${esc(s.size)}</span>`).join('');
   document.getElementById('mDesc').textContent  = i.description || '';
+
+  /* Замеры и посадка — раскрывающийся блок */
+  const fitEl = document.getElementById('mFit');
+  if (i.measurements) {
+    fitEl.hidden = false;
+    fitEl.classList.remove('open');
+    document.getElementById('mFitBody').textContent = i.measurements;
+  } else {
+    fitEl.hidden = true;
+  }
   const msg = encodeURIComponent(`Здравствуйте! Интересует «${i.name}» с вашего сайта.`);
   document.getElementById('mTgBtn').href = `https://t.me/${TG_USERNAME}?text=${msg}`;
   modal.hidden = false;
@@ -153,7 +171,20 @@ function closeModal() {
   modal.hidden = true;
   document.body.style.overflow = '';
 }
-modal.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) closeModal(); });
+modal.addEventListener('click', (e) => {
+  if (e.target.closest('[data-close]')) { closeModal(); return; }
+  /* Переключение фото по миниатюрам */
+  const th = e.target.closest('.m-thumb');
+  if (th) {
+    document.getElementById('mPhotoMain').src = th.dataset.src;
+    document.querySelectorAll('.m-thumb').forEach(t => t.classList.toggle('active', t === th));
+    return;
+  }
+  /* Аккордеон «Замеры и посадка» */
+  if (e.target.closest('#mFitHead')) {
+    document.getElementById('mFit').classList.toggle('open');
+  }
+});
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
 
 /* ─── FAQ ─── */

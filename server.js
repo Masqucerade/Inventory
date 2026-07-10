@@ -138,14 +138,15 @@ app.get('/api/public/items', (req, res) => {
   if (['brands', 'monarc'].includes(req.query.section)) items = items.filter(i => i.isMonarc);
   else if (req.query.section === 'type')                items = items.filter(i => !i.isMonarc);
   res.json(items.map(i => ({
-    id:          i.id,
-    name:        i.name,
-    price:       i.price ?? null,
-    photo:       i.photo || null,
-    sizes:       Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0) : null,
-    description: i.description || '',
-    categoryId:  i.categoryId || null,
-    quantity:    i.quantity ?? null,
+    id:           i.id,
+    name:         i.name,
+    price:        i.price ?? null,
+    photos:       Array.isArray(i.photos) && i.photos.length ? i.photos : (i.photo ? [i.photo] : []),
+    sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0) : null,
+    description:  i.description || '',
+    measurements: i.measurements || '',
+    categoryId:   i.categoryId || null,
+    quantity:     i.quantity ?? null,
   })));
 });
 

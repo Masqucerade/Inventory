@@ -92,7 +92,7 @@ class App {
 
     this.editingItemId  = null;
     this.editingOwnerId = null;
-    this.currentPhoto   = null;
+    this._photos        = [];
     this._taskPhoto     = null;
 
     this._selOwner  = null;
@@ -915,31 +915,35 @@ class App {
     document.addEventListener('pointerdown', (e) => {
       this._photoPickerArmed = !!e.target.closest('#photoPicker');
     }, true);
-    document.getElementById('photoPicker').addEventListener('click', (e) => {
+    document.getElementById('photoStrip').addEventListener('click', async (e) => {
       if (!this._photoPickerArmed) return;
-      if (e.target.closest('#photoRemove')) return;
-      document.getElementById('photoInput').click();
+      const rm = e.target.closest('.photo-thumb-remove');
+      if (rm) {
+        this._photos.splice(+rm.dataset.idx, 1);
+        this._renderPhotoStrip();
+        return;
+      }
+      const thumb = e.target.closest('.photo-thumb');
+      if (thumb) {
+        const i = +thumb.dataset.idx;
+        if (i > 0) {
+          // Тап по фото делает его главным (обложкой)
+          this._photos.unshift(this._photos.splice(i, 1)[0]);
+          this._renderPhotoStrip();
+          this.toast('Фото сделано главным ✓');
+        }
+        return;
+      }
+      if (e.target.closest('.photo-add-tile')) document.getElementById('photoInput').click();
     });
     document.getElementById('photoInput').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      try {
-        const b64 = await resizeImage(file);
-        this.currentPhoto = b64;
-        document.getElementById('photoPreview').src = b64;
-        document.getElementById('photoPreview').classList.remove('hidden');
-        document.getElementById('photoPlaceholder').classList.add('hidden');
-        document.getElementById('photoRemove').classList.remove('hidden');
-      } catch (_) { this.toast('Ошибка загрузки фото'); }
+      const files = [...e.target.files].slice(0, 10 - this._photos.length);
+      for (const file of files) {
+        try { this._photos.push(await resizeImage(file)); }
+        catch (_) { this.toast('Ошибка загрузки фото'); }
+      }
+      this._renderPhotoStrip();
       e.target.value = '';
-    });
-    document.getElementById('photoRemove').addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.currentPhoto = null;
-      document.getElementById('photoPreview').src = '';
-      document.getElementById('photoPreview').classList.add('hidden');
-      document.getElementById('photoPlaceholder').classList.remove('hidden');
-      document.getElementById('photoRemove').classList.add('hidden');
     });
 
     /* Paste image from clipboard (Ctrl+V) when item modal is open */
@@ -966,12 +970,8 @@ class App {
       if (!file) return;
       e.preventDefault();
       try {
-        const b64 = await resizeImage(file);
-        this.currentPhoto = b64;
-        document.getElementById('photoPreview').src = b64;
-        document.getElementById('photoPreview').classList.remove('hidden');
-        document.getElementById('photoPlaceholder').classList.add('hidden');
-        document.getElementById('photoRemove').classList.remove('hidden');
+        this._photos.push(await resizeImage(file));
+        this._renderPhotoStrip();
         this.toast('Фото вставлено ✓');
       } catch (_) { this.toast('Ошибка вставки фото'); }
     });
@@ -1361,7 +1361,12 @@ class App {
 
     document.getElementById('detailModalTitle').textContent = item.name;
     document.getElementById('detailModalBody').innerHTML = `
-      ${item.photo ? `<img src="${item.photo}" class="detail-photo" alt="">` : ''}
+      ${(() => {
+        const ph = Array.isArray(item.photos) && item.photos.length ? item.photos : (item.photo ? [item.photo] : []);
+        if (!ph.length) return '';
+        if (ph.length === 1) return `<img src="${ph[0]}" class="detail-photo" alt="">`;
+        return `<div class="detail-photos">${ph.map(p => `<img src="${p}" class="detail-photo" alt="">`).join('')}</div>`;
+      })()}
       ${sizesCard}
       <div class="detail-card">${priceRows}</div>
       <div class="detail-card">
@@ -1485,13 +1490,13 @@ class App {
      ────────────────────────────────────────── */
   async openItemModal(id = null) {
     this.editingItemId = id;
-    this.currentPhoto  = null;
+    this._photos       = [];
     this._selOwner     = null;
     this._selStatus    = 'ordered';
     this._sizes        = [{ size: '', qty: 1 }];
 
     /* Reset */
-    ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc'].forEach(k => document.getElementById(k).value = '');
+    ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements'].forEach(k => document.getElementById(k).value = '');
     document.getElementById('fieldIsMonarc').checked   = false;
     document.getElementById('fieldShowOnSite').checked = false;
     document.getElementById('siteDescGroup').style.display = 'none';
@@ -1503,10 +1508,7 @@ class App {
     document.getElementById('totalDisplay').textContent = '0 ₽';
     document.getElementById('marginDisplay').textContent = '—';
     document.getElementById('marginDisplay').style.color = 'var(--text2)';
-    document.getElementById('photoPreview').src = '';
-    document.getElementById('photoPreview').classList.add('hidden');
-    document.getElementById('photoPlaceholder').classList.remove('hidden');
-    document.getElementById('photoRemove').classList.add('hidden');
+    this._renderPhotoStrip();
 
     /* Type datalist */
     const types = [...new Set(this.items.map(i => i.type).filter(Boolean))];
@@ -1533,7 +1535,8 @@ class App {
         document.getElementById('fieldNotes').value = item.notes || '';
         document.getElementById('fieldIsMonarc').checked   = !!item.isMonarc;
         document.getElementById('fieldShowOnSite').checked = !!item.showOnSite;
-        document.getElementById('fieldSiteDesc').value     = item.description || '';
+        document.getElementById('fieldSiteDesc').value      = item.description || '';
+        document.getElementById('fieldMeasurements').value  = item.measurements || '';
         document.getElementById('siteDescGroup').style.display = item.showOnSite ? '' : 'none';
         catSel.value    = item.categoryId  || '';
         this._selOwner  = item.ownerId     || null;
@@ -1541,13 +1544,10 @@ class App {
         this._sizes = item.sizes?.length > 0
           ? item.sizes.map(s => ({ size: s.size || '', qty: s.qty || 0 }))
           : [{ size: item.size || '', qty: item.quantity || 1 }];
-        if (item.photo) {
-          this.currentPhoto = item.photo;
-          document.getElementById('photoPreview').src = item.photo;
-          document.getElementById('photoPreview').classList.remove('hidden');
-          document.getElementById('photoPlaceholder').classList.add('hidden');
-          document.getElementById('photoRemove').classList.remove('hidden');
-        }
+        this._photos = Array.isArray(item.photos) && item.photos.length
+          ? [...item.photos]
+          : (item.photo ? [item.photo] : []);
+        this._renderPhotoStrip();
       }
     }
 
@@ -1555,6 +1555,28 @@ class App {
     this.refreshStatusChips();
     this.renderSizes();
     this.openModal('itemModal');
+  }
+
+  _renderPhotoStrip() {
+    const el = document.getElementById('photoStrip');
+    if (!el) return;
+    el.innerHTML = this._photos.map((p, i) => `
+      <div class="photo-thumb${i === 0 ? ' main' : ''}" data-idx="${i}" title="${i === 0 ? 'Главное фото' : 'Сделать главным'}">
+        <img src="${p}" alt="">
+        ${i === 0 ? '<span class="photo-main-badge">Главное</span>' : ''}
+        <button type="button" class="photo-thumb-remove" data-idx="${i}">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>`).join('') + `
+      <button type="button" class="photo-add-tile" title="Добавить фото">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        <span>Фото</span>
+      </button>`;
   }
 
   renderSizes() {
@@ -1747,9 +1769,11 @@ class App {
       ownerId:     this._selOwner  || null,
       orderStatus: this._selStatus || 'ordered',
       isMonarc:    document.getElementById('fieldIsMonarc').checked,
-      showOnSite:  document.getElementById('fieldShowOnSite').checked,
-      description: document.getElementById('fieldSiteDesc').value.trim(),
-      photo:       this.currentPhoto || null,
+      showOnSite:   document.getElementById('fieldShowOnSite').checked,
+      description:  document.getElementById('fieldSiteDesc').value.trim(),
+      measurements: document.getElementById('fieldMeasurements').value.trim(),
+      photos:       [...this._photos],
+      photo:        this._photos[0] || null,
       categoryId:  document.getElementById('fieldCategory').value || null,
       _updatedBy:  null,
     };

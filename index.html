@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=39">
+  <link rel="stylesheet" href="css/app.css?v=40">
 </head>
 <body>
 
@@ -215,21 +215,9 @@
   <div class="modal-body">
     <form id="itemForm" novalidate>
 
-      <div class="photo-section" id="photoPicker">
-        <input type="file" id="photoInput" accept="image/*" hidden>
-        <div class="photo-placeholder" id="photoPlaceholder">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
-          </svg>
-          <span>Нажмите чтобы<br>добавить фото</span>
-        </div>
-        <img id="photoPreview" class="photo-preview hidden" src="" alt="">
-        <button type="button" class="photo-remove hidden" id="photoRemove">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+      <div class="photo-section-multi" id="photoPicker">
+        <input type="file" id="photoInput" accept="image/*" multiple hidden>
+        <div class="photo-strip" id="photoStrip"></div>
       </div>
 
       <div class="form-card">
@@ -337,6 +325,8 @@
         <div class="form-group" id="siteDescGroup" style="display:none">
           <label class="form-label">Описание для сайта</label>
           <textarea id="fieldSiteDesc" class="form-input form-textarea" placeholder="Описание, которое увидят клиенты…" rows="3"></textarea>
+          <label class="form-label" style="margin-top:12px">Замеры и посадка</label>
+          <textarea id="fieldMeasurements" class="form-input form-textarea" placeholder="Например: длина 70 см, ширина плеч 56 см. Фитит на рост 175–185." rows="3"></textarea>
         </div>
       </div>
 
@@ -929,8 +919,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=39"></script>
-<script src="js/backup.js?v=39"></script>
-<script src="js/app.js?v=39"></script>
+<script src="js/db.js?v=40"></script>
+<script src="js/backup.js?v=40"></script>
+<script src="js/app.js?v=40"></script>
 </body>
 </html>

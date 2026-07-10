@@ -414,3 +414,44 @@ body.theme-type .tg-btn { background: #17150f; color: #f6f5f1; }
 body.theme-type .tg-btn:hover { background: #000; }
 body.theme-type .site-nav a.active { background: #17150f; color: #f6f5f1; }
 body.theme-type .cat-chip.active { background: #17150f; color: #f6f5f1; border-color: #17150f; }
+
+/* ─── Мультифото ─── */
+.photo-count {
+  position: absolute; top: 12px; right: 12px;
+  min-width: 24px; padding: 3px 8px; border-radius: 99px; text-align: center;
+  background: rgba(20,16,10,.6); backdrop-filter: blur(6px);
+  color: #fff; font-size: 11px; font-weight: 500;
+}
+body.theme-type .photo-count { background: rgba(255,255,255,.75); color: #17150f; }
+.item-modal-photo { position: relative; }
+.m-thumbs {
+  position: absolute; left: 0; right: 0; bottom: 10px; z-index: 2;
+  display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
+  padding: 0 10px;
+}
+.m-thumb {
+  width: 44px; height: 44px; border-radius: 10px; overflow: hidden;
+  padding: 0; cursor: pointer;
+  border: 1.5px solid rgba(255,255,255,.35); background: var(--surface);
+  opacity: .75; transition: opacity .2s, border-color .2s;
+}
+.m-thumb img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.m-thumb.active { opacity: 1; border-color: var(--gold-hi); }
+
+/* ─── Замеры и посадка ─── */
+.m-fit { margin-top: 18px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.m-fit[hidden] { display: none; }
+.m-fit-head {
+  width: 100%; display: flex; align-items: center; gap: 9px;
+  padding: 12px 14px; cursor: pointer;
+  background: none; border: none; text-align: left;
+  color: var(--text); font-family: var(--font-b); font-size: 13px; letter-spacing: .04em;
+}
+.m-fit-head svg:first-child { color: var(--gold); }
+.m-fit-chevron { margin-left: auto; color: var(--text3); transition: transform .25s; }
+.m-fit.open .m-fit-chevron { transform: rotate(180deg); }
+.m-fit-body {
+  display: none; padding: 0 14px 13px;
+  color: var(--text2); font-size: 13.5px; line-height: 1.65; white-space: pre-wrap;
+}
+.m-fit.open .m-fit-body { display: block; }
