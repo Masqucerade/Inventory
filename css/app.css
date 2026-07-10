@@ -1703,42 +1703,66 @@ html, body {
 }
 
 /* ── Project tabs: скользящий глайдер ── */
-.proj-tabs {
-  position: relative; display: flex;
-  background: var(--fill2); border: 1px solid var(--sep);
-  border-radius: 14px; padding: 4px;
-  margin-bottom: 12px;
+/* ── Дашборд проекта: секции одной страницей ── */
+.dash-section {
+  margin-bottom: 22px;
+  animation: paneIn .35s cubic-bezier(.22,1,.36,1) both;
 }
-.proj-tab:not(.active) { color: var(--text2); }
-.proj-tabs-glider {
-  position: absolute; top: 4px; bottom: 4px; left: 4px;
-  width: 0; border-radius: 10px;
-  background: linear-gradient(135deg, #7c6dfa, #6050e0);
-  box-shadow: 0 2px 14px rgba(124,109,250,.45), inset 0 1px 0 rgba(255,255,255,.18);
-  transition: transform .32s cubic-bezier(.22,1,.36,1), width .32s cubic-bezier(.22,1,.36,1);
-}
-.proj-tab {
-  flex: 1; position: relative; z-index: 1;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 8px 0; border: none; background: none;
-  font-family: inherit; font-size: 12.5px; font-weight: 600;
-  color: var(--text2); cursor: pointer; transition: color .22s;
-}
-.proj-tab.active { color: #fff; }
-.proj-tab-count {
-  font-size: 10px; font-weight: 700; line-height: 1;
-  padding: 3px 6px; border-radius: 100px;
-  background: var(--fill2); color: var(--text3);
-  transition: all .22s;
-}
-.proj-tab.active .proj-tab-count { background: rgba(255,255,255,.22); color: #fff; }
-
-/* Появление панели при переключении */
-.pane-in { animation: paneIn .3s cubic-bezier(.22,1,.36,1) both; }
 @keyframes paneIn {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: none; }
 }
+.dash-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 2px; margin-bottom: 10px;
+}
+.dash-head h3 {
+  font-size: 17px; font-weight: 700; letter-spacing: -.4px; color: var(--text);
+}
+.dash-count {
+  padding: 2px 8px; border-radius: 99px;
+  background: var(--fill2); color: var(--text2);
+  font-size: 11px; font-weight: 700;
+}
+.dash-add {
+  margin-left: auto; width: 28px; height: 28px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--sep); background: var(--fill); cursor: pointer;
+  color: var(--text2); transition: all .15s;
+}
+.dash-add:active { transform: scale(.9); color: var(--accent); border-color: rgba(124,109,250,.4); }
+.dash-empty {
+  padding: 18px 14px; border-radius: 14px;
+  border: 1px dashed var(--sep);
+  font-size: 12.5px; color: var(--text3); text-align: center;
+}
+.dash-done-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
+  margin-top: 4px; padding: 9px; border-radius: 12px;
+  border: none; background: none; cursor: pointer;
+  font-family: inherit; font-size: 11.5px; font-weight: 600;
+  letter-spacing: .4px; text-transform: uppercase; color: var(--text3);
+  transition: color .15s;
+}
+.dash-done-toggle svg { transition: transform .2s; }
+.dash-done-toggle.open svg { transform: rotate(180deg); }
+.dash-done { display: flex; flex-direction: column; gap: 6px; }
+.dash-done.hidden { display: none; }
+
+/* Заметки — горизонтальная лента стикеров */
+.dash-notes-row {
+  display: flex; gap: 10px; overflow-x: auto;
+  padding: 2px 2px 6px; margin: 0 -2px;
+  scroll-snap-type: x proximity; scrollbar-width: none;
+}
+.dash-notes-row::-webkit-scrollbar { display: none; }
+.dash-notes-row .note-card {
+  flex: 0 0 200px; min-height: 118px;
+  display: flex; flex-direction: column;
+  scroll-snap-align: start;
+  margin-bottom: 0;
+}
+.dash-notes-row .note-text { flex: 1; }
 
 /* Списки внутри projectContent — без двойных отступов */
 #projectContent .task-list,
@@ -1759,8 +1783,7 @@ html, body {
 #projectContent .task-text { font-size: 14.5px; }
 #projectContent .task-desc { color: var(--text2); }
 
-/* ── Заметки (стикеры): двухколоночная сетка с цветной подложкой ── */
-.note-grid { columns: 2; column-gap: 8px; }
+/* ── Заметки (стикеры) с цветной подложкой ── */
 .note-card {
   position: relative;
   break-inside: avoid; margin-bottom: 8px;
@@ -1779,7 +1802,6 @@ html, body {
   top: -34px; right: -26px; width: 110px; height: 90px; border-radius: 50%;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--nc) 20%, transparent), transparent);
 }
-@media (max-width: 359px) { .note-grid { columns: 1; } }
 .note-text {
   font-size: 13.5px; line-height: 1.55; color: var(--text);
   white-space: pre-wrap; word-break: break-word;

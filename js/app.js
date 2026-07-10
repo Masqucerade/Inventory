@@ -111,7 +111,6 @@ class App {
 
     this._filterMonarc      = false;
     this._filterCat         = null;
-    this._projectSubTab     = 'tasks';
     this.categories         = [];
     this._archiveOpen       = false;
     this._currentPayType    = 'deposit';
@@ -723,11 +722,8 @@ class App {
 
     /* FAB */
     document.getElementById('fabBtn').addEventListener('click', () => {
-      if (this.currentView === 'project') {
-        if (this._projectSubTab === 'quick')      this.openQuickModal();
-        else if (this._projectSubTab === 'notes') this.openNoteModal();
-        else this.openTaskModal();
-      } else if (this.currentView === 'settings') this.openFaqModal();
+      if (this.currentView === 'project')       this.openTaskModal();
+      else if (this.currentView === 'settings') this.openFaqModal();
       else this.openItemModal();
     });
 
@@ -2623,68 +2619,59 @@ class App {
         </div>`;
     }
 
-    /* ── Счётчики на вкладках ── */
-    const setCnt = (id, n) => {
-      const c = document.getElementById(id);
-      if (c) { c.textContent = n || ''; c.style.display = n ? '' : 'none'; }
-    };
-    setCnt('cntTasks', total - done);
-    setCnt('cntNotes', notes.length);
-    setCnt('cntQuick', quick.length);
+    /* ── Дашборд: все секции на одной странице ── */
+    const content = document.getElementById('projectContent');
+    if (!content) return;
+    const plus = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+    content.innerHTML = `
+      <section class="dash-section" style="animation-delay:0ms">
+        <div class="dash-head">
+          <h3>Задачи</h3>
+          ${active ? `<span class="dash-count">${active}</span>` : ''}
+          <button class="dash-add" data-add="task" title="Новая задача">${plus}</button>
+        </div>
+        <div id="dashTasks"></div>
+      </section>
+      <section class="dash-section" style="animation-delay:60ms">
+        <div class="dash-head">
+          <h3>Заметки</h3>
+          ${notes.length ? `<span class="dash-count">${notes.length}</span>` : ''}
+          <button class="dash-add" data-add="note" title="Новая заметка">${plus}</button>
+        </div>
+        <div id="dashNotes"></div>
+      </section>
+      <section class="dash-section" style="animation-delay:120ms">
+        <div class="dash-head">
+          <h3>Доступы</h3>
+          ${quick.length ? `<span class="dash-count">${quick.length}</span>` : ''}
+          <button class="dash-add" data-add="quick" title="Новый реквизит">${plus}</button>
+        </div>
+        <div id="dashQuick"></div>
+      </section>`;
 
-    /* ── Вкладки со скользящим глайдером ── */
-    document.querySelectorAll('.proj-tab').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.subtab === this._projectSubTab);
-      btn.onclick = () => {
-        if (this._projectSubTab === btn.dataset.subtab) return;
-        this._projectSubTab = btn.dataset.subtab;
-        document.querySelectorAll('.proj-tab').forEach(b =>
-          b.classList.toggle('active', b === btn));
-        this._moveProjGlider();
-        this._renderProjectPane(true);
-      };
-    });
-    requestAnimationFrame(() => requestAnimationFrame(() => this._moveProjGlider()));
-    setTimeout(() => this._moveProjGlider(), 120);   // страховка: шрифты/layout
-    if (!this._gliderResizeBound) {
-      this._gliderResizeBound = true;
-      window.addEventListener('resize', () => this._moveProjGlider());
-    }
-    this._renderProjectPane();
-  }
+    content.querySelectorAll('.dash-add').forEach(btn =>
+      btn.addEventListener('click', () => {
+        if (btn.dataset.add === 'task')      this.openTaskModal();
+        else if (btn.dataset.add === 'note') this.openNoteModal();
+        else                                 this.openQuickModal();
+      })
+    );
 
-  _moveProjGlider() {
-    const bar = document.getElementById('projTabs');
-    const act = bar?.querySelector('.proj-tab.active');
-    const gl  = bar?.querySelector('.proj-tabs-glider');
-    if (!bar || !act || !gl) return;
-    gl.style.width     = act.offsetWidth + 'px';
-    gl.style.transform = `translateX(${act.offsetLeft - 4}px)`;
-  }
-
-  async _renderProjectPane(animate = false) {
-    if (this._projectSubTab === 'tasks')      await this.renderProjectTasks();
-    else if (this._projectSubTab === 'notes') await this.renderProjectNotes();
-    else                                      await this.renderProjectQuick();
-    if (animate) {
-      const el = document.getElementById('projectContent');
-      if (el) { el.classList.remove('pane-in'); void el.offsetWidth; el.classList.add('pane-in'); }
-    }
+    await Promise.all([
+      this.renderProjectTasks(),
+      this.renderProjectNotes(),
+      this.renderProjectQuick(),
+    ]);
   }
 
   /* ── Задачи ── */
   async renderProjectTasks() {
-    const el     = document.getElementById('projectContent');
+    const el     = document.getElementById('dashTasks');
     if (!el) return;
     const [tasks, owners] = await Promise.all([this.db.getTasks(), this.db.getOwners()]);
 
     if (!tasks.length) {
-      el.innerHTML = `<div class="faq-empty">
-        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-        </svg>
-        <p>Нет задач — нажмите + чтобы добавить</p>
-      </div>`;
+      el.innerHTML = `<div class="dash-empty">Нет задач — добавьте первую по кнопке «+»</div>`;
       return;
     }
 
@@ -2736,9 +2723,20 @@ class App {
         ${todo.length ? '<div class="task-section-head team"><span>Команда</span></div>' : ''}
       ` : ''}
       ${renderList(todo)}
-      ${done.length && (todo.length || personal.length) ? `<div class="task-divider"><span>Выполнено · ${done.length}</span></div>` : ''}
-      ${renderList(done)}
+      ${!todo.length && !personal.length ? '<div class="dash-empty">Все задачи выполнены 🎉</div>' : ''}
+      ${done.length ? `
+        <button class="dash-done-toggle" id="dashDoneToggle">
+          <span>Выполнено · ${done.length}</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dash-done hidden" id="dashDoneList">${renderList(done)}</div>
+      ` : ''}
     </div>`;
+
+    document.getElementById('dashDoneToggle')?.addEventListener('click', () => {
+      document.getElementById('dashDoneList').classList.toggle('hidden');
+      document.getElementById('dashDoneToggle').classList.toggle('open');
+    });
 
     el.querySelectorAll('.task-check').forEach(btn =>
       btn.addEventListener('click', async () => {
@@ -2852,17 +2850,12 @@ class App {
   }
 
   async renderProjectQuick() {
-    const el    = document.getElementById('projectContent');
+    const el    = document.getElementById('dashQuick');
     if (!el) return;
     const raw = await this.db.getQuickItems();
 
     if (!raw.length) {
-      el.innerHTML = `<div class="faq-empty">
-        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-        </svg>
-        <p>Нет реквизитов — нажмите + чтобы добавить</p>
-      </div>`;
+      el.innerHTML = `<div class="dash-empty">Нет реквизитов — карты, пароли и ссылки будут здесь</div>`;
       return;
     }
 
@@ -2945,19 +2938,12 @@ class App {
 
   /* ── Заметки проекта ── */
   async renderProjectNotes() {
-    const el = document.getElementById('projectContent');
+    const el = document.getElementById('dashNotes');
     if (!el) return;
     const notes = await this.db.getProjectNotes();
 
     if (!notes.length) {
-      el.innerHTML = `<div class="faq-empty">
-        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-          <path d="M14 3v4a2 2 0 0 0 2 2h4"/>
-          <path d="M20 9v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8l6 6z"/>
-          <line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>
-        </svg>
-        <p>Нет заметок — нажмите + чтобы добавить</p>
-      </div>`;
+      el.innerHTML = `<div class="dash-empty">Нет заметок — заведите первый стикер</div>`;
       return;
     }
 
@@ -2965,7 +2951,7 @@ class App {
     const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
 
     const list = notes.slice().reverse();
-    el.innerHTML = `<div class="note-grid">${list.map((n, idx) => `
+    el.innerHTML = `<div class="dash-notes-row">${list.map((n, idx) => `
       <div class="note-card" style="--nc:${n.color || '#7c6dfa'};animation-delay:${Math.min(idx * 35, 240)}ms" data-note-id="${n.id}">
         <div class="note-text">${this.esc(n.text)}</div>
         <div class="note-foot">
