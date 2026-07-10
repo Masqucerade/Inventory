@@ -1596,6 +1596,23 @@ html, body {
 }
 @keyframes progShimmer { 0% { background-position: 180% 0; } 100% { background-position: -80% 0; } }
 
+.proj-hero-row { display: flex; align-items: center; gap: 15px; }
+.proj-ring { position: relative; flex-shrink: 0; width: 62px; height: 62px; }
+.proj-ring svg { transform: rotate(-90deg); display: block; }
+.proj-ring-track { fill: none; stroke: rgba(255,255,255,.10); stroke-width: 5; }
+[data-theme="light"] .proj-ring-track { stroke: rgba(0,0,0,.08); }
+.proj-ring-bar {
+  fill: none; stroke: #4ade80;
+  stroke-width: 5; stroke-linecap: round;
+  transition: stroke-dashoffset .8s cubic-bezier(.22,1,.36,1);
+}
+.proj-ring-num {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; letter-spacing: -.3px; color: var(--text);
+}
+.proj-hero-info { min-width: 0; }
+.proj-hero-done { font-size: 11.5px; color: var(--text3); margin-top: 3px; }
 .proj-hero-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 .proj-chip {
   font-size: 11px; color: var(--text2);
@@ -1729,38 +1746,40 @@ html, body {
 
 /* Карточки внутри проекта — заметнее границы и фон (не так тускло) */
 #projectContent .task-item,
-#projectContent .quick-item,
-#projectContent .note-card {
+#projectContent .quick-item {
   background: rgba(255,255,255,.055);
   border-color: rgba(255,255,255,.11);
 }
+#projectContent .task-item.task-mine { border-color: rgba(124,109,250,.42); }
 [data-theme="light"] #projectContent .task-item,
-[data-theme="light"] #projectContent .quick-item,
-[data-theme="light"] #projectContent .note-card {
+[data-theme="light"] #projectContent .quick-item {
   background: #fff;
   border-color: rgba(0,0,0,.09);
 }
 #projectContent .task-text { font-size: 14.5px; }
 #projectContent .task-desc { color: var(--text2); }
 
-/* ── Заметки (стикеры) ── */
-.note-grid { display: flex; flex-direction: column; gap: 8px; }
+/* ── Заметки (стикеры): двухколоночная сетка с цветной подложкой ── */
+.note-grid { columns: 2; column-gap: 8px; }
 .note-card {
   position: relative;
-  background: var(--card); border: 1px solid var(--sep);
-  border-radius: 14px; padding: 12px 14px 9px 16px;
+  break-inside: avoid; margin-bottom: 8px;
+  background: color-mix(in srgb, var(--nc) 9%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--nc) 26%, transparent);
+  border-radius: 16px; padding: 12px 13px 8px;
   overflow: hidden;
   animation: cellIn .3s ease both;
 }
-.note-card::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: linear-gradient(180deg, var(--nc), transparent 130%);
+[data-theme="light"] .note-card {
+  background: color-mix(in srgb, var(--nc) 8%, #fff);
+  border-color: color-mix(in srgb, var(--nc) 30%, transparent);
 }
 .note-card::after {
   content: ''; position: absolute; pointer-events: none;
-  top: -30px; left: -20px; width: 120px; height: 80px; border-radius: 50%;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--nc) 14%, transparent), transparent);
+  top: -34px; right: -26px; width: 110px; height: 90px; border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--nc) 20%, transparent), transparent);
 }
+@media (max-width: 359px) { .note-grid { columns: 1; } }
 .note-text {
   font-size: 13.5px; line-height: 1.55; color: var(--text);
   white-space: pre-wrap; word-break: break-word;
@@ -1784,19 +1803,20 @@ html, body {
 /* ── Tasks ── */
 .task-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
 .task-item {
-  display: flex; align-items: flex-start; gap: 10px;
+  display: flex; align-items: flex-start; gap: 11px;
   background: var(--card); border: 1px solid var(--sep);
-  border-radius: 12px; padding: 11px 12px;
-  transition: opacity .2s;
+  border-radius: 14px; padding: 12px 12px 12px 13px;
+  transition: opacity .2s, border-color .2s;
 }
-.task-item.done { opacity: .48; }
+.task-item.done { opacity: .45; }
 .task-check {
   flex-shrink: 0; margin-top: 1px;
-  width: 22px; height: 22px;
-  border-radius: 50%; border: 2px solid var(--sep);
+  width: 24px; height: 24px;
+  border-radius: 50%; border: 2px solid var(--fill3);
   background: none; display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all .15s; color: #4ade80;
 }
+.task-check:active { transform: scale(.9); border-color: #4ade80; }
 .task-item.done .task-check { background: rgba(74,222,128,.15); border-color: #4ade80; }
 .task-body { flex: 1; min-width: 0; }
 .task-text { display: block; font-size: 14px; line-height: 1.45; color: var(--text); word-break: break-word; }
@@ -1817,22 +1837,32 @@ html, body {
 .task-edit:active { background: var(--fill2); color: var(--text); }
 .task-del:active  { background: var(--fill2); color: var(--danger); }
 .task-divider {
+  display: flex; align-items: center; gap: 10px;
   font-size: 11px; font-weight: 600; letter-spacing: .5px;
   text-transform: uppercase; color: var(--text3);
-  padding: 8px 4px 2px;
+  padding: 10px 2px 4px;
 }
+.task-divider::before, .task-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--sep);
+}
+.task-divider span { flex-shrink: 0; }
 
 /* ── Quick Access ── */
 .quick-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 .quick-item {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 11px;
   background: var(--card); border: 1px solid var(--sep);
-  border-radius: 14px; padding: 12px 12px 12px 14px;
+  border-radius: 16px; padding: 11px 12px 11px 11px;
   transition: border-color .15s;
 }
 .quick-item.pinned { border-color: rgba(251,191,36,.4); }
 [data-theme="light"] .quick-item.pinned { border-color: rgba(217,119,6,.35); }
-.quick-type-icon { font-size: 20px; flex-shrink: 0; line-height: 1; }
+.quick-type-icon {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--fill2); font-size: 18px; line-height: 1;
+}
+.quick-item.pinned .quick-type-icon { background: rgba(251,191,36,.12); }
 .quick-main { flex: 1; min-width: 0; }
 .quick-label {
   display: block; font-size: 11px; font-weight: 600;

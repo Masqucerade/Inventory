@@ -1063,10 +1063,22 @@ class App {
     document.getElementById('saleModalClose').addEventListener('click', () => this.closeModal('saleModal'));
     document.getElementById('saleModalSave').addEventListener('click', () => this.saveSale());
 
-    /* Sale modal — live profit preview */
+    /* Sale modal — live profit preview.
+       Поля цены — text/inputmode=decimal: цифры вводятся только с клавиатуры,
+       колесо/свайп мышью значение не меняют. Чистим всё, кроме цифр и точки. */
     ['saleSalePrice', 'saleBuyPrice', 'saleDeliveryCost'].forEach(id =>
-      document.getElementById(id).addEventListener('input', () => this._updateSalePreview())
+      document.getElementById(id).addEventListener('input', (e) => {
+        const clean = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+        if (clean !== e.target.value) e.target.value = clean;
+        this._updateSalePreview();
+      })
     );
+
+    /* Остальные числовые поля: запрещаем менять значение колесом мыши */
+    document.addEventListener('wheel', (e) => {
+      const t = e.target;
+      if (t.tagName === 'INPUT' && t.type === 'number' && document.activeElement === t) e.preventDefault();
+    }, { passive: false });
 
     /* Sale modal — item select → populate sizes + prefill prices */
     document.getElementById('saleItemSelect').addEventListener('change', () => this._onSaleItemChange());
@@ -2568,18 +2580,30 @@ class App {
     const plural = (n) => { const m = n % 100, d = n % 10; if (m > 10 && m < 20) return 'задач'; if (d > 1 && d < 5) return 'задачи'; if (d === 1) return 'задача'; return 'задач'; };
 
     if (isRoot) {
-      /* ── Root: сводка активных задач ── */
+      /* ── Root: сводка с прогресс-кольцом ── */
+      const C   = 2 * Math.PI * 24;                       // длина окружности кольца
+      const pct = total ? done / total : 0;
       if (hero) hero.innerHTML = `
         <div class="proj-hero-inner">
-          <div class="proj-hero-top" style="margin-bottom:0">
-            <div>
+          <div class="proj-hero-row">
+            <div class="proj-ring">
+              <svg width="62" height="62" viewBox="0 0 62 62">
+                <circle cx="31" cy="31" r="24" class="proj-ring-track"/>
+                <circle cx="31" cy="31" r="24" class="proj-ring-bar"
+                  stroke-dasharray="${C.toFixed(1)}"
+                  stroke-dashoffset="${(C * (1 - pct)).toFixed(1)}"/>
+              </svg>
+              <span class="proj-ring-num">${Math.round(pct * 100)}%</span>
+            </div>
+            <div class="proj-hero-info">
               <div class="proj-hero-label">Сейчас в работе</div>
               <div class="proj-hero-pct">${active}<span> ${plural(active)}</span></div>
+              <div class="proj-hero-done">${done} из ${total} выполнено</div>
             </div>
           </div>
           <div class="proj-hero-chips">
-            <span class="proj-chip"><b>${notes.length}</b> заметок</span>
-            <span class="proj-chip"><b>${quick.length}</b> доступов</span>
+            <span class="proj-chip">📝 <b>${notes.length}</b> ${notes.length === 1 ? 'заметка' : 'заметок'}</span>
+            <span class="proj-chip">🔑 <b>${quick.length}</b> ${quick.length === 1 ? 'доступ' : 'доступов'}</span>
           </div>
         </div>`;
     } else {
@@ -2712,7 +2736,7 @@ class App {
         ${todo.length ? '<div class="task-section-head team"><span>Команда</span></div>' : ''}
       ` : ''}
       ${renderList(todo)}
-      ${done.length && (todo.length || personal.length) ? '<div class="task-divider">Выполнено</div>' : ''}
+      ${done.length && (todo.length || personal.length) ? `<div class="task-divider"><span>Выполнено · ${done.length}</span></div>` : ''}
       ${renderList(done)}
     </div>`;
 
@@ -2858,7 +2882,7 @@ class App {
       <div class="quick-item${item.pinned ? ' pinned' : ''}" data-quick-id="${item.id}">
         <div class="quick-type-icon">${this._quickTypeIcon(item.type)}</div>
         <div class="quick-main">
-          <span class="quick-label">${item.pinned ? '📌 ' : ''}${this.esc(item.label)}${this._visBadge(item)}</span>
+          <span class="quick-label">${this.esc(item.label)}${this._visBadge(item)}</span>
           <span class="quick-value${isPassword ? ' masked' : ''}" data-revealed="false" data-val="${this.esc(item.value)}">
             ${isPassword ? maskedVal : this.esc(item.value)}
           </span>
