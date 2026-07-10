@@ -261,6 +261,17 @@ class InventoryDB {
   }
   async deleteCategory(id) { await fetch(`/api/categories/${id}`, { method:'DELETE' }); }
 
+  /* ─── COLLECTIONS (подборки для сайта) ─── */
+  async getCollections() {
+    try { const r = await fetch('/api/collections'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async saveCollection(col) {
+    const r = await fetch('/api/collections', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(col) });
+    return r.json();
+  }
+  async deleteCollection(id) { await fetch(`/api/collections/${id}`, { method:'DELETE' }); }
+
   /* ─── TASKS ─── */
   async getTasks() {
     try { const r = await fetch('/api/tasks'); return r.ok ? r.json() : []; }

@@ -349,6 +349,15 @@ class App {
             <div class="settings-row-sub">Доставка, владелец, флаги — сразу нескольким</div>
           </div>${arrow}
         </div>
+        <div class="settings-row" id="mCollectionsBtn">
+          <div class="settings-row-icon" style="background:rgba(52,211,153,.12);color:#34d399">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          </div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Подборки на сайте</div>
+            <div class="settings-row-sub">Блоки товаров для витрины</div>
+          </div>${arrow}
+        </div>
       </div>
 
       <div class="section-title">Резервная копия</div>
@@ -430,6 +439,11 @@ class App {
     document.getElementById('mDeliveryBtn').addEventListener('click', () => {
       this.closeMenu();
       this.enterSelectMode();
+    });
+
+    document.getElementById('mCollectionsBtn').addEventListener('click', () => {
+      this.closeMenu();
+      this.openCollectionsModal();
     });
 
     document.getElementById('mBtnTgBackup').addEventListener('click', async () => {
@@ -867,6 +881,37 @@ class App {
         await this.applyBulk(patch, label, `${label} ✓`);
       })
     );
+
+    /* Подборки на сайте */
+    document.getElementById('collectionsModalClose').addEventListener('click', () => this.closeModal('collectionsModal'));
+    document.getElementById('collectionAddBtn').addEventListener('click', () => this.openCollectionModal());
+    document.getElementById('collectionModalClose').addEventListener('click', () => this.closeModal('collectionModal'));
+    document.getElementById('collectionModalSave').addEventListener('click', () => this.saveCollectionForm());
+    document.getElementById('collectionsList').addEventListener('click', async (e) => {
+      const del = e.target.closest('.col-delete-btn');
+      if (del) {
+        const ok = await this.confirm('Удалить подборку? Товары останутся на сайте.');
+        if (!ok) return;
+        await this.db.deleteCollection(del.dataset.id);
+        this.toast('Подборка удалена');
+        this.renderCollectionsList();
+        return;
+      }
+      const row = e.target.closest('[data-col-id]');
+      if (row) {
+        const col = (this._collections || []).find(c => c.id === row.dataset.colId);
+        if (col) this.openCollectionModal(col);
+      }
+    });
+    document.getElementById('colItemsPicker').addEventListener('click', (e) => {
+      const row = e.target.closest('.col-pick-row');
+      if (!row) return;
+      const id = row.dataset.itemId;
+      if (this._colPicked.has(id)) this._colPicked.delete(id);
+      else this._colPicked.add(id);
+      row.classList.toggle('picked', this._colPicked.has(id));
+      this._updateColCount();
+    });
 
     /* Item modal */
     document.getElementById('itemModalClose').addEventListener('click', () => this.closeModal('itemModal'));
@@ -3309,6 +3354,90 @@ class App {
     if (!ok) return;
     await this.db.deleteFaqItem(id);
     this.renderFaq();
+  }
+
+  /* ──────────────────────────────────────────
+     ПОДБОРКИ НА САЙТЕ
+     ────────────────────────────────────────── */
+  async openCollectionsModal() {
+    await this.renderCollectionsList();
+    this.openModal('collectionsModal');
+  }
+
+  async renderCollectionsList() {
+    this._collections = await this.db.getCollections();
+    const el = document.getElementById('collectionsList');
+    if (!this._collections.length) {
+      el.innerHTML = `<div class="faq-empty">
+        <div style="font-size:28px">🗂</div>
+        <p>Подборок пока нет.<br>Создайте блок товаров — он появится на сайте.</p>
+      </div>`;
+      return;
+    }
+    el.innerHTML = `<div class="settings-section">` + this._collections.map(c => `
+      <div class="settings-row" data-col-id="${c.id}">
+        <div class="settings-row-icon" style="background:rgba(52,211,153,.12)">🗂</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">${this.esc(c.title)}</div>
+          <div class="settings-row-sub">${(c.itemIds || []).length} тов.${c.description ? ' · ' + this.esc(c.description) : ''}</div>
+        </div>
+        <button class="col-delete-btn" data-id="${c.id}" title="Удалить">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>`).join('') + `</div>`;
+  }
+
+  openCollectionModal(col = null) {
+    this._editingColId = col?.id || null;
+    this._colPicked    = new Set(col?.itemIds || []);
+    document.getElementById('collectionModalTitle').textContent = col ? 'Изменить подборку' : 'Новая подборка';
+    document.getElementById('colTitle').value = col?.title || '';
+    document.getElementById('colDesc').value  = col?.description || '';
+    this._renderColPicker();
+    this.openModal('collectionModal');
+    if (!col) setTimeout(() => document.getElementById('colTitle').focus(), 350);
+  }
+
+  _renderColPicker() {
+    const el    = document.getElementById('colItemsPicker');
+    const items = this.items.filter(i => i.showOnSite && i.orderStatus !== 'done');
+    if (!items.length) {
+      el.innerHTML = `<div style="padding:14px;font-size:13px;color:var(--text3)">Нет товаров с галочкой «На сайте»</div>`;
+      this._updateColCount();
+      return;
+    }
+    el.innerHTML = items.map(i => `
+      <div class="col-pick-row${this._colPicked.has(i.id) ? ' picked' : ''}" data-item-id="${i.id}">
+        <div class="col-pick-thumb">${i.photo ? `<img src="${i.photo}" alt="">` : '📦'}</div>
+        <div class="col-pick-info">
+          <div class="col-pick-name">${this.esc(i.name)}</div>
+          <div class="col-pick-sub">${i.isMonarc ? 'Brands' : 'Type'}${i.price ? ' · ' + fmtMoney(i.price) : ''}</div>
+        </div>
+        <div class="col-pick-check">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+      </div>`).join('');
+    this._updateColCount();
+  }
+
+  _updateColCount() {
+    document.getElementById('colPickerCount').textContent =
+      this._colPicked?.size ? `· выбрано ${this._colPicked.size}` : '';
+  }
+
+  async saveCollectionForm() {
+    const title = document.getElementById('colTitle').value.trim();
+    if (!title) { this.toast('Введите название подборки'); return; }
+    await this.db.saveCollection({
+      ...(this._editingColId ? { id: this._editingColId } : {}),
+      title,
+      description: document.getElementById('colDesc').value.trim(),
+      itemIds:     [...this._colPicked],
+    });
+    this.closeModal('collectionModal');
+    this.toast(this._editingColId ? 'Подборка обновлена ✓' : 'Подборка создана ✓');
+    this._editingColId = null;
+    await this.renderCollectionsList();
   }
 
   /* ──────────────────────────────────────────

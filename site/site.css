@@ -200,6 +200,26 @@ img { max-width: 100%; display: block; }
   color: var(--text3); font-family: var(--font-d); font-style: italic; font-size: 19px;
 }
 
+/* ─── Подборки ─── */
+.collection-block { margin: 44px 0 10px; }
+.collection-block:first-child { margin-top: 30px; }
+.collection-kicker {
+  font-size: 11px; letter-spacing: .34em; text-transform: uppercase; color: var(--gold);
+}
+.collection-block h2 {
+  font-family: var(--font-d); font-weight: 500;
+  font-size: clamp(26px, 4.5vw, 40px); letter-spacing: .03em; margin-top: 6px;
+}
+.collection-desc { color: var(--text2); font-size: 14px; line-height: 1.6; margin-top: 8px; max-width: 560px; }
+.collection-grid { margin-top: 20px; }
+.grid-heading {
+  font-family: var(--font-d); font-weight: 500;
+  font-size: clamp(26px, 4.5vw, 40px); letter-spacing: .03em;
+  margin-top: 54px; padding-top: 40px;
+  border-top: 1px solid var(--line);
+}
+.grid-heading[hidden] { display: none; }
+
 /* ─── FAQ ─── */
 .faq-section { margin-top: 70px; }
 .faq-section h2 {

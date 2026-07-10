@@ -26,12 +26,14 @@ async function boot() {
   document.getElementById('footTg').href = `https://t.me/${TG_USERNAME}`;
 
   try {
-    const [items, cats, faq] = await Promise.all([
+    const [items, cats, faq, collections] = await Promise.all([
       fetch(`/api/public/items?section=${SECTION}`).then(r => r.json()),
       fetch('/api/public/categories').then(r => r.json()),
       fetch('/api/public/faq').then(r => r.json()),
+      fetch(`/api/public/collections?section=${SECTION}`).then(r => r.json()),
     ]);
     ITEMS = items; CATS = cats;
+    renderCollections(collections);
     renderChips();
     renderGrid();
     renderFaq(faq);
@@ -66,14 +68,8 @@ function sizesLabel(sizes) {
   return sizes.map(s => s.size).filter(Boolean).join(' · ');
 }
 
-function renderGrid() {
-  const el = document.getElementById('goodsGrid');
-  const items = activeCat ? ITEMS.filter(i => i.categoryId === activeCat) : ITEMS;
-  if (!items.length) {
-    el.innerHTML = '<div class="goods-empty">Пока пусто — загляните позже</div>';
-    return;
-  }
-  el.innerHTML = items.map(i => `
+function cardHTML(i) {
+  return `
     <article class="good-card" data-id="${esc(i.id)}">
       <div class="good-photo">
         ${i.photo ? `<img src="${esc(i.photo)}" alt="${esc(i.name)}" loading="lazy">`
@@ -87,8 +83,43 @@ function renderGrid() {
           <span class="good-sizes">${esc(sizesLabel(i.sizes))}</span>
         </div>
       </div>
-    </article>`).join('');
+    </article>`;
 }
+
+function renderGrid() {
+  const el = document.getElementById('goodsGrid');
+  const items = activeCat ? ITEMS.filter(i => i.categoryId === activeCat) : ITEMS;
+  if (!items.length) {
+    el.innerHTML = '<div class="goods-empty">Пока пусто — загляните позже</div>';
+    return;
+  }
+  el.innerHTML = items.map(cardHTML).join('');
+}
+
+/* ─── Подборки ─── */
+function renderCollections(collections) {
+  const byId = new Map(ITEMS.map(i => [i.id, i]));
+  const blocks = (collections || [])
+    .map(c => ({ ...c, items: c.itemIds.map(id => byId.get(id)).filter(Boolean) }))
+    .filter(c => c.items.length);
+  if (!blocks.length) return;
+  document.getElementById('gridHeading').hidden = false;
+  document.getElementById('collectionsWrap').innerHTML = blocks.map(c => `
+    <section class="collection-block">
+      <p class="collection-kicker">Подборка</p>
+      <h2>${esc(c.title)}</h2>
+      ${c.description ? `<p class="collection-desc">${esc(c.description)}</p>` : ''}
+      <div class="goods-grid collection-grid">${c.items.map(cardHTML).join('')}</div>
+    </section>`).join('');
+}
+
+/* Клик по карточке внутри подборки — та же модалка */
+document.getElementById('collectionsWrap').addEventListener('click', (e) => {
+  const card = e.target.closest('.good-card');
+  if (!card) return;
+  const item = ITEMS.find(i => i.id === card.dataset.id);
+  if (item) openModal(item);
+});
 
 /* ─── Модалка товара ─── */
 const modal = document.getElementById('itemModal');

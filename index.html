@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=36">
+  <link rel="stylesheet" href="css/app.css?v=37">
 </head>
 <body>
 
@@ -476,6 +476,56 @@
           <div class="settings-row-icon gray">👁</div>
           <div class="settings-row-info"><div class="settings-row-title">Вернуть в общий список</div></div>
         </div>
+        <div class="settings-row bulk-flag-btn" data-patch='{"showOnSite":true}'>
+          <div class="settings-row-icon green">🌐</div>
+          <div class="settings-row-info"><div class="settings-row-title">Выставить на сайт</div></div>
+        </div>
+        <div class="settings-row bulk-flag-btn" data-patch='{"showOnSite":false}'>
+          <div class="settings-row-icon gray">🌐</div>
+          <div class="settings-row-info"><div class="settings-row-title">Убрать с сайта</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Подборки на сайте: список -->
+<div class="modal" id="collectionsModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="collectionsModalClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title">Подборки на сайте</span>
+      <button class="modal-action-btn" id="collectionAddBtn">＋ Новая</button>
+    </div>
+    <div class="modal-body" id="collectionsList"></div>
+  </div>
+</div>
+
+<!-- Подборка: форма -->
+<div class="modal" id="collectionModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="collectionModalClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title" id="collectionModalTitle">Новая подборка</span>
+      <button class="modal-action-btn" id="collectionModalSave">Сохранить</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Название</label>
+        <input type="text" class="form-input" id="colTitle" placeholder="Например: Новинки недели">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Описание (необязательно)</label>
+        <textarea class="form-input form-textarea" id="colDesc" placeholder="Короткий текст под заголовком блока…" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Товары <span id="colPickerCount" style="color:var(--text3);font-weight:400"></span></label>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Показаны только товары с галочкой «На сайте»</div>
+        <div id="colItemsPicker" class="col-items-picker"></div>
       </div>
     </div>
   </div>
@@ -898,8 +948,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=36"></script>
-<script src="js/backup.js?v=36"></script>
-<script src="js/app.js?v=36"></script>
+<script src="js/db.js?v=37"></script>
+<script src="js/backup.js?v=37"></script>
+<script src="js/app.js?v=37"></script>
 </body>
 </html>

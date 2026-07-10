@@ -154,6 +154,24 @@ app.get('/api/public/categories', (req, res) => {
   res.json((load().categories || []).map(c => ({ id: c.id, name: c.name, emoji: c.emoji || '' })));
 });
 
+app.get('/api/public/collections', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  const db = load();
+  // Наружу попадают только id товаров, реально видимых в этом разделе витрины
+  let visible = (db.items || []).filter(i => i.showOnSite && i.orderStatus !== 'done');
+  if (req.query.section === 'brands')    visible = visible.filter(i => i.isMonarc);
+  else if (req.query.section === 'type') visible = visible.filter(i => !i.isMonarc);
+  const pub = new Set(visible.map(i => i.id));
+  res.json((db.collections || [])
+    .map(c => ({
+      id:          c.id,
+      title:       c.title,
+      description: c.description || '',
+      itemIds:     (c.itemIds || []).filter(id => pub.has(id)),
+    }))
+    .filter(c => c.itemIds.length));
+});
+
 app.get('/api/public/faq', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.json((load().faq || []).filter(f => f.showOnSite).map(f => ({
@@ -734,6 +752,30 @@ app.delete('/api/categories/:id', (req, res) => {
   const db = load();
   db.categories = (db.categories || []).filter(c => c.id !== req.params.id);
   db.items = (db.items || []).map(i => i.categoryId === req.params.id ? { ...i, categoryId: null } : i);
+  save(db);
+  res.json({ ok: true });
+});
+
+/* ─── COLLECTIONS (подборки товаров на сайте) ─── */
+app.get('/api/collections', (req, res) => res.json(load().collections || []));
+app.put('/api/collections', (req, res) => {
+  const db = load();
+  if (!db.collections) db.collections = [];
+  const col = {
+    id:          req.body.id || uid(),
+    title:       String(req.body.title || '').trim(),
+    description: String(req.body.description || '').trim(),
+    itemIds:     Array.isArray(req.body.itemIds) ? req.body.itemIds : [],
+  };
+  const idx = db.collections.findIndex(c => c.id === col.id);
+  if (idx >= 0) db.collections[idx] = { ...db.collections[idx], ...col };
+  else db.collections.push(col);
+  save(db);
+  res.json(col);
+});
+app.delete('/api/collections/:id', (req, res) => {
+  const db = load();
+  db.collections = (db.collections || []).filter(c => c.id !== req.params.id);
   save(db);
   res.json({ ok: true });
 });
