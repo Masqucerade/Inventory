@@ -76,7 +76,6 @@ function cardHTML(i) {
       <div class="good-photo">
         ${cover ? `<img src="${esc(cover)}" alt="${esc(i.name)}" loading="lazy" draggable="false">`
                 : '<span class="no-photo">Masqucerade</span>'}
-        ${(i.photos || []).length > 1 ? `<span class="photo-count">${i.photos.length}</span>` : ''}
       </div>
       <div class="good-info">
         <div class="good-name">${esc(i.name)}</div>

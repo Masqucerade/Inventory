@@ -416,13 +416,6 @@ body.theme-type .site-nav a.active { background: #17150f; color: #f6f5f1; }
 body.theme-type .cat-chip.active { background: #17150f; color: #f6f5f1; border-color: #17150f; }
 
 /* ─── Мультифото ─── */
-.photo-count {
-  position: absolute; top: 12px; right: 12px;
-  min-width: 24px; padding: 3px 8px; border-radius: 99px; text-align: center;
-  background: rgba(20,16,10,.6); backdrop-filter: blur(6px);
-  color: #fff; font-size: 11px; font-weight: 500;
-}
-body.theme-type .photo-count { background: rgba(255,255,255,.75); color: #17150f; }
 .item-modal-photo { position: relative; }
 .m-thumbs {
   position: absolute; left: 0; right: 0; bottom: 10px; z-index: 2;
