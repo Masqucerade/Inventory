@@ -898,6 +898,11 @@ class App {
     document.getElementById('fieldPrice').addEventListener('input', () => this.updateTotal());
     document.getElementById('fieldBuyPrice').addEventListener('input', () => this.updateTotal());
 
+    /* Тумблер «На сайте» раскрывает описание для витрины */
+    document.getElementById('fieldShowOnSite').addEventListener('change', (e) => {
+      document.getElementById('siteDescGroup').style.display = e.target.checked ? '' : 'none';
+    });
+
     /* Photo.
        Защита от iOS ghost-click: после тапа по чипам/селектам Safari может
        синтезировать click по координатам пальца — если туда попала фото-зона,
@@ -1279,6 +1284,11 @@ class App {
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
                 <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg></span>` : ''}${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
               </svg></span>` : ''}
           </div>
         </div>
@@ -1492,9 +1502,11 @@ class App {
     this._sizes        = [{ size: '', qty: 1 }];
 
     /* Reset */
-    ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost'].forEach(k => document.getElementById(k).value = '');
-    document.getElementById('fieldIsMonarc').checked  = false;
-    document.getElementById('fieldIsForSale').checked = false;
+    ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc'].forEach(k => document.getElementById(k).value = '');
+    document.getElementById('fieldIsMonarc').checked   = false;
+    document.getElementById('fieldIsForSale').checked  = false;
+    document.getElementById('fieldShowOnSite').checked = false;
+    document.getElementById('siteDescGroup').style.display = 'none';
 
     /* hideCosts: скрываем закупочные поля в форме */
     const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
@@ -1531,8 +1543,11 @@ class App {
         document.getElementById('fieldBuyPrice').value      = item.buyPrice     || '';
         document.getElementById('fieldDeliveryCost').value  = item.deliveryCost || '';
         document.getElementById('fieldNotes').value = item.notes || '';
-        document.getElementById('fieldIsMonarc').checked  = !!item.isMonarc;
-        document.getElementById('fieldIsForSale').checked = !!item.isForSale;
+        document.getElementById('fieldIsMonarc').checked   = !!item.isMonarc;
+        document.getElementById('fieldIsForSale').checked  = !!item.isForSale;
+        document.getElementById('fieldShowOnSite').checked = !!item.showOnSite;
+        document.getElementById('fieldSiteDesc').value     = item.description || '';
+        document.getElementById('siteDescGroup').style.display = item.showOnSite ? '' : 'none';
         catSel.value    = item.categoryId  || '';
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'ordered';
@@ -1744,6 +1759,8 @@ class App {
       orderStatus: this._selStatus || 'ordered',
       isMonarc:    document.getElementById('fieldIsMonarc').checked,
       isForSale:   document.getElementById('fieldIsForSale').checked,
+      showOnSite:  document.getElementById('fieldShowOnSite').checked,
+      description: document.getElementById('fieldSiteDesc').value.trim(),
       photo:       this.currentPhoto || null,
       categoryId:  document.getElementById('fieldCategory').value || null,
       _updatedBy:  null,
@@ -3247,6 +3264,7 @@ class App {
     document.querySelector('#faqModal .modal-title').textContent = item ? 'Редактировать' : 'Новый топик';
     document.getElementById('faqTitle').value = item?.title || '';
     document.getElementById('faqBody').value  = item?.body  || '';
+    document.getElementById('faqShowOnSite').checked = !!item?.showOnSite;
     const list = document.getElementById('faqLinesList');
     list.innerHTML = '';
     (item?.lines || []).forEach(l => this._addFaqLine(l.label, l.text));
@@ -3271,13 +3289,14 @@ class App {
 
     const isRoot = this.currentUser?.role === 'root';
     const vis    = isRoot ? this._readVis('faqVisChips') : undefined;
+    const showOnSite = document.getElementById('faqShowOnSite').checked;
     if (this._editingFaqId) {
-      const patch = { title, body, lines };
+      const patch = { title, body, lines, showOnSite };
       if (vis !== undefined) patch.visibility = vis;
       await this.db.patchFaqItem(this._editingFaqId, patch);
       this.toast('Топик обновлён ✓');
     } else {
-      await this.db.addFaqItem({ title, body, lines, ...(vis !== undefined ? { visibility: vis } : {}) });
+      await this.db.addFaqItem({ title, body, lines, showOnSite, ...(vis !== undefined ? { visibility: vis } : {}) });
       this.toast('Топик добавлен ✓');
     }
     this._editingFaqId = null;

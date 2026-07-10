@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=35">
+  <link rel="stylesheet" href="css/app.css?v=36">
 </head>
 <body>
 
@@ -331,6 +331,23 @@
         <div class="form-group">
           <label class="form-label">Статус заказа</label>
           <div class="status-chips" id="statusSelect"></div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-group monarc-form-row">
+          <div>
+            <span class="form-label" style="margin:0">На сайте</span>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">Показывать товар на сайте-витрине</div>
+          </div>
+          <label class="monarc-toggle site-toggle">
+            <input type="checkbox" id="fieldShowOnSite">
+            <span class="monarc-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="form-group" id="siteDescGroup" style="display:none">
+          <label class="form-label">Описание для сайта</label>
+          <textarea id="fieldSiteDesc" class="form-input form-textarea" placeholder="Описание, которое увидят клиенты…" rows="3"></textarea>
         </div>
       </div>
 
@@ -735,6 +752,16 @@
           <label class="form-label">Кому видно</label>
           <div class="vis-chips" id="faqVisChips"></div>
         </div>
+        <div class="form-group monarc-form-row">
+          <div>
+            <span class="form-label" style="margin:0">На сайте</span>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">Показывать в FAQ на сайте-витрине</div>
+          </div>
+          <label class="monarc-toggle site-toggle">
+            <input type="checkbox" id="faqShowOnSite">
+            <span class="monarc-toggle-slider"></span>
+          </label>
+        </div>
       </div>
     </div>
   </div>
@@ -871,8 +898,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=34"></script>
-<script src="js/backup.js?v=34"></script>
-<script src="js/app.js?v=34"></script>
+<script src="js/db.js?v=36"></script>
+<script src="js/backup.js?v=36"></script>
+<script src="js/app.js?v=36"></script>
 </body>
 </html>

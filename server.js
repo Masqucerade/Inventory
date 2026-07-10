@@ -4,9 +4,21 @@ const path    = require('path');
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
+// Страницы: / — публичный сайт-витрина, /brands и /type — каталог,
+// админка (Mini App) живёт на /admin.
+const sendHtml = (res, file) =>
+  res.sendFile(path.join(__dirname, file), { headers: { 'Cache-Control': 'no-cache' } });
+app.get('/',                 (req, res) => sendHtml(res, 'site/index.html'));
+app.get(['/brands', '/type'], (req, res) => sendHtml(res, 'site/catalog.html'));
+app.get('/admin',            (req, res) => sendHtml(res, 'index.html'));
+
+// db.json (фото, пароли, финансы) не должен отдаваться статикой
+app.use('/data', (req, res) => res.status(404).end());
+
 // HTML не кэшируем (css/js версионируются через ?v=), чтобы разметка и скрипты
 // всегда были одной версии — иначе на старом index.html новый app.js падает.
 app.use(express.static(path.join(__dirname), {
+  index: false,
   setHeaders(res, filePath) {
     if (filePath.endsWith('.html')) res.set('Cache-Control', 'no-cache');
   },
@@ -114,6 +126,42 @@ app.post('/api/login', (req, res) => {
   db.sessions.push({ token, userId: user.id, createdAt: new Date().toISOString() });
   save(db);
   res.json({ token, user: { id: user.id, name: user.name, login: user.login, role: user.role, access: user.access || null, hideCosts: !!user.hideCosts } });
+});
+
+/* ─── ПУБЛИЧНЫЙ API ВИТРИНЫ (без авторизации, только чтение) ───
+   Наружу уходят только товары/топики с галочкой showOnSite и только
+   публичные поля — никаких закупов, владельцев и служебных данных. */
+app.get('/api/public/items', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  let items = (load().items || []).filter(i => i.showOnSite && i.orderStatus !== 'done');
+  if (req.query.section === 'brands')    items = items.filter(i => i.isMonarc);
+  else if (req.query.section === 'type') items = items.filter(i => !i.isMonarc);
+  res.json(items.map(i => ({
+    id:          i.id,
+    name:        i.name,
+    price:       i.price ?? null,
+    photo:       i.photo || null,
+    sizes:       Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0) : null,
+    description: i.description || '',
+    categoryId:  i.categoryId || null,
+    isForSale:   !!i.isForSale,
+    quantity:    i.quantity ?? null,
+  })));
+});
+
+app.get('/api/public/categories', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.json((load().categories || []).map(c => ({ id: c.id, name: c.name, emoji: c.emoji || '' })));
+});
+
+app.get('/api/public/faq', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.json((load().faq || []).filter(f => f.showOnSite).map(f => ({
+    id:    f.id,
+    title: f.title,
+    body:  f.body || '',
+    lines: Array.isArray(f.lines) ? f.lines.map(l => ({ label: l.label || '', text: l.text || '' })) : [],
+  })));
 });
 
 // Всё остальное под /api требует валидный токен

@@ -307,6 +307,14 @@ html, body {
   border-radius: 5px; padding: 3px 5px;
 }
 [data-theme="light"] .sale-tag { color: #b45309; background: rgba(180,83,9,0.07); border-color: rgba(180,83,9,0.20); }
+.site-tag {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #34d399;
+  background: rgba(52,211,153,0.10);
+  border: 1px solid rgba(52,211,153,0.28);
+  border-radius: 5px; padding: 3px 5px;
+}
+[data-theme="light"] .site-tag { color: #047857; background: rgba(4,120,87,0.07); border-color: rgba(4,120,87,0.20); }
 .item-name {
   font-size: 14px; font-weight: 600; letter-spacing: -0.3px;
   color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -926,6 +934,8 @@ html, body {
 .monarc-toggle input:checked ~ .monarc-toggle-slider::before { transform: translateX(18px); }
 .sale-toggle input:checked ~ .monarc-toggle-slider { background: #fbbf24; }
 [data-theme="light"] .sale-toggle input:checked ~ .monarc-toggle-slider { background: #d97706; }
+.site-toggle input:checked ~ .monarc-toggle-slider { background: #34d399; }
+[data-theme="light"] .site-toggle input:checked ~ .monarc-toggle-slider { background: #059669; }
 
 /* Generic toggle alias (used in owner modal etc.) */
 .toggle-switch { position: relative; display: inline-block; width: 44px; height: 26px; flex-shrink: 0; cursor: pointer; }
