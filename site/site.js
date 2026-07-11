@@ -183,17 +183,6 @@ function openFromUrl(push = false) {
   if (it) openModal(it, push); else closeModal(false);
 }
 window.addEventListener('popstate', () => openFromUrl(false));
-
-/* Копировать ссылку на товар */
-document.getElementById('mCopyLink').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  try { await navigator.clipboard.writeText(location.href); }
-  catch { const t = document.createElement('textarea'); t.value = location.href; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
-  const old = btn.textContent;
-  btn.textContent = 'Ссылка скопирована ✓';
-  btn.classList.add('done');
-  setTimeout(() => { btn.textContent = old; btn.classList.remove('done'); }, 1600);
-});
 modal.addEventListener('click', (e) => {
   if (e.target.closest('[data-close]')) { closeModal(); return; }
   /* Переключение фото по миниатюрам */
