@@ -131,14 +131,72 @@ function textHtml(b) {
     ${b.body ? `<div class="block-text-body">${nl2br(b.body)}</div>` : ''}
   </section>`;
 }
-function collectionHtml(c, items) {
-  return `<section class="collection-block">
-    <p class="collection-kicker">Подборка</p>
-    <h2>${esc(c.title)}</h2>
-    ${c.description ? `<p class="collection-desc">${esc(c.description)}</p>` : ''}
-    <div class="goods-grid collection-grid">${items.map(cardHTML).join('')}</div>
+function statementHtml(b) {
+  if (!b.text) return '';
+  return `<section class="site-block block-statement">
+    ${b.kicker ? `<p class="statement-kicker">${esc(b.kicker)}</p>` : ''}
+    <p class="statement-text">${nl2br(b.text)}</p>
   </section>`;
 }
+function marqueeHtml(b) {
+  if (!b.text) return '';
+  const seg = `<span class="marquee-seg">${esc(b.text)}<i class="marquee-star">✦</i></span>`;
+  // два одинаковых ряда подряд → бесшовная петля
+  return `<div class="site-block block-marquee" aria-label="${esc(b.text)}">
+    <div class="marquee-inner">${seg.repeat(8)}</div>
+    <div class="marquee-inner" aria-hidden="true">${seg.repeat(8)}</div>
+  </div>`;
+}
+function duoTile(img, caption, linkType, linkValue) {
+  const href = blockLinkHref({ linkType, linkValue });
+  const ext  = linkType === 'tg' || linkType === 'url';
+  const inner = `${img ? `<img src="${esc(img)}" alt="${esc(caption)}" loading="lazy" draggable="false">` : ''}
+    ${caption ? `<div class="block-banner-cap"><h2>${nl2br(caption)}</h2></div>` : ''}`;
+  return href
+    ? `<a class="duo-tile" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
+    : `<div class="duo-tile">${inner}</div>`;
+}
+function duoHtml(b) {
+  if (!b.imageA && !b.imageB) return '';
+  return `<div class="site-block block-duo">
+    ${duoTile(b.imageA, b.captionA, b.linkTypeA, b.linkValueA)}
+    ${duoTile(b.imageB, b.captionB, b.linkTypeB, b.linkValueB)}
+  </div>`;
+}
+function blockToHtml(b) {
+  switch (b.type) {
+    case 'banner':    return bannerHtml(b);
+    case 'text':      return textHtml(b);
+    case 'statement': return statementHtml(b);
+    case 'marquee':   return marqueeHtml(b);
+    case 'duo':       return duoHtml(b);
+    default:          return '';
+  }
+}
+
+function collectionHtml(c, items) {
+  return `<section class="collection-block">
+    <div class="collection-head">
+      <p class="collection-kicker">Подборка</p>
+      <span class="carousel-hint" aria-hidden="true">листайте →</span>
+    </div>
+    <h2>${esc(c.title)}</h2>
+    ${c.description ? `<p class="collection-desc">${esc(c.description)}</p>` : ''}
+    <div class="collection-carousel">
+      <div class="goods-grid collection-grid">${items.map(cardHTML).join('')}</div>
+    </div>
+  </section>`;
+}
+
+// Показать индикатор карусели только когда контент реально не влезает
+function markCarousels() {
+  document.querySelectorAll('.collection-block').forEach(block => {
+    const grid = block.querySelector('.collection-grid');
+    block.classList.toggle('scrollable', !!grid && grid.scrollWidth - grid.clientWidth > 8);
+  });
+}
+let _carouselResizeT;
+window.addEventListener('resize', () => { clearTimeout(_carouselResizeT); _carouselResizeT = setTimeout(markCarousels, 150); });
 
 /* Единый поток витрины: баннеры, текст и подборки в общем порядке (order).
    Промо-полосы — отдельно, тонкой строкой сверху. */
@@ -156,9 +214,10 @@ function renderStream(blocks, collections) {
 
   const byId = new Map(ITEMS.map(i => [i.id, i]));
   const stream = [];
-  for (const b of blocks)
-    if (b.type === 'banner' || b.type === 'text')
-      stream.push({ order: b.order || 0, kind: 'block', html: b.type === 'banner' ? bannerHtml(b) : textHtml(b) });
+  for (const b of blocks) {
+    const html = blockToHtml(b);
+    if (html) stream.push({ order: b.order || 0, kind: 'block', html });
+  }
   for (const c of (collections || [])) {
     const items = (c.itemIds || []).map(id => byId.get(id)).filter(Boolean);
     if (items.length) stream.push({ order: c.order || 0, kind: 'col', html: collectionHtml(c, items) });
@@ -168,6 +227,7 @@ function renderStream(blocks, collections) {
   document.getElementById('siteBlocks').innerHTML = stream.map(x => x.html).join('');
   document.getElementById('collectionsWrap').innerHTML = '';
   document.getElementById('gridHeading').hidden = stream.length === 0;
+  requestAnimationFrame(markCarousels);
 }
 
 /* Клик по карточке товара в потоке (подборки) — та же модалка */

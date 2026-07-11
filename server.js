@@ -358,11 +358,23 @@ app.get('/api/public/blocks', (req, res) => {
         heading: b.heading || '', subtext: b.subtext || '',
         linkType: b.linkType || 'none', linkValue: b.linkValue || '',
       };
-      if (b.type === 'text')  return { id: b.id, type: 'text',  order, heading: b.heading || '', body: b.body || '' };
-      if (b.type === 'promo') return { id: b.id, type: 'promo', order, text: b.text || '' };
+      if (b.type === 'text')      return { id: b.id, type: 'text',  order, heading: b.heading || '', body: b.body || '' };
+      if (b.type === 'promo')     return { id: b.id, type: 'promo', order, text: b.text || '' };
+      if (b.type === 'marquee')   return { id: b.id, type: 'marquee', order, text: b.text || '' };
+      if (b.type === 'statement') return { id: b.id, type: 'statement', order, kicker: b.kicker || '', text: b.text || '' };
+      if (b.type === 'duo') return {
+        id: b.id, type: 'duo', order,
+        imageA: b.imageA || '', captionA: b.captionA || '', linkTypeA: b.linkTypeA || 'none', linkValueA: b.linkValueA || '',
+        imageB: b.imageB || '', captionB: b.captionB || '', linkTypeB: b.linkTypeB || 'none', linkValueB: b.linkValueB || '',
+      };
       return { id: b.id, type: b.type, order };
     })
-    .filter(b => b.type !== 'banner' || b.image || b.heading);   // пустой баннер не показываем
+    .filter(b => {
+      if (b.type === 'banner')    return b.image || b.heading;   // пустой баннер не показываем
+      if (b.type === 'duo')       return b.imageA || b.imageB;
+      if (b.type === 'statement' || b.type === 'marquee') return b.text;
+      return true;
+    })
   res.json(blocks);
 });
 
@@ -990,8 +1002,9 @@ app.put('/api/blocks', (req, res) => {
   const db = load();
   if (!db.blocks) db.blocks = [];
   const b = { ...req.body };
-  // Картинка баннера: base64 → файл на volume (как у товаров).
-  if (typeof b.image === 'string' && b.image.startsWith('data:')) b.image = saveDataUrl(b.image) || b.image;
+  // Картинки (баннер + обе картинки двойного баннера): base64 → файл на volume.
+  for (const f of ['image', 'imageA', 'imageB'])
+    if (typeof b[f] === 'string' && b[f].startsWith('data:')) b[f] = saveDataUrl(b[f]) || b[f];
   if (!b.id) {
     b.id = uid();
     if (b.order == null) b.order = db.blocks.reduce((m, x) => Math.max(m, x.order || 0), 0) + 1;

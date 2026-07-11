@@ -3535,57 +3535,84 @@ class App {
 
   _renderBlockForm() {
     const b = this._block;
+    const esc = s => this.esc(s);
     const seg = (name, opts) => `<div class="blk-seg" data-seg="${name}">` +
       opts.map(o => `<button type="button" class="${b[name] === o.v ? 'on' : ''}" data-val="${o.v}">${o.t}</button>`).join('') + `</div>`;
     const g = (label, inner) => `<div class="form-group"><label class="form-label">${label}</label>${inner}</div>`;
+    // Универсальная загрузка картинки в поле field
+    const imgField = (field, label) => g(label, `
+      <div class="blk-banner-upload" data-imgfield="${field}">
+        <div class="blk-thumb">${b[field] ? `<img src="${esc(b[field])}" alt="">` : '<span>Нет фото</span>'}</div>
+        <div class="blk-upload-actions">
+          <button type="button" class="btn-line blk-img-btn">${b[field] ? 'Заменить' : 'Загрузить'}</button>
+          ${b[field] ? `<button type="button" class="btn-line danger blk-img-clear">Убрать</button>` : ''}
+        </div>
+        <input type="file" class="blk-img-input" accept="image/*" hidden>
+      </div>`);
+    // Универсальный выбор ссылки (typeKey/valueKey — куда пишем)
+    const linkField = (typeKey, valueKey, label) => g(label, `
+      <div class="blk-linkgroup">
+        <select class="form-input blk-linktype" data-typekey="${typeKey}" data-valkey="${valueKey}">
+          ${[['none', 'Без ссылки'], ['monarc', 'Раздел Monarc'], ['type', 'Раздел Type'], ['tg', 'Telegram'], ['url', 'Своя ссылка']]
+            .map(([v, t]) => `<option value="${v}"${(b[typeKey] || 'none') === v ? ' selected' : ''}>${t}</option>`).join('')}
+        </select>
+        <input type="text" class="form-input blk-linkvalue" value="${esc(b[valueKey] || '')}" placeholder="https://…" style="margin-top:8px;${b[typeKey] === 'url' ? '' : 'display:none'}">
+      </div>`);
 
     let html = '';
     if (this._blockIsNew)
-      html += g('Тип блока', seg('type', [{ v: 'banner', t: 'Фото-баннер' }, { v: 'text', t: 'Текст' }, { v: 'promo', t: 'Промо-полоса' }]));
+      html += g('Тип блока', seg('type', [
+        { v: 'banner', t: 'Баннер' }, { v: 'duo', t: 'Двойной' }, { v: 'statement', t: 'Слоган' },
+        { v: 'text', t: 'Текст' }, { v: 'marquee', t: 'Строка' }, { v: 'promo', t: 'Промо' },
+      ]));
     html += g('Раздел', seg('section', [{ v: 'all', t: 'Везде' }, { v: 'monarc', t: 'Monarc' }, { v: 'type', t: 'Type' }]));
 
     if (b.type === 'banner') {
-      html += g('Картинка', `
-        <div class="blk-banner-upload">
-          <div class="blk-thumb">${b.image ? `<img src="${this.esc(b.image)}" alt="">` : '<span>Нет фото</span>'}</div>
-          <div class="blk-upload-actions">
-            <button type="button" class="btn-line" id="blkImgBtn">${b.image ? 'Заменить фото' : 'Загрузить фото'}</button>
-            ${b.image ? `<button type="button" class="btn-line danger" id="blkImgClear">Убрать</button>` : ''}
-          </div>
-          <input type="file" id="blkImgInput" accept="image/*" hidden>
-        </div>`);
-      html += g('Заголовок (необязательно)', `<input type="text" class="form-input" id="blkHeading" value="${this.esc(b.heading || '')}" placeholder="Например: Новая коллекция">`);
-      html += g('Подпись (необязательно)', `<textarea class="form-input form-textarea" id="blkSubtext" rows="2" placeholder="Короткий текст под заголовком…">${this.esc(b.subtext || '')}</textarea>`);
-      html += g('Ссылка при клике', `
-        <select class="form-input" id="blkLinkType">
-          ${[['none', 'Без ссылки'], ['monarc', 'Раздел Monarc'], ['type', 'Раздел Type'], ['tg', 'Telegram'], ['url', 'Своя ссылка']]
-            .map(([v, t]) => `<option value="${v}"${(b.linkType || 'none') === v ? ' selected' : ''}>${t}</option>`).join('')}
-        </select>
-        <input type="text" class="form-input" id="blkLinkValue" value="${this.esc(b.linkValue || '')}" placeholder="https://…" style="margin-top:8px;${b.linkType === 'url' ? '' : 'display:none'}">`);
+      html += imgField('image', 'Картинка');
+      html += g('Заголовок (необязательно)', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || '')}" placeholder="Например: Новая коллекция">`);
+      html += g('Подпись (необязательно)', `<textarea class="form-input form-textarea" id="blkSubtext" rows="2" placeholder="Короткий текст под заголовком…">${esc(b.subtext || '')}</textarea>`);
+      html += linkField('linkType', 'linkValue', 'Ссылка при клике');
+    } else if (b.type === 'duo') {
+      html += `<div class="blk-hint">Две картинки рядом (на мобильном — друг под другом). Заголовок и ссылка у каждой — по желанию.</div>`;
+      html += imgField('imageA', 'Картинка 1');
+      html += g('Заголовок 1 (необязательно)', `<input type="text" class="form-input" id="blkCaptionA" value="${esc(b.captionA || '')}" placeholder="Например: Новинки">`);
+      html += linkField('linkTypeA', 'linkValueA', 'Ссылка 1');
+      html += `<div class="blk-divider"></div>`;
+      html += imgField('imageB', 'Картинка 2');
+      html += g('Заголовок 2 (необязательно)', `<input type="text" class="form-input" id="blkCaptionB" value="${esc(b.captionB || '')}" placeholder="Например: Sale">`);
+      html += linkField('linkTypeB', 'linkValueB', 'Ссылка 2');
+    } else if (b.type === 'statement') {
+      html += `<div class="blk-hint">Крупное центрированное заявление — как разворот в лукбуке.</div>`;
+      html += g('Надзаголовок (необязательно)', `<input type="text" class="form-input" id="blkKicker" value="${esc(b.kicker || '')}" placeholder="Например: Новый сезон">`);
+      html += g('Текст <span style="color:var(--text3);font-weight:400">— Enter для новой строки</span>',
+        `<textarea class="form-input form-textarea" id="blkStatement" rows="3" placeholder="Например: Сделано\nдля тех, кто\nвыбирает лучшее">${esc(b.text || '')}</textarea>`);
     } else if (b.type === 'text') {
       html += g('Заголовок <span style="color:var(--text3);font-weight:400">— Enter для новой строки</span>',
-        `<textarea class="form-input form-textarea" id="blkHeading" rows="2" placeholder="Например: Условия\nдоставки">${this.esc(b.heading || '')}</textarea>`);
-      html += g('Текст', `<textarea class="form-input form-textarea" id="blkBody" rows="5" placeholder="Текст блока…">${this.esc(b.body || '')}</textarea>`);
+        `<textarea class="form-input form-textarea" id="blkHeading" rows="2" placeholder="Например: Условия\nдоставки">${esc(b.heading || '')}</textarea>`);
+      html += g('Текст', `<textarea class="form-input form-textarea" id="blkBody" rows="5" placeholder="Текст блока…">${esc(b.body || '')}</textarea>`);
+    } else if (b.type === 'marquee') {
+      html += `<div class="blk-hint">Бегущая строка — фраза плавно едет по экрану.</div>`;
+      html += g('Текст строки', `<input type="text" class="form-input" id="blkMarquee" value="${esc(b.text || '')}" placeholder="Например: Новая коллекция уже здесь">`);
     } else {
-      html += g('Текст полосы', `<input type="text" class="form-input" id="blkText" value="${this.esc(b.text || '')}" placeholder="Например: Бесплатная доставка от 5000 ₽">`);
+      html += g('Текст полосы', `<input type="text" class="form-input" id="blkText" value="${esc(b.text || '')}" placeholder="Например: Бесплатная доставка от 5000 ₽">`);
     }
     document.getElementById('blockFormBody').innerHTML = html;
   }
 
   _readBlockForm() {
-    const val = id => { const el = document.getElementById(id); return el ? el.value : undefined; };
     const b = this._block;
-    if (b.type === 'banner') {
-      if (val('blkHeading')   !== undefined) b.heading   = val('blkHeading').trim();
-      if (val('blkSubtext')   !== undefined) b.subtext   = val('blkSubtext').trim();
-      if (val('blkLinkType')  !== undefined) b.linkType  = val('blkLinkType');
-      if (val('blkLinkValue') !== undefined) b.linkValue = val('blkLinkValue').trim();
-    } else if (b.type === 'text') {
-      if (val('blkHeading') !== undefined) b.heading = val('blkHeading').trim();
-      if (val('blkBody')    !== undefined) b.body    = val('blkBody');
-    } else {
-      if (val('blkText') !== undefined) b.text = val('blkText').trim();
-    }
+    const set = (id, key, trim = true) => { const el = document.getElementById(id); if (el) b[key] = trim ? el.value.trim() : el.value; };
+    if (b.type === 'banner')          { set('blkHeading', 'heading'); set('blkSubtext', 'subtext'); }
+    else if (b.type === 'text')       { set('blkHeading', 'heading'); set('blkBody', 'body', false); }
+    else if (b.type === 'promo')      { set('blkText', 'text'); }
+    else if (b.type === 'marquee')    { set('blkMarquee', 'text'); }
+    else if (b.type === 'statement')  { set('blkKicker', 'kicker'); set('blkStatement', 'text', false); }
+    else if (b.type === 'duo')        { set('blkCaptionA', 'captionA'); set('blkCaptionB', 'captionB'); }
+    // ссылки — общий механизм
+    document.querySelectorAll('#blockFormBody .blk-linkgroup').forEach(gp => {
+      const sel = gp.querySelector('.blk-linktype'), inp = gp.querySelector('.blk-linkvalue');
+      if (sel) { b[sel.dataset.typekey] = sel.value; if (inp) b[sel.dataset.valkey] = inp.value.trim(); }
+    });
   }
 
   _onBlockFormClick(e) {
@@ -3596,20 +3623,23 @@ class App {
       this._renderBlockForm();
       return;
     }
-    if (e.target.closest('#blkImgBtn'))   { document.getElementById('blkImgInput').click(); return; }
-    if (e.target.closest('#blkImgClear')) { this._readBlockForm(); this._block.image = ''; this._renderBlockForm(); return; }
+    const btn = e.target.closest('.blk-img-btn');
+    if (btn) { btn.closest('[data-imgfield]').querySelector('.blk-img-input').click(); return; }
+    const clr = e.target.closest('.blk-img-clear');
+    if (clr) { this._readBlockForm(); this._block[clr.closest('[data-imgfield]').dataset.imgfield] = ''; this._renderBlockForm(); }
   }
 
   _onBlockFormChange(e) {
-    if (e.target.id === 'blkImgInput') {
+    if (e.target.classList.contains('blk-img-input')) {
+      const field = e.target.closest('[data-imgfield]').dataset.imgfield;
       const f = e.target.files[0];
       if (f) resizeImage(f, 1400, 1400, 0.85)
-        .then(url => { this._readBlockForm(); this._block.image = url; this._renderBlockForm(); })
+        .then(url => { this._readBlockForm(); this._block[field] = url; this._renderBlockForm(); })
         .catch(() => this.toast('Ошибка загрузки фото'));
       return;
     }
-    if (e.target.id === 'blkLinkType') {
-      const lv = document.getElementById('blkLinkValue');
+    if (e.target.classList.contains('blk-linktype')) {
+      const lv = e.target.parentElement.querySelector('.blk-linkvalue');
       if (lv) lv.style.display = e.target.value === 'url' ? '' : 'none';
     }
   }
@@ -3617,9 +3647,12 @@ class App {
   async saveBlockForm() {
     this._readBlockForm();
     const b = this._block;
-    if (b.type === 'promo'  && !b.text)                 { this.toast('Введите текст полосы'); return; }
-    if (b.type === 'text'   && !b.heading && !b.body)   { this.toast('Заполните заголовок или текст'); return; }
-    if (b.type === 'banner' && !b.image && !b.heading)  { this.toast('Добавьте картинку или заголовок'); return; }
+    if (b.type === 'promo'     && !b.text)                { this.toast('Введите текст полосы'); return; }
+    if (b.type === 'marquee'   && !b.text)                { this.toast('Введите текст строки'); return; }
+    if (b.type === 'statement' && !b.text)                { this.toast('Введите текст слогана'); return; }
+    if (b.type === 'text'      && !b.heading && !b.body)  { this.toast('Заполните заголовок или текст'); return; }
+    if (b.type === 'banner'    && !b.image && !b.heading) { this.toast('Добавьте картинку или заголовок'); return; }
+    if (b.type === 'duo'       && !b.imageA && !b.imageB) { this.toast('Добавьте хотя бы одну картинку'); return; }
     if (this._blockIsNew && this.currentView === 'site') b.order = this._nextStreamOrder();  // в конец потока
     await this.db.saveBlock(b);
     this.closeModal('blockModal');
@@ -3681,10 +3714,16 @@ class App {
   }
 
   _blockRowHtml(b, i, n) {
-    const TYPE = { banner: { t: 'Фото-баннер', e: '🖼' }, text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' } };
+    const TYPE = {
+      banner: { t: 'Фото-баннер', e: '🖼' }, duo: { t: 'Двойной баннер', e: '🖼' },
+      statement: { t: 'Слоган', e: '✦' }, text: { t: 'Текст', e: '📝' },
+      marquee: { t: 'Бегущая строка', e: '➰' }, promo: { t: 'Промо-полоса', e: '📣' },
+    };
     const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
     const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
-    const label = b.type === 'promo' ? b.text : (b.heading || (b.type === 'banner' ? 'Баннер без заголовка' : 'Без заголовка'));
+    const label = (b.type === 'promo' || b.type === 'marquee' || b.type === 'statement') ? b.text
+      : b.type === 'duo' ? (b.captionA || b.captionB || 'Двойной баннер')
+      : (b.heading || (b.type === 'banner' ? 'Баннер без заголовка' : 'Без заголовка'));
     const sub = `${meta.t} · ${SEC[b.section] || b.section}${b.type === 'promo' ? ' · сверху' : ''}${b.enabled ? '' : ' · скрыт'}`;
     return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}" data-kind="block">
       <div class="settings-row-icon" style="background:rgba(167,139,250,.14)">${meta.e}</div>

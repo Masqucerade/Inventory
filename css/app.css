@@ -979,13 +979,15 @@ html, body {
 .block-delete-btn:hover:not(:disabled) { color: #f87171; background: rgba(248,113,113,.1); }
 .settings-row.off { opacity: .5; }
 
-.blk-seg { display: flex; gap: 6px; }
+.blk-seg { display: flex; gap: 6px; flex-wrap: wrap; }
 .blk-seg button {
-  flex: 1; padding: 9px 8px; border-radius: 9px; cursor: pointer;
+  flex: 1 1 28%; padding: 9px 8px; border-radius: 9px; cursor: pointer;
   background: var(--fill2); border: 1px solid transparent; color: var(--text2);
   font-size: 12.5px; font-weight: 500; transition: all .15s;
 }
 .blk-seg button.on { background: var(--fill); border-color: var(--sep); color: var(--text); }
+.blk-hint { font-size: 12px; color: var(--text3); line-height: 1.5; margin-bottom: 14px; background: var(--fill2); padding: 10px 12px; border-radius: 9px; }
+.blk-divider { height: 1px; background: var(--sep2); margin: 20px 0; }
 
 .blk-banner-upload { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .blk-thumb {
