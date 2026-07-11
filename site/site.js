@@ -70,7 +70,7 @@ function sizesLabel(sizes) {
 }
 
 function cardHTML(i) {
-  const cover = (i.photos && i.photos[0]) || null;
+  const cover = (i.thumbs && i.thumbs[0]) || (i.photos && i.photos[0]) || null;
   return `
     <article class="good-card" data-id="${esc(i.id)}">
       <div class="good-photo">

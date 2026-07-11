@@ -942,7 +942,7 @@ class App {
     document.getElementById('photoInput').addEventListener('change', async (e) => {
       const files = [...e.target.files].slice(0, 10 - this._photos.length);
       for (const file of files) {
-        try { this._photos.push(await resizeImage(file)); }
+        try { this._photos.push(await makePhotoVariants(file)); }
         catch (_) { this.toast('Ошибка загрузки фото'); }
       }
       this._renderPhotoStrip();
@@ -974,7 +974,7 @@ class App {
       e.preventDefault();
       if (this._photos.length >= 10) { this.toast('Максимум 10 фото'); return; }
       try {
-        this._photos.push(await resizeImage(file));
+        this._photos.push(await makePhotoVariants(file));
         this._renderPhotoStrip();
         this.toast('Фото вставлено ✓');
       } catch (_) { this.toast('Ошибка вставки фото'); }
@@ -1274,8 +1274,9 @@ class App {
   _itemCardHtml(item, idx, ownerMap) {
     const st    = statusById(item.orderStatus);
     const owner = ownerMap[item.ownerId];
-    const thumb = item.photo
-      ? `<img src="${item.photo}" loading="lazy" alt="">`
+    const cover = item.thumbs?.[0] || item.photos?.[0] || item.photo;
+    const thumb = cover
+      ? `<img src="${cover}" loading="lazy" alt="">`
       : `<div class="item-thumb-placeholder">
            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
@@ -1561,8 +1562,8 @@ class App {
           ? item.sizes.map(s => ({ size: s.size || '', qty: s.qty || 0 }))
           : [{ size: item.size || '', qty: item.quantity || 1 }];
         this._photos = Array.isArray(item.photos) && item.photos.length
-          ? [...item.photos]
-          : (item.photo ? [item.photo] : []);
+          ? item.photos.map((full, i) => ({ full, thumb: item.thumbs?.[i] || full }))
+          : (item.photo ? [{ full: item.photo, thumb: item.photo }] : []);
         this._renderPhotoStrip();
       }
     }
@@ -1578,7 +1579,7 @@ class App {
     if (!el) return;
     el.innerHTML = this._photos.map((p, i) => `
       <div class="photo-thumb${i === 0 ? ' main' : ''}" data-idx="${i}" title="${i === 0 ? 'Главное фото' : 'Сделать главным'}">
-        <img src="${p}" alt="">
+        <img src="${p.thumb}" alt="">
         ${i === 0 ? '<span class="photo-main-badge">Главное</span>' : ''}
         <button type="button" class="photo-thumb-remove" data-idx="${i}">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
@@ -1795,8 +1796,9 @@ class App {
       showOnSite:   document.getElementById('fieldShowOnSite').checked,
       description:  document.getElementById('fieldSiteDesc').value.trim(),
       measurements: document.getElementById('fieldMeasurements').value.trim(),
-      photos:       [...this._photos],
-      photo:        this._photos[0] || null,
+      photos:       this._photos.map(p => p.full),
+      thumbs:       this._photos.map(p => p.thumb),
+      photo:        this._photos[0]?.full || null,
       categoryId:  document.getElementById('fieldCategory').value || null,
       _updatedBy:  null,
     };

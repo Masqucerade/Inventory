@@ -30,6 +30,39 @@ const DATA_DIR  = process.env.DATA_DIR  || path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'db.json');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
+// Фото лежат отдельными файлами на volume, а не base64 в db.json. Имена — по
+// content-hash, поэтому раздаём с вечным кэшем (файл с таким именем неизменен).
+const PHOTOS_DIR = path.join(DATA_DIR, 'photos');
+fs.mkdirSync(PHOTOS_DIR, { recursive: true });
+app.use('/photos', express.static(PHOTOS_DIR, { immutable: true, maxAge: '365d' }));
+
+// data:image/…;base64,… → файл /photos/<hash>.jpg. Дедуп по хэшу: одинаковые
+// байты пишутся один раз. Возвращает ссылку либо null, если это не data-URL.
+function saveDataUrl(dataUrl) {
+  const m = /^data:image\/([a-z]+);base64,(.+)$/is.exec(dataUrl);
+  if (!m) return null;
+  const ext = m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase();
+  const name = crypto.createHash('sha1').update(m[2]).digest('hex').slice(0, 16) + '.' + ext;
+  const file = path.join(PHOTOS_DIR, name);
+  try { if (!fs.existsSync(file)) fs.writeFileSync(file, Buffer.from(m[2], 'base64')); }
+  catch (e) { console.error('photo write failed:', e.message); return null; }
+  return '/photos/' + name;
+}
+
+// Выгружает base64-фото товара в файлы, оставляя ссылки. Идемпотентна: ссылки
+// /photos/… и любые не-data-строки проходят как есть. Мутирует и возвращает item.
+function externalizePhotos(item) {
+  if (!item || typeof item !== 'object') return item;
+  const ref = v => (typeof v === 'string' && v.startsWith('data:')) ? (saveDataUrl(v) || v) : v;
+  if (Array.isArray(item.photos)) item.photos = item.photos.map(ref).filter(Boolean);
+  if (Array.isArray(item.thumbs)) item.thumbs = item.thumbs.map(ref).filter(Boolean);
+  if (typeof item.photo === 'string') item.photo = ref(item.photo);
+  // Легаси/миграция: миниатюр нет — берём полные (они и так ≤900px).
+  if ((!item.thumbs || !item.thumbs.length) && item.photos && item.photos.length)
+    item.thumbs = [...item.photos];
+  return item;
+}
+
 // БД держим в памяти: читаем/парсим файл один раз при старте, дальше отдаём
 // из ОЗУ. Иначе каждый из ~10 запросов на загрузку страницы заново читал и
 // парсил весь db.json с диска (с base64-фото) — отсюда и тормоза.
@@ -186,17 +219,22 @@ app.get('/api/public/items', (req, res) => {
   let items = (load().items || []).filter(i => i.showOnSite && i.orderStatus !== 'done');
   if (['brands', 'monarc'].includes(req.query.section)) items = items.filter(i => i.isMonarc);
   else if (req.query.section === 'type')                items = items.filter(i => !i.isMonarc);
-  res.json(items.map(i => ({
-    id:           i.id,
-    name:         i.name,
-    price:        i.price ?? null,
-    photos:       Array.isArray(i.photos) && i.photos.length ? i.photos : (i.photo ? [i.photo] : []),
-    sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0) : null,
-    description:  i.description || '',
-    measurements: i.measurements || '',
-    categoryId:   i.categoryId || null,
-    quantity:     i.quantity ?? null,
-  })));
+  res.json(items.map(i => {
+    const photos = Array.isArray(i.photos) && i.photos.length ? i.photos : (i.photo ? [i.photo] : []);
+    const thumbs = Array.isArray(i.thumbs) && i.thumbs.length ? i.thumbs : photos;
+    return {
+      id:           i.id,
+      name:         i.name,
+      price:        i.price ?? null,
+      photos,
+      thumbs,
+      sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0) : null,
+      description:  i.description || '',
+      measurements: i.measurements || '',
+      categoryId:   i.categoryId || null,
+      quantity:     i.quantity ?? null,
+    };
+  }));
 });
 
 app.get('/api/public/categories', (req, res) => {
@@ -376,7 +414,7 @@ app.get('/api/items/:id', (req, res) => {
 app.put('/api/items', (req, res) => {
   const db  = load();
   const now = new Date().toISOString();
-  const item = { ...req.body };
+  const item = externalizePhotos({ ...req.body });
   // hideCosts-пользователь не видит закупочные поля — сохраняем их из старой записи
   if (req.user?.hideCosts && req.user.role !== 'root' && item.id) {
     const old = (db.items || []).find(i => i.id === item.id);
@@ -974,7 +1012,7 @@ app.get('/api/export', (req, res) => {
 
 app.post('/api/import', (req, res) => {
   const db  = load();
-  db.items  = req.body.items  || [];
+  db.items  = (req.body.items || []).map(externalizePhotos);
   db.owners = req.body.owners || [];
   save(db);
   res.json({ ok: true });
@@ -1041,8 +1079,33 @@ function scheduleBackup() {
   else console.log(`Next backup in ${Math.round(delay / 3600000)}h`);
 }
 
+// Разовая миграция: выгрузить base64-фото существующих товаров в файлы.
+function migratePhotos() {
+  const db = load();
+  if (!Array.isArray(db.items) || !db.items.length) return;
+  // Страховка: перед первым переносом сохраняем нетронутую копию базы (с base64)
+  // на volume. Пишем один раз — потом файл остаётся как оффлайн-откат.
+  const preFile = path.join(DATA_DIR, 'db.premigration.json');
+  const hasB64 = db.items.some(it =>
+    [...(it.photos || []), ...(it.thumbs || []), it.photo]
+      .some(v => typeof v === 'string' && v.startsWith('data:')));
+  if (hasB64 && !fs.existsSync(preFile)) {
+    try { fs.writeFileSync(preFile, fs.readFileSync(DATA_FILE)); console.log('Pre-migration backup written:', preFile); }
+    catch (e) { console.error('Pre-migration backup FAILED, aborting migration:', e.message); return; }
+  }
+  let changed = 0;
+  for (const it of db.items) {
+    const before = JSON.stringify([it.photos, it.thumbs, it.photo]);
+    externalizePhotos(it);
+    if (JSON.stringify([it.photos, it.thumbs, it.photo]) !== before) changed++;
+  }
+  if (changed) { save(db); console.log(`Photo migration: ${changed} item(s) externalized`); }
+  else console.log('Photo migration: nothing to do');
+}
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Masqucerade INC. v2 on :${PORT}`);
+  migratePhotos();
   scheduleBackup();
 });

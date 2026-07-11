@@ -153,6 +153,35 @@ class BackupManager {
 }
 
 /* ── Image resize ── */
+// Масштабирует уже загруженный <img> в JPEG data-URL со стороной ≤ max.
+function _scaleToDataUrl(img, max, q) {
+  let { width: w, height: h } = img;
+  if (w > max) { h = Math.round(h * max / w); w = max; }
+  if (h > max) { w = Math.round(w * max / h); h = max; }
+  const c = Object.assign(document.createElement('canvas'), { width: w, height: h });
+  c.getContext('2d').drawImage(img, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', q);
+}
+
+// Из файла делаем две версии: full (≤900px) для просмотра и thumb (≤300px,
+// ~15 КБ) для списков и карточек. Декодируем файл один раз.
+function makePhotoVariants(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload  = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload  = () => resolve({
+        full:  _scaleToDataUrl(img, 900, 0.82),
+        thumb: _scaleToDataUrl(img, 300, 0.7),
+      });
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function resizeImage(file, maxW = 900, maxH = 900, q = 0.82) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
