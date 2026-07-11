@@ -348,6 +348,18 @@ img { max-width: 100%; display: block; }
 .tg-btn:hover { background: var(--gold-hi); transform: translateY(-1px); }
 .m-desc + .tg-btn, .m-sizes + .tg-btn { margin-top: 26px; }
 
+.copy-link {
+  margin-top: 10px; padding: 11px 18px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border-radius: 14px; background: transparent;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  color: inherit; opacity: .72;
+  font-size: 13px; font-weight: 500; letter-spacing: .02em; cursor: pointer;
+  transition: opacity .2s, border-color .2s, background .2s;
+}
+.copy-link:hover { opacity: 1; border-color: color-mix(in srgb, currentColor 40%, transparent); }
+.copy-link.done { opacity: 1; color: var(--gold); border-color: color-mix(in srgb, var(--gold) 50%, transparent); }
+
 /* ─── Мобильные ─── */
 @media (max-width: 640px) {
   .portal-cards { flex-direction: column; max-width: 420px; }

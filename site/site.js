@@ -38,6 +38,7 @@ async function boot() {
     renderChips();
     renderGrid();
     renderFaq(faq);
+    openFromUrl();          // если зашли по прямой ссылке на товар — открыть его
   } catch (e) {
     document.getElementById('goodsGrid').innerHTML =
       '<div class="goods-empty">Не удалось загрузить каталог — попробуйте обновить страницу</div>';
@@ -132,7 +133,7 @@ document.getElementById('goodsGrid').addEventListener('click', (e) => {
   if (item) openModal(item);
 });
 
-function openModal(i) {
+function openModal(i, push = true) {
   const cat    = CATS.find(c => c.id === i.categoryId);
   const photos = i.photos || [];
   document.getElementById('mPhoto').innerHTML = photos.length
@@ -163,12 +164,36 @@ function openModal(i) {
   document.getElementById('mTgBtn').href = `https://t.me/${TG_USERNAME}?text=${msg}`;
   modal.hidden = false;
   document.body.style.overflow = 'hidden';
+
+  // Прямая ссылка на товар в адресной строке — можно копировать и слать клиенту.
+  if (push) history.pushState({ item: i.id }, '', `${location.pathname}?item=${encodeURIComponent(i.id)}`);
 }
 
-function closeModal() {
+function closeModal(push = true) {
   modal.hidden = true;
   document.body.style.overflow = '';
+  if (push && new URLSearchParams(location.search).get('item'))
+    history.pushState({}, '', location.pathname);
 }
+
+/* Открыть товар по прямой ссылке /type?item=<id> при заходе и по кнопкам назад/вперёд */
+function openFromUrl(push = false) {
+  const id = new URLSearchParams(location.search).get('item');
+  const it = id && ITEMS.find(i => i.id === id);
+  if (it) openModal(it, push); else closeModal(false);
+}
+window.addEventListener('popstate', () => openFromUrl(false));
+
+/* Копировать ссылку на товар */
+document.getElementById('mCopyLink').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  try { await navigator.clipboard.writeText(location.href); }
+  catch { const t = document.createElement('textarea'); t.value = location.href; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  const old = btn.textContent;
+  btn.textContent = 'Ссылка скопирована ✓';
+  btn.classList.add('done');
+  setTimeout(() => { btn.textContent = old; btn.classList.remove('done'); }, 1600);
+});
 modal.addEventListener('click', (e) => {
   if (e.target.closest('[data-close]')) { closeModal(); return; }
   /* Переключение фото по миниатюрам */

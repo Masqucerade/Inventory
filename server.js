@@ -4,15 +4,96 @@ const path    = require('path');
 const crypto  = require('crypto');
 
 const app = express();
+app.set('trust proxy', true);          // за прокси Railway → req.protocol === 'https'
 app.use(express.json({ limit: '25mb' }));
-// Страницы: / — публичный сайт-витрина, /brands и /type — каталог,
-// админка (Mini App) живёт на /admin.
+
+// Страницы: / — витрина, /monarc и /type — каталог, /admin — Mini App.
 const sendHtml = (res, file) =>
   res.sendFile(path.join(__dirname, file), { headers: { 'Cache-Control': 'no-cache' } });
-app.get('/',                  (req, res) => sendHtml(res, 'site/index.html'));
-app.get(['/monarc', '/type'], (req, res) => sendHtml(res, 'site/catalog.html'));
-app.get('/brands',            (req, res) => res.redirect(301, '/monarc'));
-app.get('/admin',             (req, res) => sendHtml(res, 'index.html'));
+
+/* ─── SEO: og-теги (превью в Telegram), per-item карточки, sitemap ─── */
+// HTML витрины читаем один раз и подставляем <!--META--> на каждый запрос.
+const SITE_INDEX   = fs.readFileSync(path.join(__dirname, 'site/index.html'),   'utf8');
+const SITE_CATALOG = fs.readFileSync(path.join(__dirname, 'site/catalog.html'), 'utf8');
+const OG_FALLBACK  = '/site/og-cover.png';
+
+const escAttr = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const originOf = req => `${req.protocol}://${req.get('host')}`;
+
+function headTags({ title, description, url, image, type = 'website' }) {
+  const t = escAttr(title), d = escAttr(description), u = escAttr(url), i = escAttr(image);
+  return `<title>${t}</title>
+  <meta name="description" content="${d}">
+  <meta property="og:type" content="${type}">
+  <meta property="og:site_name" content="Masqucerade INC.">
+  <meta property="og:title" content="${t}">
+  <meta property="og:description" content="${d}">
+  <meta property="og:url" content="${u}">
+  <meta property="og:image" content="${i}">
+  <meta property="og:locale" content="ru_RU">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${t}">
+  <meta name="twitter:description" content="${d}">
+  <meta name="twitter:image" content="${i}">`;
+}
+
+app.get('/', (req, res) => {
+  const o = originOf(req);
+  res.set('Cache-Control', 'no-cache').send(SITE_INDEX.replace('<!--META-->', headTags({
+    title:       'Masqucerade INC.',
+    description: 'Monarc — оригинальные дизайнерские бренды. Type Clothes — повседневная одежда в безупречном исполнении.',
+    url:   o + '/',
+    image: o + OG_FALLBACK,
+  })));
+});
+
+app.get(['/monarc', '/type'], (req, res) => {
+  const o = originOf(req);
+  const section  = req.path === '/monarc' ? 'monarc' : 'type';
+  const secTitle = section === 'monarc' ? 'Monarc' : 'Type Clothes';
+  let title = `Masqucerade INC. — ${secTitle}`;
+  let description = section === 'monarc'
+    ? 'Оригинальные дизайнерские бренды — ERD, Chrome Hearts, Balenciaga, Rick Owens и другие.'
+    : 'Люкс-качество на каждый день — повседневная одежда в безупречном исполнении.';
+  let image = o + OG_FALLBACK, url = `${o}/${section}`, type = 'website';
+
+  // Прямая ссылка на товар /type?item=<id> → превью конкретной вещи с её фото.
+  const id = req.query.item;
+  if (id) {
+    const it = (load().items || []).find(i => i.id === id && i.showOnSite && i.orderStatus !== 'done');
+    if (it) {
+      const photos = (it.photos && it.photos.length) ? it.photos : (it.photo ? [it.photo] : []);
+      const price  = it.price != null ? new Intl.NumberFormat('ru-RU').format(it.price) + ' ₽' : '';
+      title = `${it.name} — Masqucerade INC.`;
+      description = it.description || [price, secTitle].filter(Boolean).join(' · ');
+      if (photos[0]) image = o + photos[0];
+      url  = `${o}/${section}?item=${encodeURIComponent(id)}`;
+      type = 'product';
+    }
+  }
+  res.set('Cache-Control', 'no-cache').send(SITE_CATALOG.replace('<!--META-->', headTags({ title, description, url, image, type })));
+});
+
+app.get('/brands', (req, res) => res.redirect(301, '/monarc'));
+app.get('/admin',  (req, res) => sendHtml(res, 'index.html'));
+
+app.get('/sitemap.xml', (req, res) => {
+  const o = originOf(req);
+  const urls = [`${o}/`, `${o}/monarc`, `${o}/type`];
+  for (const it of (load().items || [])) {
+    if (it.showOnSite && it.orderStatus !== 'done')
+      urls.push(`${o}/${it.isMonarc ? 'monarc' : 'type'}?item=${encodeURIComponent(it.id)}`);
+  }
+  res.type('application/xml').send(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+    urls.map(u => `  <url><loc>${u.replace(/&/g, '&amp;')}</loc></url>`).join('\n') +
+    `\n</urlset>\n`);
+});
+
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(
+    `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\n\nSitemap: ${originOf(req)}/sitemap.xml\n`);
+});
 
 // db.json (фото, пароли, финансы) не должен отдаваться статикой
 app.use('/data', (req, res) => res.status(404).end());
