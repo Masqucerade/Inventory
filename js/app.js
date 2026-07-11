@@ -319,6 +319,12 @@ class App {
           </div>
           <span>Подборки<br>на сайте</span>
         </button>
+        <button class="menu-tile" id="mBlocksBtn">
+          <div class="menu-tile-icon" style="background:rgba(167,139,250,.14);color:#a78bfa">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="7" rx="1.5"/><rect x="3" y="14" width="11" height="7" rx="1.5"/><line x1="17.5" y1="14.5" x2="20.5" y2="14.5"/><line x1="17.5" y1="18" x2="20.5" y2="18"/></svg>
+          </div>
+          <span>Блоки<br>на сайте</span>
+        </button>
         <button class="menu-tile" id="mBtnTgBackup">
           <div class="menu-tile-icon" style="background:rgba(56,189,248,.12);color:#38bdf8">${svgSend}</div>
           <span>Бэкап<br>в Telegram</span>
@@ -404,6 +410,11 @@ class App {
     document.getElementById('mCollectionsBtn').addEventListener('click', () => {
       this.closeMenu();
       this.openCollectionsModal();
+    });
+
+    document.getElementById('mBlocksBtn').addEventListener('click', () => {
+      this.closeMenu();
+      this.openBlocksModal();
     });
 
     document.getElementById('mBtnTgBackup').addEventListener('click', async () => {
@@ -873,6 +884,37 @@ class App {
       row.classList.toggle('picked', this._colPicked.has(id));
       this._updateColCount();
     });
+
+    /* Блоки на сайте */
+    document.getElementById('blocksModalClose').addEventListener('click', () => this.closeModal('blocksModal'));
+    document.getElementById('blockAddBtn').addEventListener('click', () => this.openBlockModal());
+    document.getElementById('blockModalClose').addEventListener('click', () => this.closeModal('blockModal'));
+    document.getElementById('blockModalSave').addEventListener('click', () => this.saveBlockForm());
+    document.getElementById('blocksList').addEventListener('click', async (e) => {
+      const del = e.target.closest('.block-delete-btn');
+      if (del) {
+        if (!await this.confirm('Удалить блок?')) return;
+        await this.db.deleteBlock(del.dataset.id);
+        this.toast('Блок удалён');
+        this.renderBlocksList();
+        return;
+      }
+      const mv = e.target.closest('.block-move');
+      if (mv) { this.moveBlock(mv.dataset.id, mv.dataset.dir); return; }
+      const tg = e.target.closest('.block-toggle');
+      if (tg) {
+        const b = (this._blocks || []).find(x => x.id === tg.dataset.id);
+        if (b) { await this.db.saveBlock({ id: b.id, enabled: !b.enabled }); this.renderBlocksList(); }
+        return;
+      }
+      const row = e.target.closest('[data-block-id]');
+      if (row) {
+        const b = (this._blocks || []).find(x => x.id === row.dataset.blockId);
+        if (b) this.openBlockModal(b);
+      }
+    });
+    document.getElementById('blockFormBody').addEventListener('click', (e) => this._onBlockFormClick(e));
+    document.getElementById('blockFormBody').addEventListener('change', (e) => this._onBlockFormChange(e));
 
     /* Item modal */
     document.getElementById('itemModalClose').addEventListener('click', () => this.closeModal('itemModal'));
@@ -3447,6 +3489,158 @@ class App {
     this.toast(this._editingColId ? 'Подборка обновлена ✓' : 'Подборка создана ✓');
     this._editingColId = null;
     await this.renderCollectionsList();
+  }
+
+  /* ──────────────────────────────────────────
+     БЛОКИ НА САЙТЕ (баннер / текст / промо)
+     ────────────────────────────────────────── */
+  async openBlocksModal() {
+    await this.renderBlocksList();
+    this.openModal('blocksModal');
+  }
+
+  async renderBlocksList() {
+    this._blocks = (await this.db.getBlocks()).sort((a, b) => (a.order || 0) - (b.order || 0));
+    const el = document.getElementById('blocksList');
+    if (!this._blocks.length) {
+      el.innerHTML = `<div class="faq-empty">
+        <div style="font-size:28px">🧱</div>
+        <p>Блоков пока нет.<br>Добавьте баннер, текст или промо-полосу — они появятся на сайте.</p>
+      </div>`;
+      return;
+    }
+    const TYPE = { banner: { t: 'Фото-баннер', e: '🖼' }, text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' } };
+    const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
+    el.innerHTML = `<div class="settings-section">` + this._blocks.map((b, i) => {
+      const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
+      const label = b.type === 'promo' ? b.text : (b.heading || (b.type === 'banner' ? 'Баннер без заголовка' : 'Без заголовка'));
+      return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}">
+        <div class="settings-row-icon" style="background:rgba(167,139,250,.14)">${meta.e}</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">${this.esc(label || meta.t)}</div>
+          <div class="settings-row-sub">${meta.t} · ${SEC[b.section] || b.section}${b.enabled ? '' : ' · скрыт'}</div>
+        </div>
+        <div class="block-row-actions">
+          <button class="block-move" data-id="${b.id}" data-dir="up" title="Выше"${i === 0 ? ' disabled' : ''}>↑</button>
+          <button class="block-move" data-id="${b.id}" data-dir="down" title="Ниже"${i === this._blocks.length - 1 ? ' disabled' : ''}>↓</button>
+          <button class="block-toggle" data-id="${b.id}" title="${b.enabled ? 'Скрыть' : 'Показать'}">${b.enabled ? '👁' : '🚫'}</button>
+          <button class="block-delete-btn" data-id="${b.id}" title="Удалить">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
+  }
+
+  async moveBlock(id, dir) {
+    const arr = [...(this._blocks || [])];
+    const i = arr.findIndex(b => b.id === id);
+    const j = dir === 'up' ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    // Нормализуем порядок 0..n и сохраняем только сдвинувшиеся
+    await Promise.all(arr.map((b, idx) => b.order === idx ? null : this.db.saveBlock({ id: b.id, order: idx })));
+    await this.renderBlocksList();
+  }
+
+  openBlockModal(block = null) {
+    this._blockIsNew = !block;
+    this._block = block ? { ...block } : { type: 'banner', section: 'all', enabled: true, linkType: 'none' };
+    document.getElementById('blockModalTitle').textContent = block ? 'Изменить блок' : 'Новый блок';
+    this._renderBlockForm();
+    this.openModal('blockModal');
+  }
+
+  _renderBlockForm() {
+    const b = this._block;
+    const seg = (name, opts) => `<div class="blk-seg" data-seg="${name}">` +
+      opts.map(o => `<button type="button" class="${b[name] === o.v ? 'on' : ''}" data-val="${o.v}">${o.t}</button>`).join('') + `</div>`;
+    const g = (label, inner) => `<div class="form-group"><label class="form-label">${label}</label>${inner}</div>`;
+
+    let html = '';
+    if (this._blockIsNew)
+      html += g('Тип блока', seg('type', [{ v: 'banner', t: 'Фото-баннер' }, { v: 'text', t: 'Текст' }, { v: 'promo', t: 'Промо-полоса' }]));
+    html += g('Раздел', seg('section', [{ v: 'all', t: 'Везде' }, { v: 'monarc', t: 'Monarc' }, { v: 'type', t: 'Type' }]));
+
+    if (b.type === 'banner') {
+      html += g('Картинка', `
+        <div class="blk-banner-upload">
+          <div class="blk-thumb">${b.image ? `<img src="${this.esc(b.image)}" alt="">` : '<span>Нет фото</span>'}</div>
+          <div class="blk-upload-actions">
+            <button type="button" class="btn-line" id="blkImgBtn">${b.image ? 'Заменить фото' : 'Загрузить фото'}</button>
+            ${b.image ? `<button type="button" class="btn-line danger" id="blkImgClear">Убрать</button>` : ''}
+          </div>
+          <input type="file" id="blkImgInput" accept="image/*" hidden>
+        </div>`);
+      html += g('Заголовок (необязательно)', `<input type="text" class="form-input" id="blkHeading" value="${this.esc(b.heading || '')}" placeholder="Например: Новая коллекция">`);
+      html += g('Подпись (необязательно)', `<textarea class="form-input form-textarea" id="blkSubtext" rows="2" placeholder="Короткий текст под заголовком…">${this.esc(b.subtext || '')}</textarea>`);
+      html += g('Ссылка при клике', `
+        <select class="form-input" id="blkLinkType">
+          ${[['none', 'Без ссылки'], ['monarc', 'Раздел Monarc'], ['type', 'Раздел Type'], ['tg', 'Telegram'], ['url', 'Своя ссылка']]
+            .map(([v, t]) => `<option value="${v}"${(b.linkType || 'none') === v ? ' selected' : ''}>${t}</option>`).join('')}
+        </select>
+        <input type="text" class="form-input" id="blkLinkValue" value="${this.esc(b.linkValue || '')}" placeholder="https://…" style="margin-top:8px;${b.linkType === 'url' ? '' : 'display:none'}">`);
+    } else if (b.type === 'text') {
+      html += g('Заголовок', `<input type="text" class="form-input" id="blkHeading" value="${this.esc(b.heading || '')}" placeholder="Например: Условия доставки">`);
+      html += g('Текст', `<textarea class="form-input form-textarea" id="blkBody" rows="5" placeholder="Текст блока…">${this.esc(b.body || '')}</textarea>`);
+    } else {
+      html += g('Текст полосы', `<input type="text" class="form-input" id="blkText" value="${this.esc(b.text || '')}" placeholder="Например: Бесплатная доставка от 5000 ₽">`);
+    }
+    document.getElementById('blockFormBody').innerHTML = html;
+  }
+
+  _readBlockForm() {
+    const val = id => { const el = document.getElementById(id); return el ? el.value : undefined; };
+    const b = this._block;
+    if (b.type === 'banner') {
+      if (val('blkHeading')   !== undefined) b.heading   = val('blkHeading').trim();
+      if (val('blkSubtext')   !== undefined) b.subtext   = val('blkSubtext').trim();
+      if (val('blkLinkType')  !== undefined) b.linkType  = val('blkLinkType');
+      if (val('blkLinkValue') !== undefined) b.linkValue = val('blkLinkValue').trim();
+    } else if (b.type === 'text') {
+      if (val('blkHeading') !== undefined) b.heading = val('blkHeading').trim();
+      if (val('blkBody')    !== undefined) b.body    = val('blkBody');
+    } else {
+      if (val('blkText') !== undefined) b.text = val('blkText').trim();
+    }
+  }
+
+  _onBlockFormClick(e) {
+    const seg = e.target.closest('.blk-seg button');
+    if (seg) {
+      this._readBlockForm();
+      this._block[seg.parentElement.dataset.seg] = seg.dataset.val;
+      this._renderBlockForm();
+      return;
+    }
+    if (e.target.closest('#blkImgBtn'))   { document.getElementById('blkImgInput').click(); return; }
+    if (e.target.closest('#blkImgClear')) { this._readBlockForm(); this._block.image = ''; this._renderBlockForm(); return; }
+  }
+
+  _onBlockFormChange(e) {
+    if (e.target.id === 'blkImgInput') {
+      const f = e.target.files[0];
+      if (f) resizeImage(f, 1400, 1400, 0.85)
+        .then(url => { this._readBlockForm(); this._block.image = url; this._renderBlockForm(); })
+        .catch(() => this.toast('Ошибка загрузки фото'));
+      return;
+    }
+    if (e.target.id === 'blkLinkType') {
+      const lv = document.getElementById('blkLinkValue');
+      if (lv) lv.style.display = e.target.value === 'url' ? '' : 'none';
+    }
+  }
+
+  async saveBlockForm() {
+    this._readBlockForm();
+    const b = this._block;
+    if (b.type === 'promo'  && !b.text)                 { this.toast('Введите текст полосы'); return; }
+    if (b.type === 'text'   && !b.heading && !b.body)   { this.toast('Заполните заголовок или текст'); return; }
+    if (b.type === 'banner' && !b.image && !b.heading)  { this.toast('Добавьте картинку или заголовок'); return; }
+    await this.db.saveBlock(b);
+    this.closeModal('blockModal');
+    this.toast(this._blockIsNew ? 'Блок создан ✓' : 'Блок обновлён ✓');
+    await this.renderBlocksList();
   }
 
   /* ──────────────────────────────────────────

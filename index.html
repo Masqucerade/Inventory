@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=43">
+  <link rel="stylesheet" href="css/app.css?v=45">
 </head>
 <body>
 
@@ -502,6 +502,34 @@
   </div>
 </div>
 
+<!-- Блоки на сайте: список -->
+<div class="modal" id="blocksModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="blocksModalClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title">Блоки на сайте</span>
+      <button class="modal-action-btn" id="blockAddBtn">＋ Новый</button>
+    </div>
+    <div class="modal-body" id="blocksList"></div>
+  </div>
+</div>
+
+<!-- Блок: форма -->
+<div class="modal" id="blockModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="blockModalClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title" id="blockModalTitle">Новый блок</span>
+      <button class="modal-action-btn" id="blockModalSave">Сохранить</button>
+    </div>
+    <div class="modal-body" id="blockFormBody"></div>
+  </div>
+</div>
+
 <!-- Delivery Modal -->
 <div class="modal" id="deliveryModal">
   <div class="modal-header">
@@ -919,8 +947,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=43"></script>
+<script src="js/db.js?v=45"></script>
 <script src="js/backup.js?v=44"></script>
-<script src="js/app.js?v=44"></script>
+<script src="js/app.js?v=45"></script>
 </body>
 </html>

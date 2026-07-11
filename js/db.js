@@ -272,6 +272,17 @@ class InventoryDB {
   }
   async deleteCollection(id) { await fetch(`/api/collections/${id}`, { method:'DELETE' }); }
 
+  /* ─── SITE BLOCKS (баннер / текст / промо) ─── */
+  async getBlocks() {
+    try { const r = await fetch('/api/blocks'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async saveBlock(b) {
+    const r = await fetch('/api/blocks', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(b) });
+    return r.json();
+  }
+  async deleteBlock(id) { await fetch(`/api/blocks/${id}`, { method:'DELETE' }); }
+
   /* ─── TASKS ─── */
   async getTasks() {
     try { const r = await fetch('/api/tasks'); return r.ok ? r.json() : []; }

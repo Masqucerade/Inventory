@@ -966,6 +966,43 @@ html, body {
 }
 .col-delete-btn:hover { color: #f87171; background: rgba(248,113,113,.1); }
 
+/* Блоки на сайте */
+.block-row-actions { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.block-row-actions button {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text3);
+  font-size: 15px; transition: color .15s, background .15s;
+}
+.block-row-actions button:hover:not(:disabled) { color: var(--text); background: var(--fill); }
+.block-row-actions button:disabled { opacity: .3; cursor: default; }
+.block-delete-btn:hover:not(:disabled) { color: #f87171; background: rgba(248,113,113,.1); }
+.settings-row.off { opacity: .5; }
+
+.blk-seg { display: flex; gap: 6px; }
+.blk-seg button {
+  flex: 1; padding: 9px 8px; border-radius: 9px; cursor: pointer;
+  background: var(--fill2); border: 1px solid transparent; color: var(--text2);
+  font-size: 12.5px; font-weight: 500; transition: all .15s;
+}
+.blk-seg button.on { background: var(--fill); border-color: var(--sep); color: var(--text); }
+
+.blk-banner-upload { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.blk-thumb {
+  width: 100px; height: 62px; border-radius: 10px; overflow: hidden; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--fill2); color: var(--text3); font-size: 11px;
+}
+.blk-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.blk-upload-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-line {
+  padding: 8px 14px; border-radius: 9px; cursor: pointer;
+  background: var(--fill2); border: 1px solid var(--sep); color: var(--text);
+  font-size: 12.5px; font-weight: 500; transition: background .15s;
+}
+.btn-line:hover { background: var(--fill); }
+.btn-line.danger { color: #f87171; border-color: transparent; background: rgba(248,113,113,.08); }
+
 /* FAQ-топик, опубликованный на сайте */
 .faq-item.faq-on-site { border: 1px solid rgba(52,211,153,.35); }
 .faq-title .site-tag { margin-left: 7px; vertical-align: 1px; }

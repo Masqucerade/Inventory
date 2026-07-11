@@ -27,13 +27,15 @@ async function boot() {
   document.getElementById('footTg').href = `https://t.me/${TG_USERNAME}`;
 
   try {
-    const [items, cats, faq, collections] = await Promise.all([
+    const [items, cats, faq, collections, blocks] = await Promise.all([
       fetch(`/api/public/items?section=${SECTION}`).then(r => r.json()),
       fetch('/api/public/categories').then(r => r.json()),
       fetch('/api/public/faq').then(r => r.json()),
       fetch(`/api/public/collections?section=${SECTION}`).then(r => r.json()),
+      fetch(`/api/public/blocks?section=${SECTION}`).then(r => r.json()),
     ]);
     ITEMS = items; CATS = cats;
+    renderBlocks(blocks);
     renderCollections(collections);
     renderChips();
     renderGrid();
@@ -96,6 +98,54 @@ function renderGrid() {
     return;
   }
   el.innerHTML = items.map(cardHTML).join('');
+}
+
+/* ─── Контент-блоки (баннер / текст / промо) ─── */
+function blockLinkHref(b) {
+  switch (b.linkType) {
+    case 'monarc': return '/monarc';
+    case 'type':   return '/type';
+    case 'tg':     return `https://t.me/${TG_USERNAME}`;
+    case 'url':    return b.linkValue || '';
+    default:       return '';
+  }
+}
+const nl2br = (s) => esc(s).replace(/\n/g, '<br>');
+
+function renderBlocks(blocks) {
+  blocks = blocks || [];
+
+  // Промо-полосы → тонкая строка сверху
+  const promos = blocks.filter(b => b.type === 'promo' && b.text);
+  const bar = document.getElementById('promoBar');
+  if (promos.length) {
+    bar.innerHTML = promos.map(p => `<span>${esc(p.text)}</span>`).join('<i class="promo-sep">•</i>');
+    bar.hidden = false;
+  } else {
+    bar.hidden = true;
+  }
+
+  // Баннеры и текстовые блоки → в поток под hero
+  const el = document.getElementById('siteBlocks');
+  el.innerHTML = blocks.filter(b => b.type === 'banner' || b.type === 'text').map(b => {
+    if (b.type === 'text') {
+      if (!b.heading && !b.body) return '';
+      return `<section class="site-block block-text">
+        ${b.heading ? `<h2>${esc(b.heading)}</h2>` : ''}
+        ${b.body ? `<div class="block-text-body">${nl2br(b.body)}</div>` : ''}
+      </section>`;
+    }
+    const href  = blockLinkHref(b);
+    const ext   = b.linkType === 'tg' || b.linkType === 'url';
+    const inner = `${b.image ? `<img src="${esc(b.image)}" alt="${esc(b.heading)}" loading="lazy" draggable="false">` : ''}
+      ${(b.heading || b.subtext) ? `<div class="block-banner-cap">
+        ${b.heading ? `<h2>${esc(b.heading)}</h2>` : ''}
+        ${b.subtext ? `<p>${esc(b.subtext)}</p>` : ''}
+      </div>` : ''}`;
+    return href
+      ? `<a class="site-block block-banner" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
+      : `<div class="site-block block-banner">${inner}</div>`;
+  }).join('');
 }
 
 /* ─── Подборки ─── */

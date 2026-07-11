@@ -341,6 +341,27 @@ app.get('/api/public/collections', (req, res) => {
     .filter(c => c.itemIds.length));
 });
 
+// Контент-блоки витрины (баннер / текст / промо), настраиваются в админке.
+app.get('/api/public/blocks', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  const section = ['brands', 'monarc'].includes(req.query.section) ? 'monarc' : 'type';
+  const blocks = (load().blocks || [])
+    .filter(b => b.enabled && (b.section === 'all' || b.section === section))
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map(b => {
+      if (b.type === 'banner') return {
+        id: b.id, type: 'banner', image: b.image || '',
+        heading: b.heading || '', subtext: b.subtext || '',
+        linkType: b.linkType || 'none', linkValue: b.linkValue || '',
+      };
+      if (b.type === 'text')  return { id: b.id, type: 'text',  heading: b.heading || '', body: b.body || '' };
+      if (b.type === 'promo') return { id: b.id, type: 'promo', text: b.text || '' };
+      return { id: b.id, type: b.type };
+    })
+    .filter(b => b.type !== 'banner' || b.image || b.heading);   // пустой баннер не показываем
+  res.json(blocks);
+});
+
 app.get('/api/public/faq', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.json((load().faq || []).filter(f => f.showOnSite).map(f => ({
@@ -950,6 +971,31 @@ app.put('/api/collections', (req, res) => {
 app.delete('/api/collections/:id', (req, res) => {
   const db = load();
   db.collections = (db.collections || []).filter(c => c.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
+/* ─── SITE BLOCKS (баннер / текст / промо на витрине) ─── */
+app.get('/api/blocks', (req, res) => res.json(load().blocks || []));
+app.put('/api/blocks', (req, res) => {
+  const db = load();
+  if (!db.blocks) db.blocks = [];
+  const b = { ...req.body };
+  // Картинка баннера: base64 → файл на volume (как у товаров).
+  if (typeof b.image === 'string' && b.image.startsWith('data:')) b.image = saveDataUrl(b.image) || b.image;
+  if (!b.id) {
+    b.id = uid();
+    if (b.order == null) b.order = db.blocks.reduce((m, x) => Math.max(m, x.order || 0), 0) + 1;
+  }
+  const idx = db.blocks.findIndex(x => x.id === b.id);
+  if (idx >= 0) db.blocks[idx] = { ...db.blocks[idx], ...b };
+  else db.blocks.push(b);
+  save(db);
+  res.json(idx >= 0 ? db.blocks[idx] : b);
+});
+app.delete('/api/blocks/:id', (req, res) => {
+  const db = load();
+  db.blocks = (db.blocks || []).filter(b => b.id !== req.params.id);
   save(db);
   res.json({ ok: true });
 });
