@@ -1,6 +1,7 @@
 const express = require('express');
 const fs      = require('fs');
 const path    = require('path');
+const crypto  = require('crypto');
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
@@ -64,19 +65,47 @@ function uid() {
 }
 
 /* ─── AUTH ─── */
+/* Пароли: scrypt-хэш вида "s2$<salt>$<hash>" — исходный пароль нигде не хранится. */
+function hashPassword(pass) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(String(pass), salt, 32).toString('hex');
+  return `s2$${salt}$${hash}`;
+}
+function verifyPassword(pass, stored) {
+  if (!stored) return false;
+  if (!String(stored).startsWith('s2$')) return String(stored) === String(pass); // legacy plaintext
+  const [, salt, hash] = String(stored).split('$');
+  try {
+    const h = crypto.scryptSync(String(pass), salt, 32).toString('hex');
+    return crypto.timingSafeEqual(Buffer.from(h), Buffer.from(hash));
+  } catch { return false; }
+}
+
 // Гарантируем наличие root-администратора (Monarc / 0000)
 function seedRoot(db) {
   if (!db.users)    db.users = [];
   if (!db.sessions) db.sessions = [];
   if (!db.users.some(u => u.role === 'root')) {
     db.users.unshift({
-      id: uid(), login: 'Monarc', password: '0000', name: 'Monarc',
+      id: uid(), login: 'Monarc', password: hashPassword('0000'), name: 'Monarc',
       role: 'root', createdAt: new Date().toISOString(),
     });
   }
 }
-// Один раз при старте
-(() => { const db = load(); seedRoot(db); save(db); })();
+// Один раз при старте: сид root + миграция открытых паролей на хэши
+(() => {
+  const db = load();
+  seedRoot(db);
+  let migrated = 0;
+  (db.users || []).forEach(u => {
+    if (u.password && !String(u.password).startsWith('s2$')) {
+      u.password = hashPassword(u.password);
+      migrated++;
+    }
+  });
+  if (migrated) console.log(`Пароли захэшированы: ${migrated}`);
+  save(db);
+})();
 
 function currentUser(req) {
   const token = req.headers['x-auth-token'] || '';
@@ -84,6 +113,8 @@ function currentUser(req) {
   const db   = load();
   const sess = (db.sessions || []).find(s => s.token === token);
   if (!sess) return null;
+  // Просроченная сессия (45 дней) — требуем перелогин
+  if (Date.now() - new Date(sess.createdAt).getTime() > 45 * 24 * 3600 * 1000) return null;
   return (db.users || []).find(u => u.id === sess.userId) || null;
 }
 
@@ -116,13 +147,31 @@ function requireAccess(section) {
   };
 }
 
-// Публичный вход
+// Публичный вход.
+// Rate-limit: не больше 10 неудачных попыток с одного IP за 10 минут.
+const _loginAttempts = new Map();
+const SESSION_TTL_MS = 45 * 24 * 3600 * 1000;   // сессия живёт 45 дней
+
 app.post('/api/login', (req, res) => {
+  const ip  = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const now = Date.now();
+  const att = _loginAttempts.get(ip);
+  if (att && now - att.first < 10 * 60 * 1000 && att.count >= 10)
+    return res.status(429).json({ error: 'Слишком много попыток — подождите 10 минут' });
+
   const db = load(); seedRoot(db);
   const login = String(req.body.login || '').trim().toLowerCase();
   const pass  = String(req.body.password || '');
-  const user  = (db.users || []).find(u => (u.login || '').toLowerCase() === login && String(u.password) === pass);
-  if (!user) { save(db); return res.status(401).json({ error: 'Неверный логин или пароль' }); }
+  const user  = (db.users || []).find(u => (u.login || '').toLowerCase() === login && verifyPassword(pass, u.password));
+  if (!user) {
+    if (!att || now - att.first >= 10 * 60 * 1000) _loginAttempts.set(ip, { first: now, count: 1 });
+    else att.count++;
+    save(db);
+    return res.status(401).json({ error: 'Неверный логин или пароль' });
+  }
+  _loginAttempts.delete(ip);
+  // Чистим протухшие сессии, чтобы db не рос бесконечно
+  db.sessions = (db.sessions || []).filter(s => now - new Date(s.createdAt).getTime() < SESSION_TTL_MS);
   const token = uid() + uid();
   db.sessions.push({ token, userId: user.id, createdAt: new Date().toISOString() });
   save(db);
@@ -213,7 +262,7 @@ app.post('/api/me/password', (req, res) => {
   const db = load();
   const u  = (db.users || []).find(x => x.id === req.user.id);
   if (!u) return res.status(404).json({ error: 'not found' });
-  u.password = password;
+  u.password = hashPassword(password);
   save(db);
   res.json({ ok: true });
 });
@@ -229,8 +278,9 @@ app.post('/api/logout', (req, res) => {
 /* ─── USERS (только root) ─── */
 app.get('/api/users', (req, res) => {
   if (!requireRoot(req, res)) return;
+  // Пароли наружу не отдаём — они хранятся только хэшами
   res.json((load().users || []).map(u => ({
-    id: u.id, login: u.login, password: u.password, name: u.name, role: u.role,
+    id: u.id, login: u.login, name: u.name, role: u.role,
     access: u.access || null,
     hideCosts: !!u.hideCosts,
     tgChatId:  u.tgChatId || '',
@@ -249,7 +299,7 @@ app.post('/api/users', (req, res) => {
     return res.status(409).json({ error: 'Такой логин уже существует' });
   const access = Array.isArray(req.body.access) ? req.body.access.filter(s => SECTIONS.includes(s)) : null;
   const user = {
-    id: uid(), login, password, name, role: 'user', access,
+    id: uid(), login, password: hashPassword(password), name, role: 'user', access,
     hideCosts: !!req.body.hideCosts,
     tgChatId:  String(req.body.tgChatId || '').trim(),
     notify:    Array.isArray(req.body.notify) ? req.body.notify.filter(c => NOTIFY_CATS.includes(c)) : [],
@@ -257,7 +307,8 @@ app.post('/api/users', (req, res) => {
   };
   db.users.push(user);
   save(db);
-  res.json(user);
+  const { password: _p, ...safe } = user;
+  res.json(safe);
 });
 
 app.put('/api/users/:id', (req, res) => {
@@ -269,14 +320,15 @@ app.put('/api/users/:id', (req, res) => {
   if (login && db.users.some(x => x.id !== u.id && (x.login || '').toLowerCase() === login.toLowerCase()))
     return res.status(409).json({ error: 'Такой логин уже существует' });
   if (login) u.login = login;
-  if (req.body.password != null && req.body.password !== '') u.password = String(req.body.password);
+  if (req.body.password != null && req.body.password !== '') u.password = hashPassword(req.body.password);
   if (req.body.name != null) u.name = String(req.body.name).trim() || u.name;
   if (Array.isArray(req.body.access)) u.access = req.body.access.filter(s => SECTIONS.includes(s));
   if (req.body.hideCosts != null) u.hideCosts = !!req.body.hideCosts;
   if (req.body.tgChatId  != null) u.tgChatId  = String(req.body.tgChatId).trim();
   if (Array.isArray(req.body.notify)) u.notify = req.body.notify.filter(c => NOTIFY_CATS.includes(c));
   save(db);
-  res.json(u);
+  const { password: _p, ...safe } = u;
+  res.json(safe);
 });
 
 app.delete('/api/users/:id', (req, res) => {

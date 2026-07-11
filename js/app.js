@@ -470,7 +470,7 @@ class App {
         <div class="settings-row-icon" style="background:rgba(124,109,250,.12);color:var(--accent);font-weight:700">${(usr.name || usr.login || '?')[0].toUpperCase()}</div>
         <div class="settings-row-info">
           <div class="settings-row-title">${this.esc(usr.name || usr.login)}${usr.role === 'root' ? ' · root' : ''}</div>
-          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · пароль: ${this.esc(usr.password || '')} · ${!Array.isArray(usr.access) || usr.access.length >= 5 ? 'все разделы' : `разделов: ${usr.access.length}/5`}${usr.hideCosts ? ' · без закупа' : ''}${usr.notify?.length ? ` · 🔔 ${usr.notify.length}` : ''}`}</div>
+          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · ${!Array.isArray(usr.access) || usr.access.length >= 5 ? 'все разделы' : `разделов: ${usr.access.length}/5`}${usr.hideCosts ? ' · без закупа' : ''}${usr.notify?.length ? ` · 🔔 ${usr.notify.length}` : ''}`}</div>
         </div>
         ${usr.role === 'root' ? '' : `
           <button class="menu-del-btn user-edit-btn" data-uid="${usr.id}">${svgEdit}</button>
@@ -505,7 +505,9 @@ class App {
     document.getElementById('userModalSave').textContent  = usr ? 'Сохранить' : 'Добавить';
     document.getElementById('userName').value     = usr?.name     || '';
     document.getElementById('userLogin').value    = usr?.login    || '';
-    document.getElementById('userPassword').value = usr?.password || '';
+    // Пароли хранятся хэшами — показать нельзя, можно только задать новый
+    document.getElementById('userPassword').value = '';
+    document.getElementById('userPassword').placeholder = usr ? 'Новый пароль (пусто — не менять)' : 'Пароль';
     document.getElementById('userTgChat').value   = usr?.tgChatId || '';
     this._renderAccessChips(usr?.access || null);
     this._setHideCostsToggle(!!usr?.hideCosts);
@@ -569,11 +571,12 @@ class App {
     const hideCosts = !!this._userHideCosts;
     const tgChatId  = document.getElementById('userTgChat').value.trim();
     const notify    = [...document.querySelectorAll('#userNotifyChips .vis-chip.active')].map(c => c.dataset.ncat);
-    if (!login)    { this.toast('Введите логин');  return; }
-    if (!password) { this.toast('Введите пароль'); return; }
+    if (!login) { this.toast('Введите логин'); return; }
+    if (!password && !this._editingUserId) { this.toast('Введите пароль'); return; }
     if (!access.length) { this.toast('Откройте хотя бы один раздел'); return; }
     if (notify.length && !tgChatId) { this.toast('Укажите Chat ID для уведомлений'); return; }
-    const payload = { name, login, password, access, hideCosts, tgChatId, notify };
+    const payload = { name, login, access, hideCosts, tgChatId, notify };
+    if (password) payload.password = password;   // при редактировании пустое поле = пароль не меняется
     try {
       if (this._editingUserId) {
         await this.db.updateUser(this._editingUserId, payload);
