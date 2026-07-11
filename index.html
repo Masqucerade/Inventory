@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=45">
+  <link rel="stylesheet" href="css/app.css?v=46">
 </head>
 <body>
 
@@ -141,6 +141,14 @@
     </div>
   </div>
 
+  <!-- ═══ SITE VIEW ═══ -->
+  <div id="view-site" class="view">
+    <div class="view-header simple-header">
+      <h1 class="view-title">Сайт</h1>
+    </div>
+    <div class="view-body" id="siteContent"></div>
+  </div>
+
   <!-- ═══ SETTINGS VIEW ═══ -->
   <div id="view-settings" class="view">
     <div class="view-header simple-header">
@@ -180,6 +188,14 @@
         <polyline points="10 9 9 9 8 9"/>
       </svg>
       <span class="nav-label">Проект</span>
+    </button>
+    <button class="nav-btn" data-view="site">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+      <span class="nav-label">Сайт</span>
     </button>
     <button class="nav-btn" data-view="settings">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -949,6 +965,6 @@
 
 <script src="js/db.js?v=45"></script>
 <script src="js/backup.js?v=44"></script>
-<script src="js/app.js?v=45"></script>
+<script src="js/app.js?v=46"></script>
 </body>
 </html>

@@ -332,6 +332,8 @@ app.get('/api/public/collections', (req, res) => {
   else if (req.query.section === 'type')                visible = visible.filter(i => !i.isMonarc);
   const pub = new Set(visible.map(i => i.id));
   res.json((db.collections || [])
+    .slice()
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
     .map(c => ({
       id:          c.id,
       title:       c.title,
@@ -956,17 +958,21 @@ app.get('/api/collections', (req, res) => res.json(load().collections || []));
 app.put('/api/collections', (req, res) => {
   const db = load();
   if (!db.collections) db.collections = [];
-  const col = {
-    id:          req.body.id || uid(),
-    title:       String(req.body.title || '').trim(),
-    description: String(req.body.description || '').trim(),
-    itemIds:     Array.isArray(req.body.itemIds) ? req.body.itemIds : [],
-  };
-  const idx = db.collections.findIndex(c => c.id === col.id);
-  if (idx >= 0) db.collections[idx] = { ...db.collections[idx], ...col };
-  else db.collections.push(col);
+  // Частичный мердж: приходит либо полная форма, либо только {id, order} при
+  // перестановке — не затираем непереданные поля.
+  const c = { ...req.body };
+  if (c.title != null)       c.title = String(c.title).trim();
+  if (c.description != null) c.description = String(c.description).trim();
+  if (c.itemIds != null && !Array.isArray(c.itemIds)) c.itemIds = [];
+  if (!c.id) {
+    c.id = uid();
+    if (c.order == null) c.order = db.collections.reduce((m, x) => Math.max(m, x.order || 0), 0) + 1;
+  }
+  const idx = db.collections.findIndex(x => x.id === c.id);
+  if (idx >= 0) db.collections[idx] = { ...db.collections[idx], ...c };
+  else db.collections.push({ title: '', description: '', itemIds: [], ...c });
   save(db);
-  res.json(col);
+  res.json(idx >= 0 ? db.collections[idx] : c);
 });
 app.delete('/api/collections/:id', (req, res) => {
   const db = load();

@@ -171,6 +171,7 @@ class App {
     if (section === 'settings') section = 'faq';   // вкладка FAQ = view "settings"
     const u = this.currentUser;
     if (!u) return false;
+    if (section === 'site') return true;           // управление витриной — всем админам
     if (u.role === 'root') return true;
     if (!Array.isArray(u.access)) return true;   // не настроено = полный доступ
     return u.access.includes(section);
@@ -313,18 +314,6 @@ class App {
       </div>
 
       <div class="menu-grid">
-        <button class="menu-tile" id="mCollectionsBtn">
-          <div class="menu-tile-icon" style="background:rgba(52,211,153,.12);color:#34d399">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-          </div>
-          <span>Подборки<br>на сайте</span>
-        </button>
-        <button class="menu-tile" id="mBlocksBtn">
-          <div class="menu-tile-icon" style="background:rgba(167,139,250,.14);color:#a78bfa">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="7" rx="1.5"/><rect x="3" y="14" width="11" height="7" rx="1.5"/><line x1="17.5" y1="14.5" x2="20.5" y2="14.5"/><line x1="17.5" y1="18" x2="20.5" y2="18"/></svg>
-          </div>
-          <span>Блоки<br>на сайте</span>
-        </button>
         <button class="menu-tile" id="mBtnTgBackup">
           <div class="menu-tile-icon" style="background:rgba(56,189,248,.12);color:#38bdf8">${svgSend}</div>
           <span>Бэкап<br>в Telegram</span>
@@ -405,16 +394,6 @@ class App {
       document.querySelectorAll('.menu-theme-btn').forEach(b =>
         b.classList.toggle('active', b === btn)
       );
-    });
-
-    document.getElementById('mCollectionsBtn').addEventListener('click', () => {
-      this.closeMenu();
-      this.openCollectionsModal();
-    });
-
-    document.getElementById('mBlocksBtn').addEventListener('click', () => {
-      this.closeMenu();
-      this.openBlocksModal();
     });
 
     document.getElementById('mBtnTgBackup').addEventListener('click', async () => {
@@ -916,6 +895,9 @@ class App {
     document.getElementById('blockFormBody').addEventListener('click', (e) => this._onBlockFormClick(e));
     document.getElementById('blockFormBody').addEventListener('change', (e) => this._onBlockFormChange(e));
 
+    /* Вкладка «Сайт» */
+    document.getElementById('siteContent').addEventListener('click', (e) => this._onSiteClick(e));
+
     /* Item modal */
     document.getElementById('itemModalClose').addEventListener('click', () => this.closeModal('itemModal'));
     document.getElementById('itemModalSave').addEventListener('click', () => this.saveItem());
@@ -1181,6 +1163,7 @@ class App {
       case 'stats':     this.renderStats();         break;
       case 'finance':   this.renderFinance();       break;
       case 'project':   this.renderProject();       break;
+      case 'site':      this.renderSiteView();      break;
       case 'settings':  this.renderFaq();           break;
     }
   }
@@ -3488,7 +3471,7 @@ class App {
     this.closeModal('collectionModal');
     this.toast(this._editingColId ? 'Подборка обновлена ✓' : 'Подборка создана ✓');
     this._editingColId = null;
-    await this.renderCollectionsList();
+    await this._refreshCollections();
   }
 
   /* ──────────────────────────────────────────
@@ -3540,7 +3523,7 @@ class App {
     [arr[i], arr[j]] = [arr[j], arr[i]];
     // Нормализуем порядок 0..n и сохраняем только сдвинувшиеся
     await Promise.all(arr.map((b, idx) => b.order === idx ? null : this.db.saveBlock({ id: b.id, order: idx })));
-    await this.renderBlocksList();
+    await this._refreshBlocks();
   }
 
   openBlockModal(block = null) {
@@ -3640,7 +3623,119 @@ class App {
     await this.db.saveBlock(b);
     this.closeModal('blockModal');
     this.toast(this._blockIsNew ? 'Блок создан ✓' : 'Блок обновлён ✓');
-    await this.renderBlocksList();
+    await this._refreshBlocks();
+  }
+
+  _refreshBlocks()      { return this.currentView === 'site' ? this.renderSiteView() : this.renderBlocksList(); }
+  _refreshCollections() { return this.currentView === 'site' ? this.renderSiteView() : this.renderCollectionsList(); }
+
+  /* ──────────────────────────────────────────
+     ВКЛАДКА «САЙТ» — наглядное управление витриной
+     ────────────────────────────────────────── */
+  async renderSiteView() {
+    const el = document.getElementById('siteContent');
+    const [blocks, cols] = await Promise.all([this.db.getBlocks(), this.db.getCollections()]);
+    this._blocks       = blocks.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+    this._collections  = cols.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    const section = (title, hint, addCls, rowsHtml) => `
+      <div class="site-mgmt-card">
+        <div class="site-mgmt-head">
+          <div><div class="site-mgmt-title">${title}</div><div class="site-mgmt-hint">${hint}</div></div>
+          <button class="site-mgmt-add ${addCls}">＋ Добавить</button>
+        </div>
+        <div class="settings-section">${rowsHtml}</div>
+      </div>`;
+    const empty = (emoji, txt) => `<div class="site-mgmt-empty"><span>${emoji}</span>${txt}</div>`;
+
+    el.innerHTML = `
+      <p class="site-mgmt-intro">Всё, что видно на витрине (Monarc и Type). Порядок — стрелками, клик по строке — редактировать.</p>
+      ${section('Блоки', 'Баннеры, текст и промо-полосы', 'block-add',
+        this._blocks.length ? this._blocks.map((b, i) => this._blockRowHtml(b, i, this._blocks.length)).join('')
+                            : empty('🧱', 'Пока нет блоков'))}
+      ${section('Подборки', 'Блоки товаров с общим заголовком', 'col-add',
+        this._collections.length ? this._collections.map((c, i) => this._colRowHtml(c, i, this._collections.length)).join('')
+                                 : empty('🗂', 'Пока нет подборок'))}`;
+  }
+
+  _trashSvg() {
+    return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+  }
+
+  _blockRowHtml(b, i, n) {
+    const TYPE = { banner: { t: 'Фото-баннер', e: '🖼' }, text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' } };
+    const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
+    const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
+    const label = b.type === 'promo' ? b.text : (b.heading || (b.type === 'banner' ? 'Баннер без заголовка' : 'Без заголовка'));
+    return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}">
+      <div class="settings-row-icon" style="background:rgba(167,139,250,.14)">${meta.e}</div>
+      <div class="settings-row-info">
+        <div class="settings-row-title">${this.esc(label || meta.t)}</div>
+        <div class="settings-row-sub">${meta.t} · ${SEC[b.section] || b.section}${b.enabled ? '' : ' · скрыт'}</div>
+      </div>
+      <div class="block-row-actions">
+        <button class="block-move" data-id="${b.id}" data-dir="up" title="Выше"${i === 0 ? ' disabled' : ''}>↑</button>
+        <button class="block-move" data-id="${b.id}" data-dir="down" title="Ниже"${i === n - 1 ? ' disabled' : ''}>↓</button>
+        <button class="block-toggle" data-id="${b.id}" title="${b.enabled ? 'Скрыть' : 'Показать'}">${b.enabled ? '👁' : '🚫'}</button>
+        <button class="block-delete-btn" data-id="${b.id}" title="Удалить">${this._trashSvg()}</button>
+      </div>
+    </div>`;
+  }
+
+  _colRowHtml(c, i, n) {
+    return `<div class="settings-row col-row" data-col-id="${c.id}">
+      <div class="settings-row-icon" style="background:rgba(52,211,153,.12)">🗂</div>
+      <div class="settings-row-info">
+        <div class="settings-row-title">${this.esc(c.title || 'Без названия')}</div>
+        <div class="settings-row-sub">${(c.itemIds || []).length} тов.${c.description ? ' · ' + this.esc(c.description) : ''}</div>
+      </div>
+      <div class="block-row-actions">
+        <button class="col-move" data-id="${c.id}" data-dir="up" title="Выше"${i === 0 ? ' disabled' : ''}>↑</button>
+        <button class="col-move" data-id="${c.id}" data-dir="down" title="Ниже"${i === n - 1 ? ' disabled' : ''}>↓</button>
+        <button class="col-delete-btn" data-id="${c.id}" title="Удалить">${this._trashSvg()}</button>
+      </div>
+    </div>`;
+  }
+
+  async moveCollection(id, dir) {
+    const arr = [...(this._collections || [])];
+    const i = arr.findIndex(c => c.id === id);
+    const j = dir === 'up' ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    await Promise.all(arr.map((c, idx) => c.order === idx ? null : this.db.saveCollection({ id: c.id, order: idx })));
+    await this._refreshCollections();
+  }
+
+  async _onSiteClick(e) {
+    if (e.target.closest('.block-add')) { this.openBlockModal(); return; }
+    if (e.target.closest('.col-add'))   { this.openCollectionModal(); return; }
+
+    const bDel = e.target.closest('.block-delete-btn');
+    if (bDel) {
+      if (!await this.confirm('Удалить блок?')) return;
+      await this.db.deleteBlock(bDel.dataset.id); this.toast('Блок удалён'); this.renderSiteView(); return;
+    }
+    const bMove = e.target.closest('.block-move');
+    if (bMove) { this.moveBlock(bMove.dataset.id, bMove.dataset.dir); return; }
+    const bTog = e.target.closest('.block-toggle');
+    if (bTog) {
+      const b = (this._blocks || []).find(x => x.id === bTog.dataset.id);
+      if (b) { await this.db.saveBlock({ id: b.id, enabled: !b.enabled }); this.renderSiteView(); }
+      return;
+    }
+    const cDel = e.target.closest('.col-delete-btn');
+    if (cDel) {
+      if (!await this.confirm('Удалить подборку? Товары останутся на сайте.')) return;
+      await this.db.deleteCollection(cDel.dataset.id); this.toast('Подборка удалена'); this.renderSiteView(); return;
+    }
+    const cMove = e.target.closest('.col-move');
+    if (cMove) { this.moveCollection(cMove.dataset.id, cMove.dataset.dir); return; }
+
+    const bRow = e.target.closest('[data-block-id]');
+    if (bRow) { const b = (this._blocks || []).find(x => x.id === bRow.dataset.blockId); if (b) this.openBlockModal(b); return; }
+    const cRow = e.target.closest('[data-col-id]');
+    if (cRow) { const c = (this._collections || []).find(x => x.id === cRow.dataset.colId); if (c) this.openCollectionModal(c); }
   }
 
   /* ──────────────────────────────────────────
