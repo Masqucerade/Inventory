@@ -1006,7 +1006,9 @@ html, body {
 /* Вкладка «Сайт» */
 .site-mgmt-intro { font-size: 12.5px; color: var(--text2); line-height: 1.5; margin: 2px 4px 18px; }
 .site-mgmt-card { margin-bottom: 24px; }
-.site-mgmt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding: 0 2px; }
+.site-mgmt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding: 0 2px; flex-wrap: wrap; }
+.site-mgmt-addrow { display: flex; gap: 6px; flex-shrink: 0; }
+.row-tag { font-size: 10px; color: var(--text3); border: 1px solid var(--sep); border-radius: 5px; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
 .site-mgmt-title { font-size: 16px; font-weight: 700; color: var(--text); }
 .site-mgmt-hint  { font-size: 11px; color: var(--text3); margin-top: 2px; }
 .site-mgmt-add {

@@ -248,7 +248,7 @@ function visibleTo(rec, user) {
 /* ─── ДОСТУП К РАЗДЕЛАМ (критические точки) ───
    У пользователя может быть access: ['inventory','stats','finance','project','faq'].
    Root видит всё. Если access не задан — полный доступ (обратная совместимость). */
-const SECTIONS = ['inventory', 'stats', 'finance', 'project', 'faq'];
+const SECTIONS = ['inventory', 'stats', 'finance', 'project', 'site', 'faq'];
 function hasAccess(user, section) {
   if (user.role === 'root') return true;
   if (!Array.isArray(user.access)) return true;
@@ -337,6 +337,7 @@ app.get('/api/public/collections', (req, res) => {
     .map(c => ({
       id:          c.id,
       title:       c.title,
+      order:       c.order || 0,   // общий порядок с блоками — для чередования
       description: c.description || '',
       itemIds:     (c.itemIds || []).filter(id => pub.has(id)),
     }))
@@ -351,14 +352,15 @@ app.get('/api/public/blocks', (req, res) => {
     .filter(b => b.enabled && (b.section === 'all' || b.section === section))
     .sort((a, b) => (a.order || 0) - (b.order || 0))
     .map(b => {
+      const order = b.order || 0;   // общий порядок с подборками — для чередования на витрине
       if (b.type === 'banner') return {
-        id: b.id, type: 'banner', image: b.image || '',
+        id: b.id, type: 'banner', order, image: b.image || '',
         heading: b.heading || '', subtext: b.subtext || '',
         linkType: b.linkType || 'none', linkValue: b.linkValue || '',
       };
-      if (b.type === 'text')  return { id: b.id, type: 'text',  heading: b.heading || '', body: b.body || '' };
-      if (b.type === 'promo') return { id: b.id, type: 'promo', text: b.text || '' };
-      return { id: b.id, type: b.type };
+      if (b.type === 'text')  return { id: b.id, type: 'text',  order, heading: b.heading || '', body: b.body || '' };
+      if (b.type === 'promo') return { id: b.id, type: 'promo', order, text: b.text || '' };
+      return { id: b.id, type: b.type, order };
     })
     .filter(b => b.type !== 'banner' || b.image || b.heading);   // пустой баннер не показываем
   res.json(blocks);
@@ -391,6 +393,7 @@ app.use(['/api/payments', '/api/employee-payments', '/api/plans', '/api/sales'],
 app.use('/api/tasks',       (req, res, next) => requireAccess('project')(req, res, next));
 app.use('/api/quickaccess', (req, res, next) => requireAccess('project')(req, res, next));
 app.use('/api/faq',         (req, res, next) => requireAccess('faq')(req, res, next));
+app.use(['/api/blocks', '/api/collections'], (req, res, next) => requireAccess('site')(req, res, next));
 
 app.get('/api/me', (req, res) => {
   const u = req.user;
@@ -1236,9 +1239,25 @@ function migratePhotos() {
   else console.log('Photo migration: nothing to do');
 }
 
+// Разовая миграция: у существующих участников с настроенным access добавить
+// раздел 'site' (появился позже) — чтобы вкладка «Сайт» осталась доступной,
+// но теперь её можно снять галочкой. Root и «полный доступ» (access=null) — мимо.
+function migrateSiteAccess() {
+  const db = load();
+  let changed = 0;
+  for (const u of (db.users || [])) {
+    if (u.role !== 'root' && Array.isArray(u.access) && !u.access.includes('site')) {
+      u.access.push('site');
+      changed++;
+    }
+  }
+  if (changed) { save(db); console.log(`Site-access migration: ${changed} user(s) updated`); }
+}
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Masqucerade INC. v2 on :${PORT}`);
   migratePhotos();
+  migrateSiteAccess();
   scheduleBackup();
 });

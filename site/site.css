@@ -251,7 +251,18 @@ img { max-width: 100%; display: block; }
   font-size: clamp(26px, 4.5vw, 40px); letter-spacing: .03em; margin-top: 6px;
 }
 .collection-desc { color: var(--text2); font-size: 14px; line-height: 1.6; margin-top: 8px; max-width: 560px; }
-.collection-grid { margin-top: 20px; }
+/* Подборка — горизонтальная карусель: >4 товаров уезжают вправо, а не вниз */
+.collection-grid {
+  margin-top: 20px;
+  display: flex; gap: 22px;
+  overflow-x: auto; scroll-snap-type: x proximity;
+  padding-bottom: 8px; scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.collection-grid > .good-card { flex: 0 0 clamp(200px, 24%, 258px); scroll-snap-align: start; }
+.collection-grid::-webkit-scrollbar { height: 6px; }
+.collection-grid::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 3px; }
+.collection-grid::-webkit-scrollbar-track { background: transparent; }
 .grid-heading {
   font-family: var(--font-d); font-weight: 500;
   font-size: clamp(26px, 4.5vw, 40px); letter-spacing: .03em;

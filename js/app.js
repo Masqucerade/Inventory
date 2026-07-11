@@ -160,7 +160,7 @@ class App {
     }
     this._updateProfileBadge();
     await this.loadData();
-    const startView = ['inventory','stats','finance','project','settings'].find(v => this.hasAccess(v)) || 'inventory';
+    const startView = ['inventory','stats','finance','project','site','settings'].find(v => this.hasAccess(v)) || 'inventory';
     this.renderView(startView);
     this._applyAccess();
     this.backup.checkAutoBackup();
@@ -171,7 +171,6 @@ class App {
     if (section === 'settings') section = 'faq';   // вкладка FAQ = view "settings"
     const u = this.currentUser;
     if (!u) return false;
-    if (section === 'site') return true;           // управление витриной — всем админам
     if (u.role === 'root') return true;
     if (!Array.isArray(u.access)) return true;   // не настроено = полный доступ
     return u.access.includes(section);
@@ -182,7 +181,7 @@ class App {
     document.querySelectorAll('.nav-btn').forEach(b =>
       b.classList.toggle('hidden', !this.hasAccess(b.dataset.view)));
     if (!this.hasAccess(this.currentView)) {
-      const first = ['inventory','stats','finance','project','settings'].find(v => this.hasAccess(v));
+      const first = ['inventory','stats','finance','project','site','settings'].find(v => this.hasAccess(v));
       if (first) this.renderView(first);
     }
   }
@@ -460,7 +459,7 @@ class App {
         <div class="settings-row-icon" style="background:rgba(124,109,250,.12);color:var(--accent);font-weight:700">${(usr.name || usr.login || '?')[0].toUpperCase()}</div>
         <div class="settings-row-info">
           <div class="settings-row-title">${this.esc(usr.name || usr.login)}${usr.role === 'root' ? ' · root' : ''}</div>
-          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · ${!Array.isArray(usr.access) || usr.access.length >= 5 ? 'все разделы' : `разделов: ${usr.access.length}/5`}${usr.hideCosts ? ' · без закупа' : ''}${usr.notify?.length ? ` · 🔔 ${usr.notify.length}` : ''}`}</div>
+          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · ${!Array.isArray(usr.access) || usr.access.length >= 6 ? 'все разделы' : `разделов: ${usr.access.length}/6`}${usr.hideCosts ? ' · без закупа' : ''}${usr.notify?.length ? ` · 🔔 ${usr.notify.length}` : ''}`}</div>
         </div>
         ${usr.role === 'root' ? '' : `
           <button class="menu-del-btn user-edit-btn" data-uid="${usr.id}">${svgEdit}</button>
@@ -538,7 +537,7 @@ class App {
   _renderAccessChips(access) {
     const el = document.getElementById('userAccessChips');
     if (!el) return;
-    const LABELS = { inventory: '📦 Товары', stats: '📊 Статистика', finance: '💳 Счёт', project: '📁 Проект', faq: '💬 FAQ' };
+    const LABELS = { inventory: '📦 Товары', stats: '📊 Статистика', finance: '💳 Счёт', project: '📁 Проект', site: '🌐 Сайт', faq: '💬 FAQ' };
     const on = s => !Array.isArray(access) || access.includes(s);
     el.innerHTML = Object.entries(LABELS).map(([s, label]) =>
       `<button type="button" class="vis-chip${on(s) ? ' active' : ''}" data-acc="${s}">${label}</button>`
@@ -3463,7 +3462,7 @@ class App {
     const title = document.getElementById('colTitle').value.trim();
     if (!title) { this.toast('Введите название подборки'); return; }
     await this.db.saveCollection({
-      ...(this._editingColId ? { id: this._editingColId } : {}),
+      ...(this._editingColId ? { id: this._editingColId } : { order: this._nextStreamOrder() }),
       title,
       description: document.getElementById('colDesc').value.trim(),
       itemIds:     [...this._colPicked],
@@ -3564,7 +3563,8 @@ class App {
         </select>
         <input type="text" class="form-input" id="blkLinkValue" value="${this.esc(b.linkValue || '')}" placeholder="https://…" style="margin-top:8px;${b.linkType === 'url' ? '' : 'display:none'}">`);
     } else if (b.type === 'text') {
-      html += g('Заголовок', `<input type="text" class="form-input" id="blkHeading" value="${this.esc(b.heading || '')}" placeholder="Например: Условия доставки">`);
+      html += g('Заголовок <span style="color:var(--text3);font-weight:400">— Enter для новой строки</span>',
+        `<textarea class="form-input form-textarea" id="blkHeading" rows="2" placeholder="Например: Условия\nдоставки">${this.esc(b.heading || '')}</textarea>`);
       html += g('Текст', `<textarea class="form-input form-textarea" id="blkBody" rows="5" placeholder="Текст блока…">${this.esc(b.body || '')}</textarea>`);
     } else {
       html += g('Текст полосы', `<input type="text" class="form-input" id="blkText" value="${this.esc(b.text || '')}" placeholder="Например: Бесплатная доставка от 5000 ₽">`);
@@ -3620,6 +3620,7 @@ class App {
     if (b.type === 'promo'  && !b.text)                 { this.toast('Введите текст полосы'); return; }
     if (b.type === 'text'   && !b.heading && !b.body)   { this.toast('Заполните заголовок или текст'); return; }
     if (b.type === 'banner' && !b.image && !b.heading)  { this.toast('Добавьте картинку или заголовок'); return; }
+    if (this._blockIsNew && this.currentView === 'site') b.order = this._nextStreamOrder();  // в конец потока
     await this.db.saveBlock(b);
     this.closeModal('blockModal');
     this.toast(this._blockIsNew ? 'Блок создан ✓' : 'Блок обновлён ✓');
@@ -3635,31 +3636,48 @@ class App {
   async renderSiteView() {
     const el = document.getElementById('siteContent');
     const [blocks, cols] = await Promise.all([this.db.getBlocks(), this.db.getCollections()]);
-    this._blocks       = blocks.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
-    this._collections  = cols.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+    this._blocks = blocks;
+    this._collections = cols;
 
-    const section = (title, hint, addCls, rowsHtml) => `
-      <div class="site-mgmt-card">
-        <div class="site-mgmt-head">
-          <div><div class="site-mgmt-title">${title}</div><div class="site-mgmt-hint">${hint}</div></div>
-          <button class="site-mgmt-add ${addCls}">＋ Добавить</button>
-        </div>
-        <div class="settings-section">${rowsHtml}</div>
-      </div>`;
-    const empty = (emoji, txt) => `<div class="site-mgmt-empty"><span>${emoji}</span>${txt}</div>`;
+    // Единый порядок: блоки и подборки в одной последовательности, чтобы их
+    // можно было чередовать. Старые независимые нумерации могли пересекаться —
+    // само-исцеляем: раз нормализуем в 0..n.
+    let stream = [
+      ...blocks.map(b => ({ kind: 'block', id: b.id, order: b.order ?? 0, ref: b })),
+      ...cols.map(c   => ({ kind: 'col',   id: c.id, order: c.order ?? 0, ref: c })),
+    ].sort((a, b) => (a.order - b.order) || (a.kind === 'col' ? 1 : -1) || (a.id < b.id ? -1 : 1));
+    if (stream.some((x, i) => x.order !== i)) {
+      await Promise.all(stream.map((x, i) => x.order === i ? null :
+        (x.kind === 'block' ? this.db.saveBlock({ id: x.id, order: i }) : this.db.saveCollection({ id: x.id, order: i }))));
+      stream.forEach((x, i) => { x.order = i; x.ref.order = i; });
+    }
+    this._stream = stream;
+
+    const rows = stream.map((x, i) => x.kind === 'block'
+      ? this._blockRowHtml(x.ref, i, stream.length)
+      : this._colRowHtml(x.ref, i, stream.length)).join('');
 
     el.innerHTML = `
-      <p class="site-mgmt-intro">Всё, что видно на витрине (Monarc и Type). Порядок — стрелками, клик по строке — редактировать.</p>
-      ${section('Блоки', 'Баннеры, текст и промо-полосы', 'block-add',
-        this._blocks.length ? this._blocks.map((b, i) => this._blockRowHtml(b, i, this._blocks.length)).join('')
-                            : empty('🧱', 'Пока нет блоков'))}
-      ${section('Подборки', 'Блоки товаров с общим заголовком', 'col-add',
-        this._collections.length ? this._collections.map((c, i) => this._colRowHtml(c, i, this._collections.length)).join('')
-                                 : empty('🗂', 'Пока нет подборок'))}`;
+      <p class="site-mgmt-intro">Всё, что видно на витрине (Monarc и Type). Порядок — стрелками, клик по строке — редактировать. Блоки и подборки можно чередовать.</p>
+      <div class="site-mgmt-card">
+        <div class="site-mgmt-head">
+          <div><div class="site-mgmt-title">Блоки и подборки</div><div class="site-mgmt-hint">Баннеры, текст, промо и подборки товаров</div></div>
+          <div class="site-mgmt-addrow">
+            <button class="site-mgmt-add block-add">＋ Блок</button>
+            <button class="site-mgmt-add col-add">＋ Подборку</button>
+          </div>
+        </div>
+        <div class="settings-section">${stream.length ? rows : '<div class="site-mgmt-empty"><span>🧱</span>Пока пусто — добавьте блок или подборку</div>'}</div>
+      </div>`;
   }
 
   _trashSvg() {
     return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+  }
+
+  _streamMoves(i, n) {
+    return `<button class="stream-move" data-dir="up" title="Выше"${i === 0 ? ' disabled' : ''}>↑</button>
+      <button class="stream-move" data-dir="down" title="Ниже"${i === n - 1 ? ' disabled' : ''}>↓</button>`;
   }
 
   _blockRowHtml(b, i, n) {
@@ -3667,15 +3685,15 @@ class App {
     const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
     const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
     const label = b.type === 'promo' ? b.text : (b.heading || (b.type === 'banner' ? 'Баннер без заголовка' : 'Без заголовка'));
-    return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}">
+    const sub = `${meta.t} · ${SEC[b.section] || b.section}${b.type === 'promo' ? ' · сверху' : ''}${b.enabled ? '' : ' · скрыт'}`;
+    return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}" data-kind="block">
       <div class="settings-row-icon" style="background:rgba(167,139,250,.14)">${meta.e}</div>
       <div class="settings-row-info">
-        <div class="settings-row-title">${this.esc(label || meta.t)}</div>
-        <div class="settings-row-sub">${meta.t} · ${SEC[b.section] || b.section}${b.enabled ? '' : ' · скрыт'}</div>
+        <div class="settings-row-title">${this.esc((label || meta.t).replace(/\n/g, ' '))}</div>
+        <div class="settings-row-sub">${sub}</div>
       </div>
       <div class="block-row-actions">
-        <button class="block-move" data-id="${b.id}" data-dir="up" title="Выше"${i === 0 ? ' disabled' : ''}>↑</button>
-        <button class="block-move" data-id="${b.id}" data-dir="down" title="Ниже"${i === n - 1 ? ' disabled' : ''}>↓</button>
+        ${this._streamMoves(i, n)}
         <button class="block-toggle" data-id="${b.id}" title="${b.enabled ? 'Скрыть' : 'Показать'}">${b.enabled ? '👁' : '🚫'}</button>
         <button class="block-delete-btn" data-id="${b.id}" title="Удалить">${this._trashSvg()}</button>
       </div>
@@ -3683,41 +3701,47 @@ class App {
   }
 
   _colRowHtml(c, i, n) {
-    return `<div class="settings-row col-row" data-col-id="${c.id}">
+    return `<div class="settings-row col-row" data-col-id="${c.id}" data-kind="col">
       <div class="settings-row-icon" style="background:rgba(52,211,153,.12)">🗂</div>
       <div class="settings-row-info">
-        <div class="settings-row-title">${this.esc(c.title || 'Без названия')}</div>
+        <div class="settings-row-title">${this.esc(c.title || 'Без названия')} <span class="row-tag">подборка</span></div>
         <div class="settings-row-sub">${(c.itemIds || []).length} тов.${c.description ? ' · ' + this.esc(c.description) : ''}</div>
       </div>
       <div class="block-row-actions">
-        <button class="col-move" data-id="${c.id}" data-dir="up" title="Выше"${i === 0 ? ' disabled' : ''}>↑</button>
-        <button class="col-move" data-id="${c.id}" data-dir="down" title="Ниже"${i === n - 1 ? ' disabled' : ''}>↓</button>
+        ${this._streamMoves(i, n)}
         <button class="col-delete-btn" data-id="${c.id}" title="Удалить">${this._trashSvg()}</button>
       </div>
     </div>`;
   }
 
-  async moveCollection(id, dir) {
-    const arr = [...(this._collections || [])];
-    const i = arr.findIndex(c => c.id === id);
+  _nextStreamOrder() {
+    return (this._stream || []).reduce((m, x) => Math.max(m, x.order || 0), -1) + 1;
+  }
+
+  async moveStreamItem(row, dir) {
+    const arr = [...(this._stream || [])];
+    const i = arr.findIndex(x => x.kind === row.dataset.kind &&
+      (x.id === row.dataset.blockId || x.id === row.dataset.colId));
     const j = dir === 'up' ? i - 1 : i + 1;
     if (i < 0 || j < 0 || j >= arr.length) return;
     [arr[i], arr[j]] = [arr[j], arr[i]];
-    await Promise.all(arr.map((c, idx) => c.order === idx ? null : this.db.saveCollection({ id: c.id, order: idx })));
-    await this._refreshCollections();
+    await Promise.all(arr.map((x, idx) => x.order === idx ? null :
+      (x.kind === 'block' ? this.db.saveBlock({ id: x.id, order: idx }) : this.db.saveCollection({ id: x.id, order: idx }))));
+    await this.renderSiteView();
   }
 
   async _onSiteClick(e) {
     if (e.target.closest('.block-add')) { this.openBlockModal(); return; }
     if (e.target.closest('.col-add'))   { this.openCollectionModal(); return; }
 
+    const mv = e.target.closest('.stream-move');
+    if (mv) { const row = mv.closest('[data-kind]'); if (row) this.moveStreamItem(row, mv.dataset.dir); return; }
+
     const bDel = e.target.closest('.block-delete-btn');
     if (bDel) {
       if (!await this.confirm('Удалить блок?')) return;
       await this.db.deleteBlock(bDel.dataset.id); this.toast('Блок удалён'); this.renderSiteView(); return;
     }
-    const bMove = e.target.closest('.block-move');
-    if (bMove) { this.moveBlock(bMove.dataset.id, bMove.dataset.dir); return; }
     const bTog = e.target.closest('.block-toggle');
     if (bTog) {
       const b = (this._blocks || []).find(x => x.id === bTog.dataset.id);
@@ -3729,8 +3753,6 @@ class App {
       if (!await this.confirm('Удалить подборку? Товары останутся на сайте.')) return;
       await this.db.deleteCollection(cDel.dataset.id); this.toast('Подборка удалена'); this.renderSiteView(); return;
     }
-    const cMove = e.target.closest('.col-move');
-    if (cMove) { this.moveCollection(cMove.dataset.id, cMove.dataset.dir); return; }
 
     const bRow = e.target.closest('[data-block-id]');
     if (bRow) { const b = (this._blocks || []).find(x => x.id === bRow.dataset.blockId); if (b) this.openBlockModal(b); return; }

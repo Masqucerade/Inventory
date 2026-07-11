@@ -35,8 +35,7 @@ async function boot() {
       fetch(`/api/public/blocks?section=${SECTION}`).then(r => r.json()),
     ]);
     ITEMS = items; CATS = cats;
-    renderBlocks(blocks);
-    renderCollections(collections);
+    renderStream(blocks, collections);
     renderChips();
     renderGrid();
     renderFaq(faq);
@@ -73,7 +72,8 @@ function sizesLabel(sizes) {
 }
 
 function cardHTML(i) {
-  const cover = (i.thumbs && i.thumbs[0]) || (i.photos && i.photos[0]) || null;
+  // Полное фото (≤900px) — чёткое даже на retina; браузер лениво подгружает.
+  const cover = (i.photos && i.photos[0]) || (i.thumbs && i.thumbs[0]) || null;
   return `
     <article class="good-card" data-id="${esc(i.id)}">
       <div class="good-photo">
@@ -112,11 +112,40 @@ function blockLinkHref(b) {
 }
 const nl2br = (s) => esc(s).replace(/\n/g, '<br>');
 
-function renderBlocks(blocks) {
+function bannerHtml(b) {
+  const href = blockLinkHref(b);
+  const ext  = b.linkType === 'tg' || b.linkType === 'url';
+  const inner = `${b.image ? `<img src="${esc(b.image)}" alt="${esc(b.heading)}" loading="lazy" draggable="false">` : ''}
+    ${(b.heading || b.subtext) ? `<div class="block-banner-cap">
+      ${b.heading ? `<h2>${nl2br(b.heading)}</h2>` : ''}
+      ${b.subtext ? `<p>${esc(b.subtext)}</p>` : ''}
+    </div>` : ''}`;
+  return href
+    ? `<a class="site-block block-banner" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
+    : `<div class="site-block block-banner">${inner}</div>`;
+}
+function textHtml(b) {
+  if (!b.heading && !b.body) return '';
+  return `<section class="site-block block-text">
+    ${b.heading ? `<h2>${nl2br(b.heading)}</h2>` : ''}
+    ${b.body ? `<div class="block-text-body">${nl2br(b.body)}</div>` : ''}
+  </section>`;
+}
+function collectionHtml(c, items) {
+  return `<section class="collection-block">
+    <p class="collection-kicker">Подборка</p>
+    <h2>${esc(c.title)}</h2>
+    ${c.description ? `<p class="collection-desc">${esc(c.description)}</p>` : ''}
+    <div class="goods-grid collection-grid">${items.map(cardHTML).join('')}</div>
+  </section>`;
+}
+
+/* Единый поток витрины: баннеры, текст и подборки в общем порядке (order).
+   Промо-полосы — отдельно, тонкой строкой сверху. */
+function renderStream(blocks, collections) {
   blocks = blocks || [];
 
-  // Промо-полосы → тонкая строка сверху
-  const promos = blocks.filter(b => b.type === 'promo' && b.text);
+  const promos = blocks.filter(b => b.type === 'promo' && b.text).sort((a, b) => (a.order || 0) - (b.order || 0));
   const bar = document.getElementById('promoBar');
   if (promos.length) {
     bar.innerHTML = promos.map(p => `<span>${esc(p.text)}</span>`).join('<i class="promo-sep">•</i>');
@@ -125,48 +154,24 @@ function renderBlocks(blocks) {
     bar.hidden = true;
   }
 
-  // Баннеры и текстовые блоки → в поток под hero
-  const el = document.getElementById('siteBlocks');
-  el.innerHTML = blocks.filter(b => b.type === 'banner' || b.type === 'text').map(b => {
-    if (b.type === 'text') {
-      if (!b.heading && !b.body) return '';
-      return `<section class="site-block block-text">
-        ${b.heading ? `<h2>${esc(b.heading)}</h2>` : ''}
-        ${b.body ? `<div class="block-text-body">${nl2br(b.body)}</div>` : ''}
-      </section>`;
-    }
-    const href  = blockLinkHref(b);
-    const ext   = b.linkType === 'tg' || b.linkType === 'url';
-    const inner = `${b.image ? `<img src="${esc(b.image)}" alt="${esc(b.heading)}" loading="lazy" draggable="false">` : ''}
-      ${(b.heading || b.subtext) ? `<div class="block-banner-cap">
-        ${b.heading ? `<h2>${esc(b.heading)}</h2>` : ''}
-        ${b.subtext ? `<p>${esc(b.subtext)}</p>` : ''}
-      </div>` : ''}`;
-    return href
-      ? `<a class="site-block block-banner" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
-      : `<div class="site-block block-banner">${inner}</div>`;
-  }).join('');
-}
-
-/* ─── Подборки ─── */
-function renderCollections(collections) {
   const byId = new Map(ITEMS.map(i => [i.id, i]));
-  const blocks = (collections || [])
-    .map(c => ({ ...c, items: c.itemIds.map(id => byId.get(id)).filter(Boolean) }))
-    .filter(c => c.items.length);
-  if (!blocks.length) return;
-  document.getElementById('gridHeading').hidden = false;
-  document.getElementById('collectionsWrap').innerHTML = blocks.map(c => `
-    <section class="collection-block">
-      <p class="collection-kicker">Подборка</p>
-      <h2>${esc(c.title)}</h2>
-      ${c.description ? `<p class="collection-desc">${esc(c.description)}</p>` : ''}
-      <div class="goods-grid collection-grid">${c.items.map(cardHTML).join('')}</div>
-    </section>`).join('');
+  const stream = [];
+  for (const b of blocks)
+    if (b.type === 'banner' || b.type === 'text')
+      stream.push({ order: b.order || 0, kind: 'block', html: b.type === 'banner' ? bannerHtml(b) : textHtml(b) });
+  for (const c of (collections || [])) {
+    const items = (c.itemIds || []).map(id => byId.get(id)).filter(Boolean);
+    if (items.length) stream.push({ order: c.order || 0, kind: 'col', html: collectionHtml(c, items) });
+  }
+  stream.sort((a, b) => (a.order - b.order) || (a.kind === 'col' ? 1 : -1));
+
+  document.getElementById('siteBlocks').innerHTML = stream.map(x => x.html).join('');
+  document.getElementById('collectionsWrap').innerHTML = '';
+  document.getElementById('gridHeading').hidden = stream.length === 0;
 }
 
-/* Клик по карточке внутри подборки — та же модалка */
-document.getElementById('collectionsWrap').addEventListener('click', (e) => {
+/* Клик по карточке товара в потоке (подборки) — та же модалка */
+document.getElementById('siteBlocks').addEventListener('click', (e) => {
   const card = e.target.closest('.good-card');
   if (!card) return;
   const item = ITEMS.find(i => i.id === card.dataset.id);
