@@ -308,7 +308,8 @@ app.get('/api/items', (req, res) => {
       (i.name  ||'').toLowerCase().includes(q) ||
       (i.type  ||'').toLowerCase().includes(q) ||
       (i.size  ||'').toLowerCase().includes(q) ||
-      (i.notes ||'').toLowerCase().includes(q)
+      (i.notes ||'').toLowerCase().includes(q) ||
+      (Array.isArray(i.sizes) && i.sizes.some(s => (s.size || '').toLowerCase().includes(q)))
     );
   }
   rows.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
@@ -344,11 +345,12 @@ app.put('/api/items', (req, res) => {
   const idx = db.items.findIndex(i => i.id === item.id);
   if (idx >= 0) {
     const old = db.items[idx];
-    const TRACKED = ['status','ownerId','name','price','buyPrice','categoryId'];
+    const TRACKED = ['orderStatus','ownerId','name','price','buyPrice','categoryId'];
     const changes = {};
     TRACKED.forEach(f => { if (String(old[f]??'') !== String(item[f]??'')) changes[f] = { from: old[f], to: item[f] }; });
     item.history = [...(old.history || [])];
-    if (Object.keys(changes).length) item.history = [...item.history, { ts: now, by: item._updatedBy||null, changes }].slice(-30);
+    if (Object.keys(changes).length)
+      item.history = [...item.history, { ts: now, by: item._updatedBy||null, byName: req.user?.name || null, changes }].slice(-30);
     delete item._updatedBy;
     db.items[idx] = item;
   } else {

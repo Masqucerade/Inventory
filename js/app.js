@@ -969,6 +969,7 @@ class App {
 
       if (!file) return;
       e.preventDefault();
+      if (this._photos.length >= 10) { this.toast('Максимум 10 фото'); return; }
       try {
         this._photos.push(await resizeImage(file));
         this._renderPhotoStrip();
@@ -1642,6 +1643,9 @@ class App {
     this._selectMode  = true;
     this._selectedIds = new Set();
     document.getElementById('deliveryBar').classList.remove('hidden');
+    // hideCosts-сотрудник не может менять доставку — сервер её всё равно не примет
+    const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
+    document.getElementById('bulkDeliveryBtn').style.display = hideCosts ? 'none' : '';
     document.getElementById('selectModeBtn')?.classList.add('active');
     this.renderInventoryList();
     this.updateDeliveryBar();
@@ -1696,6 +1700,10 @@ class App {
 
   openDeliveryModal() {
     if (!this._selectedIds.size) return;
+    if (this.currentUser?.hideCosts && this.currentUser?.role !== 'root') {
+      this.toast('Недостаточно прав для изменения доставки');
+      return;
+    }
     document.getElementById('deliveryModalDesc').textContent = this._bulkDesc();
     document.getElementById('deliveryCostInput').value = '';
     this.openModal('deliveryModal');
@@ -3554,7 +3562,7 @@ class App {
   _itemHistoryHtml(item) {
     const hist = item.history;
     if (!hist?.length) return '';
-    const FIELD_LABELS = { status: 'Статус', ownerId: 'Владелец', name: 'Название', price: 'Цена', buyPrice: 'Закуп', categoryId: 'Категория' };
+    const FIELD_LABELS = { status: 'Статус', orderStatus: 'Статус', ownerId: 'Владелец', name: 'Название', price: 'Цена', buyPrice: 'Закуп', categoryId: 'Категория' };
     const ownerName = id => this.owners.find(o => o.id === id)?.name || id || '—';
     const catName   = id => this.categories.find(c => c.id === id)?.name || id || '—';
     const statusName= id => STATUSES.find(s => s.id === id)?.label || id || '—';
@@ -3562,7 +3570,7 @@ class App {
       if (val == null || val === '') return '—';
       if (field === 'ownerId')    return ownerName(val);
       if (field === 'categoryId') return catName(val);
-      if (field === 'status')     return statusName(val);
+      if (field === 'status' || field === 'orderStatus') return statusName(val);
       return String(val);
     };
     const entries = [...hist].reverse().slice(0, 10);
@@ -3571,6 +3579,7 @@ class App {
         <div class="item-history-title">История изменений</div>
         ${entries.map(h => {
           const byOwner = h.by ? this.owners.find(o => o.id === h.by) : null;
+          const byLabel = byOwner?.name || h.byName || '';
           const fields  = Object.entries(h.changes).map(([f, {from, to}]) =>
             `<span class="hist-change">${FIELD_LABELS[f]||f}: <s>${fmtVal(f,from)}</s> → <b>${fmtVal(f,to)}</b></span>`
           ).join('');
@@ -3578,7 +3587,7 @@ class App {
             <div class="hist-entry">
               <div class="hist-dot"></div>
               <div class="hist-body">
-                <div class="hist-meta">${this.fmtDate(h.ts)}${byOwner ? ` · ${this.esc(byOwner.name)}` : ''}</div>
+                <div class="hist-meta">${this.fmtDate(h.ts)}${byLabel ? ` · ${this.esc(byLabel)}` : ''}</div>
                 <div class="hist-fields">${fields}</div>
               </div>
             </div>`;
