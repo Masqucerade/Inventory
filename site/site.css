@@ -197,6 +197,18 @@ img { max-width: 100%; display: block; }
 .cat-chip:hover { color: var(--text); border-color: var(--line2); }
 .cat-chip.active { color: var(--gold-hi); border-color: var(--line2); background: rgba(212,180,131,.09); }
 
+/* Фильтр по категориям — липкая полоса под шапкой, горизонтальный скролл на узких */
+.cat-filter {
+  position: sticky; top: var(--header-h, 56px); z-index: 15;
+  flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+  margin: 0 0 8px; padding: 14px 0;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+}
+.cat-filter::-webkit-scrollbar { display: none; }
+.cat-filter[hidden] { display: none; }
+.cat-filter .cat-chip { flex-shrink: 0; }
+.grid-heading { scroll-margin-top: calc(var(--header-h, 56px) + 70px); }
+
 .goods-grid {
   display: grid; gap: 22px;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));

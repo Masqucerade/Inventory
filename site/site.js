@@ -38,6 +38,7 @@ async function boot() {
     renderStream(blocks, collections);
     renderChips();
     renderGrid();
+    updateCatalogChrome();
     renderFaq(faq);
     openFromUrl();          // если зашли по прямой ссылке на товар — открыть его
   } catch (e) {
@@ -50,11 +51,13 @@ function renderChips() {
   const usedCatIds = new Set(ITEMS.map(i => i.categoryId).filter(Boolean));
   const cats = CATS.filter(c => usedCatIds.has(c.id));
   const el = document.getElementById('catChips');
-  if (!cats.length) { el.innerHTML = ''; return; }
+  // Фильтр по категориям показываем, только если есть из чего выбирать
+  if (cats.length < 1) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
   el.innerHTML =
     `<button class="cat-chip${!activeCat ? ' active' : ''}" data-cat="">Все</button>` +
     cats.map(c =>
-      `<button class="cat-chip${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`
+      `<button class="cat-chip${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${c.emoji ? esc(c.emoji) + ' ' : ''}${esc(c.name)}</button>`
     ).join('');
 }
 
@@ -64,7 +67,34 @@ document.getElementById('catChips').addEventListener('click', (e) => {
   activeCat = chip.dataset.cat || null;
   renderChips();
   renderGrid();
+  updateCatalogChrome();
+  // При выборе категории — сразу к товарам (промо-блоки скрыты)
+  if (activeCat) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
+
+// При активном фильтре показываем только товары категории, пряча промо-поток
+let _streamHasContent = false;
+function updateCatalogChrome() {
+  const filtering = !!activeCat;
+  // inline-стиль, т.к. #siteBlocks:not(:empty){display:flex} перебивает [hidden]
+  document.getElementById('siteBlocks').style.display = filtering ? 'none' : '';
+  const gh = document.getElementById('gridHeading');
+  if (filtering) {
+    const cat = CATS.find(c => c.id === activeCat);
+    gh.hidden = false;
+    gh.textContent = cat ? `${cat.emoji ? cat.emoji + ' ' : ''}${cat.name}` : 'Товары';
+  } else {
+    gh.hidden = !_streamHasContent;
+    gh.textContent = 'Все товары';
+  }
+}
+
+function syncHeaderHeight() {
+  const h = document.querySelector('.site-header')?.offsetHeight || 56;
+  document.documentElement.style.setProperty('--header-h', h + 'px');
+}
+syncHeaderHeight();
+window.addEventListener('resize', syncHeaderHeight);
 
 function sizesLabel(sizes) {
   if (!Array.isArray(sizes) || !sizes.length) return '';
@@ -226,7 +256,7 @@ function renderStream(blocks, collections) {
 
   document.getElementById('siteBlocks').innerHTML = stream.map(x => x.html).join('');
   document.getElementById('collectionsWrap').innerHTML = '';
-  document.getElementById('gridHeading').hidden = stream.length === 0;
+  _streamHasContent = stream.length > 0;
   requestAnimationFrame(markCarousels);
 }
 
