@@ -2633,8 +2633,8 @@ class App {
             </div>
           </div>
           <div class="proj-hero-chips">
-            <span class="proj-chip">📝 <b>${notes.length}</b> ${notes.length === 1 ? 'заметка' : 'заметок'}</span>
-            <span class="proj-chip">🔑 <b>${quick.length}</b> ${quick.length === 1 ? 'доступ' : 'доступов'}</span>
+            <span class="proj-chip note">📝 <b>${notes.length}</b> ${notes.length === 1 ? 'заметка' : 'заметок'}</span>
+            <span class="proj-chip access">🔑 <b>${quick.length}</b> ${quick.length === 1 ? 'доступ' : 'доступов'}</span>
           </div>
         </div>`;
     } else {
@@ -2689,6 +2689,7 @@ class App {
     const act = bar?.querySelector('.proj-tab.active');
     const gl  = bar?.querySelector('.proj-tabs-glider');
     if (!bar || !act || !gl) return;
+    bar.dataset.tab    = this._projectSubTab;   // для цвета глайдера по разделу
     gl.style.width     = act.offsetWidth + 'px';
     gl.style.transform = `translateX(${act.offsetLeft - 4}px)`;
   }

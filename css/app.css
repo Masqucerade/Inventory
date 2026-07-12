@@ -1957,6 +1957,110 @@ html, body {
 .quick-del:active  { background: var(--fill2); color: var(--danger); }
 
 /* =============================================
+   Проект — яркое переоформление (контраст на чёрном)
+   ============================================= */
+#view-project { --p-task: #8b7bff; --p-note: #fbbf24; --p-access: #38bdf8; }
+
+/* Hero — насыщенная градиент-рамка + светлее подложка */
+#view-project .proj-hero {
+  padding: 1.5px; border-radius: 20px;
+  background: linear-gradient(135deg, #8b7bff 0%, #6d5cf0 45%, #38bdf8 100%);
+  box-shadow: 0 12px 34px -14px rgba(124,109,250,.55);
+}
+#view-project .proj-hero-inner {
+  border-radius: 18.5px;
+  background: linear-gradient(160deg, #2a2450 0%, #1a1730 62%);
+}
+#view-project .proj-hero-inner::before {
+  background: radial-gradient(closest-side, rgba(165,145,255,.6), transparent);
+}
+#view-project .proj-hero-label { color: #cec4ff; letter-spacing: .9px; }
+#view-project .proj-hero-done  { color: rgba(255,255,255,.64); }
+
+/* Чипы — цветные: заметки=янтарь, доступы=голубой */
+#view-project .proj-chip {
+  background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.17);
+  color: rgba(255,255,255,.82); font-weight: 500;
+}
+#view-project .proj-chip b { color: #fff; }
+#view-project .proj-chip.note   { background: rgba(251,191,36,.15); border-color: rgba(251,191,36,.42); color: #ffdb85; }
+#view-project .proj-chip.note b { color: #fdedc0; }
+#view-project .proj-chip.access   { background: rgba(56,189,248,.15); border-color: rgba(56,189,248,.42); color: #93daff; }
+#view-project .proj-chip.access b { color: #d2f1ff; }
+
+/* Табы — светлее полоса, цветной глайдер по активному разделу */
+#view-project .proj-tabs { background: rgba(255,255,255,.055); border-color: rgba(255,255,255,.11); }
+#view-project .proj-tab:not(.active) { color: rgba(255,255,255,.62); }
+#view-project .proj-tabs-glider {
+  box-shadow: 0 3px 16px rgba(124,109,250,.55), inset 0 1px 0 rgba(255,255,255,.25);
+}
+#view-project .proj-tabs[data-tab="notes"] .proj-tabs-glider {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 3px 16px rgba(251,191,36,.5), inset 0 1px 0 rgba(255,255,255,.28);
+}
+#view-project .proj-tabs[data-tab="quick"] .proj-tabs-glider {
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  box-shadow: 0 3px 16px rgba(56,189,248,.5), inset 0 1px 0 rgba(255,255,255,.28);
+}
+#view-project .proj-tab-count { background: rgba(255,255,255,.1); color: rgba(255,255,255,.78); }
+
+/* Карточки задач — светлее фон, чёткая граница, цветная левая полоса */
+#view-project #projectContent .task-item {
+  position: relative; overflow: hidden; padding-left: 16px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 3px 12px -7px rgba(0,0,0,.7);
+}
+#view-project #projectContent .task-item::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--p-task); border-radius: 3px 0 0 3px;
+}
+#view-project #projectContent .task-item.task-mine::before,
+#view-project #projectContent .task-item.task-personal::before { background: var(--p-note); }
+#view-project #projectContent .task-item.done { opacity: .5; }
+#view-project #projectContent .task-item.done::before { background: #4ade80; }
+#view-project #projectContent .task-desc { color: rgba(255,255,255,.64); }
+#view-project .task-date { color: rgba(255,255,255,.42); }
+#view-project .task-check { border-color: rgba(255,255,255,.3); }
+
+/* Доступы — светлее карточки, цветная иконка */
+#view-project .quick-item {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 3px 12px -7px rgba(0,0,0,.7);
+}
+#view-project .quick-item:not(.pinned) .quick-type-icon { background: rgba(56,189,248,.16); }
+#view-project .quick-label { color: rgba(255,255,255,.52); }
+
+/* Заметки — ярче подложка стикеров */
+#view-project .note-card {
+  background: color-mix(in srgb, var(--nc) 17%, #1c1a28);
+  border-color: color-mix(in srgb, var(--nc) 44%, transparent);
+}
+#view-project .note-date { color: rgba(255,255,255,.46); }
+
+/* Разделитель «Выполнено» — светлее */
+#view-project .task-divider { color: rgba(255,255,255,.52); }
+#view-project .task-divider::before, #view-project .task-divider::after { background: rgba(255,255,255,.13); }
+
+/* Светлая тема — не трогаем яркие оверрайды (остаются как в базе) */
+[data-theme="light"] #view-project #projectContent .task-item,
+[data-theme="light"] #view-project .quick-item { background: #fff; border-color: rgba(0,0,0,.09); box-shadow: 0 3px 12px -8px rgba(0,0,0,.25); }
+[data-theme="light"] #view-project .proj-tabs { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.08); }
+[data-theme="light"] #view-project .proj-tab:not(.active) { color: #5a5568; }
+[data-theme="light"] #view-project .proj-hero-inner { background: linear-gradient(160deg, #efeaff 0%, #fafafd 60%); }
+[data-theme="light"] #view-project .proj-hero-label { color: #6050e0; }
+[data-theme="light"] #view-project .proj-hero-done  { color: #6d685c; }
+[data-theme="light"] #view-project .proj-chip { color: #4a4658; }
+[data-theme="light"] #view-project #projectContent .task-desc,
+[data-theme="light"] #view-project .task-date,
+[data-theme="light"] #view-project .quick-label,
+[data-theme="light"] #view-project .note-date,
+[data-theme="light"] #view-project .task-divider { color: #6d685c; }
+[data-theme="light"] #view-project .task-check { border-color: rgba(0,0,0,.2); }
+[data-theme="light"] #view-project .note-card { background: color-mix(in srgb, var(--nc) 10%, #fff); }
+
+/* =============================================
    LOGIN SCREEN
    ============================================= */
 .login-screen {
