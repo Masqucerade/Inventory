@@ -1305,9 +1305,13 @@ class App {
       items.sort((a, b) => sd * ((a.quantity || 0) - (b.quantity || 0)));
     } else if (this._sortBy === 'name') {
       items.sort((a, b) => sd * (a.name || '').localeCompare(b.name || '', 'ru'));
+    } else if (this._sortBy === 'status') {
+      const rank = id => { const i = STATUSES.findIndex(s => s.id === id); return i < 0 ? 99 : i; };
+      items.sort((a, b) => sd * (rank(a.orderStatus) - rank(b.orderStatus)));
+    } else if (this._sortBy === 'date') {
+      // по дате добавления в панель (createdAt)
+      items.sort((a, b) => sd * (new Date(a.createdAt || 0) - new Date(b.createdAt || 0)));
     }
-    // 'date' — already sorted by server (updatedAt desc); respect direction
-    if (this._sortBy === 'date' && this._sortDir === 'asc') items.reverse();
 
     // Monarc isolation
     if (this._filterMonarc) {
