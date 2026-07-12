@@ -1824,7 +1824,7 @@ class App {
     await this.db.logAction(
       isNew ? 'item_add' : 'item_edit',
       isNew ? `Добавлен товар: «${name}»` : `Изменён товар: «${name}»`,
-      { id: saved.id, name, type, quantity: totQty, price: item.price }
+      { id: saved.id, name, quantity: totQty, price: item.price }
     );
     await this.loadData();
     this.closeModal('itemModal');
