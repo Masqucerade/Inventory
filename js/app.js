@@ -636,7 +636,9 @@ class App {
     const svgDel = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
     el.innerHTML = `<div class="settings-section">${cats.map(c => `
       <div class="settings-row" style="cursor:default">
-        <div class="settings-row-icon" style="background:rgba(251,191,36,.1);font-size:16px">${this.esc(c.emoji||'🏷️')}</div>
+        <div class="settings-row-icon" style="background:rgba(251,191,36,.1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        </div>
         <div class="settings-row-info"><div class="settings-row-title">${this.esc(c.name)}</div></div>
         <button class="menu-del-btn cat-del-btn" data-cat-id="${c.id}">${svgDel}</button>
       </div>`).join('')}
@@ -654,10 +656,9 @@ class App {
   }
 
   async _openCatPrompt() {
-    const name = await this._prompt('Название категории', '', 'Одежда, Аксессуары…');
+    const name = await this._prompt('Название категории', '', 'Футболки, Кофты, Обувь…');
     if (!name) return;
-    const emoji = await this._prompt('Эмодзи (необязательно)', '', '👗');
-    await this.db.addCategory({ name, emoji: emoji || '🏷️' });
+    await this.db.addCategory({ name });
     await this.loadData();
     this._renderMenuCats();
     this.renderCatFilterChips();
@@ -1198,7 +1199,7 @@ class App {
     el.innerHTML =
       `<button class="chip ${!this._filterCat ? 'active' : ''}" data-cat="">Все</button>` +
       this.categories.map(c =>
-        `<button class="chip ${this._filterCat === c.id ? 'active' : ''}" data-cat="${c.id}">${this.esc(c.emoji||'')} ${this.esc(c.name)}</button>`
+        `<button class="chip ${this._filterCat === c.id ? 'active' : ''}" data-cat="${c.id}">${this.esc(c.name)}</button>`
       ).join('');
     el.querySelectorAll('[data-cat]').forEach(btn =>
       btn.addEventListener('click', () => {
@@ -1318,7 +1319,7 @@ class App {
         <div class="item-top">
           <div style="min-width:0">
             <div class="item-name">${this.esc(item.name)}</div>
-            <div class="item-type-size">${this.esc(item.type)}</div>
+            <div class="item-type-size">${this.esc(this.categories.find(c => c.id === item.categoryId)?.name || '')}</div>
           </div>
           <div class="item-top-badges">
             <span class="status-badge ${item.orderStatus}">${st.label}</span>${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
@@ -1558,7 +1559,7 @@ class App {
     /* Category select */
     const catSel = document.getElementById('fieldCategory');
     catSel.innerHTML = `<option value="">— Без категории —</option>` +
-      this.categories.map(c => `<option value="${c.id}">${this.esc(c.emoji||'')} ${this.esc(c.name)}</option>`).join('');
+      this.categories.map(c => `<option value="${c.id}">${this.esc(c.name)}</option>`).join('');
     const hasCats = this.categories.length > 0;
     document.getElementById('categoryGroup').style.display   = hasCats ? '' : 'none';
     document.getElementById('categoryDivider').style.display = hasCats ? '' : 'none';

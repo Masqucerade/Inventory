@@ -57,7 +57,7 @@ function renderChips() {
   el.innerHTML =
     `<button class="cat-chip${!activeCat ? ' active' : ''}" data-cat="">Все</button>` +
     cats.map(c =>
-      `<button class="cat-chip${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${c.emoji ? esc(c.emoji) + ' ' : ''}${esc(c.name)}</button>`
+      `<button class="cat-chip${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`
     ).join('');
 }
 
@@ -82,7 +82,7 @@ function updateCatalogChrome() {
   if (filtering) {
     const cat = CATS.find(c => c.id === activeCat);
     gh.hidden = false;
-    gh.textContent = cat ? `${cat.emoji ? cat.emoji + ' ' : ''}${cat.name}` : 'Товары';
+    gh.textContent = cat ? cat.name : 'Товары';
   } else {
     gh.hidden = !_streamHasContent;
     gh.textContent = 'Все товары';
