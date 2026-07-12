@@ -3647,8 +3647,8 @@ class App {
     let html = '';
     if (this._blockIsNew)
       html += g('Тип блока', seg('type', [
-        { v: 'banner', t: 'Баннер' }, { v: 'duo', t: 'Двойной' }, { v: 'statement', t: 'Слоган' },
-        { v: 'text', t: 'Текст' }, { v: 'marquee', t: 'Строка' }, { v: 'promo', t: 'Промо' },
+        { v: 'weekly', t: 'Товары' }, { v: 'banner', t: 'Баннер' }, { v: 'duo', t: 'Двойной' },
+        { v: 'statement', t: 'Слоган' }, { v: 'text', t: 'Текст' }, { v: 'marquee', t: 'Строка' }, { v: 'promo', t: 'Промо' },
       ]));
     html += g('Раздел', seg('section', [{ v: 'all', t: 'Везде' }, { v: 'monarc', t: 'Monarc' }, { v: 'type', t: 'Type' }]));
 
@@ -3678,6 +3678,20 @@ class App {
     } else if (b.type === 'marquee') {
       html += `<div class="blk-hint">Бегущая строка — фраза плавно едет по экрану.</div>`;
       html += g('Текст строки', `<input type="text" class="form-input" id="blkMarquee" value="${esc(b.text || '')}" placeholder="Например: Новая коллекция уже здесь">`);
+    } else if (b.type === 'weekly') {
+      html += `<div class="blk-hint">Витрина выбранных товаров с заголовком. Показываются только товары с галочкой «На сайте».</div>`;
+      html += g('Заголовок', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || 'Товары недели')}" placeholder="Товары недели">`);
+      const picks = new Set(b.itemIds || []);
+      const pickable = this.items.filter(i => i.showOnSite && i.orderStatus !== 'done');
+      const pickRows = pickable.length ? pickable.map(i => {
+        const cover = i.thumbs?.[0] || i.photos?.[0] || i.photo;
+        return `<div class="col-pick-row${picks.has(i.id) ? ' picked' : ''}" data-pick-id="${i.id}">
+          <div class="col-pick-thumb">${cover ? `<img src="${esc(cover)}" alt="">` : '📦'}</div>
+          <div class="col-pick-info"><div class="col-pick-name">${esc(i.name)}</div><div class="col-pick-sub">${i.isMonarc ? 'Monarc' : 'Type'}${i.price ? ' · ' + fmtMoney(i.price) : ''}</div></div>
+          <div class="col-pick-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        </div>`;
+      }).join('') : `<div style="padding:14px;font-size:13px;color:var(--text3)">Нет товаров с галочкой «На сайте»</div>`;
+      html += g(`Товары <span id="blkPickCount" style="color:var(--text3);font-weight:400">· выбрано ${picks.size}</span>`, `<div class="col-items-picker">${pickRows}</div>`);
     } else {
       html += g('Текст полосы', `<input type="text" class="form-input" id="blkText" value="${esc(b.text || '')}" placeholder="Например: Бесплатная доставка от 5000 ₽">`);
     }
@@ -3692,6 +3706,7 @@ class App {
     else if (b.type === 'promo')      { set('blkText', 'text'); }
     else if (b.type === 'marquee')    { set('blkMarquee', 'text'); }
     else if (b.type === 'statement')  { set('blkKicker', 'kicker'); set('blkStatement', 'text', false); }
+    else if (b.type === 'weekly')     { set('blkHeading', 'heading'); }
     else if (b.type === 'duo')        { set('blkCaptionA', 'captionA'); set('blkCaptionB', 'captionB'); }
     // ссылки — общий механизм
     document.querySelectorAll('#blockFormBody .blk-linkgroup').forEach(gp => {
@@ -3706,6 +3721,17 @@ class App {
       this._readBlockForm();
       this._block[seg.parentElement.dataset.seg] = seg.dataset.val;
       this._renderBlockForm();
+      return;
+    }
+    const pick = e.target.closest('.col-pick-row');
+    if (pick) {
+      const id = pick.dataset.pickId;
+      const ids = this._block.itemIds = this._block.itemIds || [];
+      const at = ids.indexOf(id);
+      if (at >= 0) ids.splice(at, 1); else ids.push(id);
+      pick.classList.toggle('picked', at < 0);
+      const cnt = document.getElementById('blkPickCount');
+      if (cnt) cnt.textContent = '· выбрано ' + ids.length;
       return;
     }
     const btn = e.target.closest('.blk-img-btn');
@@ -3738,6 +3764,7 @@ class App {
     if (b.type === 'text'      && !b.heading && !b.body)  { this.toast('Заполните заголовок или текст'); return; }
     if (b.type === 'banner'    && !b.image && !b.heading) { this.toast('Добавьте картинку или заголовок'); return; }
     if (b.type === 'duo'       && !b.imageA && !b.imageB) { this.toast('Добавьте хотя бы одну картинку'); return; }
+    if (b.type === 'weekly'    && !(b.itemIds && b.itemIds.length)) { this.toast('Выберите хотя бы один товар'); return; }
     if (this._blockIsNew && this.currentView === 'site') b.order = this._nextStreamOrder();  // в конец потока
     await this.db.saveBlock(b);
     this.closeModal('blockModal');
@@ -3800,6 +3827,7 @@ class App {
 
   _blockRowHtml(b, i, n) {
     const TYPE = {
+      weekly: { t: 'Товары недели', e: '⭐' },
       banner: { t: 'Фото-баннер', e: '🖼' }, duo: { t: 'Двойной баннер', e: '🖼' },
       statement: { t: 'Слоган', e: '✦' }, text: { t: 'Текст', e: '📝' },
       marquee: { t: 'Бегущая строка', e: '➰' }, promo: { t: 'Промо-полоса', e: '📣' },
@@ -3808,6 +3836,7 @@ class App {
     const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
     const label = (b.type === 'promo' || b.type === 'marquee' || b.type === 'statement') ? b.text
       : b.type === 'duo' ? (b.captionA || b.captionB || 'Двойной баннер')
+      : b.type === 'weekly' ? `${b.heading || 'Товары недели'} · ${(b.itemIds || []).length} тов.`
       : (b.heading || (b.type === 'banner' ? 'Баннер без заголовка' : 'Без заголовка'));
     const sub = `${meta.t} · ${SEC[b.section] || b.section}${b.type === 'promo' ? ' · сверху' : ''}${b.enabled ? '' : ' · скрыт'}`;
     return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}" data-kind="block">

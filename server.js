@@ -364,6 +364,7 @@ app.get('/api/public/blocks', (req, res) => {
       if (b.type === 'promo')     return { id: b.id, type: 'promo', order, text: b.text || '' };
       if (b.type === 'marquee')   return { id: b.id, type: 'marquee', order, text: b.text || '' };
       if (b.type === 'statement') return { id: b.id, type: 'statement', order, kicker: b.kicker || '', text: b.text || '' };
+      if (b.type === 'weekly')    return { id: b.id, type: 'weekly', order, heading: b.heading || 'Товары недели', itemIds: b.itemIds || [] };
       if (b.type === 'duo') return {
         id: b.id, type: 'duo', order,
         imageA: b.imageA || '', captionA: b.captionA || '', linkTypeA: b.linkTypeA || 'none', linkValueA: b.linkValueA || '',
@@ -375,6 +376,7 @@ app.get('/api/public/blocks', (req, res) => {
       if (b.type === 'banner')    return b.image || b.heading;   // пустой баннер не показываем
       if (b.type === 'duo')       return b.imageA || b.imageB;
       if (b.type === 'statement' || b.type === 'marquee') return b.text;
+      if (b.type === 'weekly')    return (b.itemIds || []).length;
       return true;
     })
   res.json(blocks);

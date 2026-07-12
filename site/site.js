@@ -250,6 +250,22 @@ function collectionHtml(c, items) {
   </section>`;
 }
 
+// Блок «Товары недели» — витрина выбранных товаров с золотым акцентом
+function weeklyHtml(b, items) {
+  const h = b.heading || 'Товары недели';
+  const custom = h && h !== 'Товары недели';
+  return `<section class="collection-block week-block">
+    <div class="collection-head">
+      <p class="collection-kicker week-kicker">★ Товары недели</p>
+      <span class="carousel-hint" aria-hidden="true">листайте →</span>
+    </div>
+    ${custom ? `<h2>${esc(h)}</h2>` : ''}
+    <div class="collection-carousel">
+      <div class="goods-grid collection-grid">${items.map(cardHTML).join('')}</div>
+    </div>
+  </section>`;
+}
+
 // Показать индикатор карусели только когда контент реально не влезает
 function markCarousels() {
   document.querySelectorAll('.collection-block').forEach(block => {
@@ -277,6 +293,11 @@ function renderStream(blocks, collections) {
   const byId = new Map(ITEMS.map(i => [i.id, i]));
   const stream = [];
   for (const b of blocks) {
+    if (b.type === 'weekly') {
+      const items = (b.itemIds || []).map(id => byId.get(id)).filter(Boolean);
+      if (items.length) stream.push({ order: b.order || 0, kind: 'block', html: weeklyHtml(b, items) });
+      continue;
+    }
     const html = blockToHtml(b);
     if (html) stream.push({ order: b.order || 0, kind: 'block', html });
   }

@@ -263,6 +263,8 @@ img { max-width: 100%; display: block; }
 .collection-kicker {
   font-size: 11px; letter-spacing: .34em; text-transform: uppercase; color: var(--gold);
 }
+.week-kicker { font-weight: 600; color: var(--gold-hi); }
+.week-block h2 { margin-top: 4px; }
 .collection-block h2 {
   font-family: var(--font-d); font-weight: 500;
   font-size: clamp(26px, 4.5vw, 40px); letter-spacing: .03em; margin-top: 6px;
