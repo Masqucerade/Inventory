@@ -513,9 +513,12 @@ app.get('/api/items', (req, res) => {
   if (orderStatus) rows = rows.filter(i => i.orderStatus === orderStatus);
   if (search) {
     const q = search.toLowerCase();
+    const catName = {};
+    (load().categories || []).forEach(c => { catName[c.id] = (c.name || '').toLowerCase(); });
     rows = rows.filter(i =>
       (i.name  ||'').toLowerCase().includes(q) ||
       (i.type  ||'').toLowerCase().includes(q) ||
+      (catName[i.categoryId] || '').includes(q) ||
       (i.size  ||'').toLowerCase().includes(q) ||
       (i.notes ||'').toLowerCase().includes(q) ||
       (Array.isArray(i.sizes) && i.sizes.some(s => (s.size || '').toLowerCase().includes(q)))
@@ -728,12 +731,14 @@ app.get('/api/items.csv', (req, res) => {
   const db = load();
   const owners = {};
   (db.owners || []).forEach(o => { owners[o.id] = o.name; });
+  const cats = {};
+  (db.categories || []).forEach(c => { cats[c.id] = c.name; });
 
-  const rows = [csvRow(['Тип','Наименование','Размеры','Кол-во','Цена/шт','Итого','Владелец','Статус','Заметки','Обновлено'])];
+  const rows = [csvRow(['Категория','Наименование','Размеры','Кол-во','Цена/шт','Итого','Владелец','Статус','Заметки','Обновлено'])];
   (db.items || []).forEach(item => {
     const sizes = (item.sizes || []).map(s => s.size + (s.qty > 1 ? '×' + s.qty : '')).join(', ') || '-';
     rows.push(csvRow([
-      item.type || '', item.name || '', sizes,
+      cats[item.categoryId] || '', item.name || '', sizes,
       item.quantity || 0, item.price || 0, item.total || 0,
       owners[item.ownerId] || '', STATUS_RU[item.orderStatus] || item.orderStatus || '',
       item.notes || '', item.updatedAt ? new Date(item.updatedAt).toLocaleString('ru-RU') : '',

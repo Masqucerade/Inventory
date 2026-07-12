@@ -1374,12 +1374,12 @@ class App {
     const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
     const priceRows = (hideCosts
       ? [
-          ['Тип',          item.type  || '—'],
+          ['Категория',    this.categories.find(c => c.id === item.categoryId)?.name || '—'],
           ['Цена',         item.price ? fmtMoney(item.price) : '—'],
           ['Итого',        fmtMoney(item.total), 'big'],
         ]
       : [
-          ['Тип',          item.type         || '—'],
+          ['Категория',    this.categories.find(c => c.id === item.categoryId)?.name || '—'],
           ['Цена закупа',  item.buyPrice     ? fmtMoney(item.buyPrice)     : '—'],
           ['Доставка',     item.deliveryCost ? fmtMoney(item.deliveryCost) : '—'],
           ['Цена продажи', item.price        ? fmtMoney(item.price)        : '—'],
@@ -1538,7 +1538,7 @@ class App {
     this._sizes        = [{ size: '', qty: 1 }];
 
     /* Reset */
-    ['fieldType','fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements'].forEach(k => document.getElementById(k).value = '');
+    ['fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements'].forEach(k => document.getElementById(k).value = '');
     document.getElementById('fieldIsMonarc').checked   = false;
     document.getElementById('fieldShowOnSite').checked = false;
     document.getElementById('siteDescGroup').style.display = 'none';
@@ -1551,10 +1551,6 @@ class App {
     document.getElementById('marginDisplay').textContent = '—';
     document.getElementById('marginDisplay').style.color = 'var(--text2)';
     this._renderPhotoStrip();
-
-    /* Type datalist */
-    const types = [...new Set(this.items.map(i => i.type).filter(Boolean))];
-    document.getElementById('typesList').innerHTML = types.map(t => `<option value="${this.esc(t)}">`).join('');
 
     /* Category select */
     const catSel = document.getElementById('fieldCategory');
@@ -1569,7 +1565,6 @@ class App {
     if (id) {
       const item = this.items.find(i => i.id === id) || await this.db.getItem(id);
       if (item) {
-        document.getElementById('fieldType').value          = item.type         || '';
         document.getElementById('fieldName').value          = item.name         || '';
         document.getElementById('fieldPrice').value         = item.price        || '';
         document.getElementById('fieldBuyPrice').value      = item.buyPrice     || '';
@@ -1797,9 +1792,7 @@ class App {
   async saveItem() {
     if (this._saving) return;
     const name = document.getElementById('fieldName').value.trim();
-    const type = document.getElementById('fieldType').value.trim();
     if (!name) { this.toast('Укажите наименование товара'); return; }
-    if (!type) { this.toast('Укажите тип товара'); return; }
     this._saving = true;
 
     const isNew  = !this.editingItemId;
@@ -1807,7 +1800,6 @@ class App {
     const totQty = sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
     const item   = {
       ...(isNew ? {} : { id: this.editingItemId }),
-      type,
       name,
       sizes,
       quantity:    totQty,
@@ -2501,10 +2493,11 @@ class App {
       byOwner[k].qty += qty;
       byOwner[k].val += (i.total || 0);
       byOwner[k].cnt++;
-      if (i.type) {
-        if (!byType[i.type]) byType[i.type] = { qty: 0, val: 0 };
-        byType[i.type].qty += qty;
-        byType[i.type].val += (i.total || 0);
+      const catName = this.categories.find(c => c.id === i.categoryId)?.name;
+      if (catName) {
+        if (!byType[catName]) byType[catName] = { qty: 0, val: 0 };
+        byType[catName].qty += qty;
+        byType[catName].val += (i.total || 0);
       }
     });
 
@@ -2576,7 +2569,7 @@ class App {
       <div class="stats-section">${statusBars}</div>
       <div class="section-title">По владельцам</div>
       <div class="stats-section">${ownerRows}</div>
-      ${typeSorted.length ? `<div class="section-title">По типам</div><div class="stats-section">${typeRows}</div>` : ''}
+      ${typeSorted.length ? `<div class="section-title">По категориям</div><div class="stats-section">${typeRows}</div>` : ''}
     `;
 
     runCountUps(el);
