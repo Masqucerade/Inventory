@@ -320,7 +320,9 @@ app.get('/api/public/items', (req, res) => {
 
 app.get('/api/public/categories', (req, res) => {
   res.set('Cache-Control', 'no-cache');
-  res.json((load().categories || []).map(c => ({ id: c.id, name: c.name, parentId: c.parentId || null })));
+  res.json((load().categories || [])
+    .slice().sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map(c => ({ id: c.id, name: c.name, parentId: c.parentId || null, order: c.order || 0 })));
 });
 
 app.get('/api/public/collections', (req, res) => {
@@ -964,6 +966,16 @@ app.post('/api/categories', (req, res) => {
   db.categories.push(cat);
   save(db);
   res.json(cat);
+});
+app.patch('/api/categories/:id', (req, res) => {
+  const db  = load();
+  const idx = (db.categories || []).findIndex(c => c.id === req.params.id);
+  if (idx < 0) return res.status(404).json({ error: 'Not found' });
+  const patch = { ...req.body };
+  if (patch.name != null) patch.name = String(patch.name).trim();
+  db.categories[idx] = { ...db.categories[idx], ...patch };
+  save(db);
+  res.json(db.categories[idx]);
 });
 app.delete('/api/categories/:id', (req, res) => {
   const db = load();

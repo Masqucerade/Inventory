@@ -111,6 +111,7 @@ class App {
 
     this._filterMonarc      = false;
     this._filterCat         = null;
+    this._catFilterOpen     = false;
     this._projectSubTab     = 'tasks';
     this.categories         = [];
     this._archiveOpen       = false;
@@ -635,17 +636,28 @@ class App {
     if (!cats.length) { el.innerHTML = ''; return; }
     const svgDel = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
     const svgAdd = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+    const svgEd  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
     const tagIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`;
-    const row = (c, isSub) => `
+    const byOrder = (a, b) => (a.order || 0) - (b.order || 0);
+    // c — категория, i/n — позиция среди соседей (для стрелок)
+    const row = (c, isSub, i, n) => `
       <div class="settings-row cat-row-adm${isSub ? ' cat-sub' : ''}" style="cursor:default">
         <div class="settings-row-icon" style="background:rgba(251,191,36,.1)">${tagIcon}</div>
         <div class="settings-row-info"><div class="settings-row-title">${this.esc(c.name)}</div></div>
-        ${isSub ? '' : `<button class="menu-del-btn cat-addsub-btn" data-parent-id="${c.id}" title="Добавить подкатегорию">${svgAdd}</button>`}
-        <button class="menu-del-btn cat-del-btn" data-cat-id="${c.id}" title="Удалить">${svgDel}</button>
+        <div class="cat-row-actions">
+          <button class="cat-mini cat-up-btn"   data-id="${c.id}" data-dir="up"   title="Выше"${i === 0 ? ' disabled' : ''}>↑</button>
+          <button class="cat-mini cat-down-btn" data-id="${c.id}" data-dir="down" title="Ниже"${i === n - 1 ? ' disabled' : ''}>↓</button>
+          <button class="cat-mini cat-rename-btn" data-id="${c.id}" title="Переименовать">${svgEd}</button>
+          ${isSub ? '' : `<button class="cat-mini cat-addsub-btn" data-parent-id="${c.id}" title="Добавить подкатегорию">${svgAdd}</button>`}
+          <button class="cat-mini cat-del-btn" data-cat-id="${c.id}" title="Удалить">${svgDel}</button>
+        </div>
       </div>`;
-    const tops = cats.filter(c => !c.parentId);
+    const tops = cats.filter(c => !c.parentId).sort(byOrder);
     el.innerHTML = `<div class="settings-section">${
-      tops.map(t => row(t, false) + cats.filter(c => c.parentId === t.id).map(s => row(s, true)).join('')).join('')
+      tops.map((t, ti) => {
+        const subs = cats.filter(c => c.parentId === t.id).sort(byOrder);
+        return row(t, false, ti, tops.length) + subs.map((s, si) => row(s, true, si, subs.length)).join('');
+      }).join('')
     }</div>`;
     el.querySelectorAll('.cat-del-btn').forEach(btn =>
       btn.addEventListener('click', async () => {
@@ -658,8 +670,39 @@ class App {
       })
     );
     el.querySelectorAll('.cat-addsub-btn').forEach(btn =>
-      btn.addEventListener('click', () => this._openCatPrompt(btn.dataset.parentId))
-    );
+      btn.addEventListener('click', () => this._openCatPrompt(btn.dataset.parentId)));
+    el.querySelectorAll('.cat-rename-btn').forEach(btn =>
+      btn.addEventListener('click', () => this._renameCat(btn.dataset.id)));
+    el.querySelectorAll('.cat-up-btn, .cat-down-btn').forEach(btn =>
+      btn.addEventListener('click', () => this._moveCat(btn.dataset.id, btn.dataset.dir)));
+  }
+
+  async _renameCat(id) {
+    const c = this.categories.find(x => x.id === id);
+    if (!c) return;
+    const name = await this._prompt('Переименовать категорию', c.name, '');
+    if (!name || name === c.name) return;
+    await this.db.updateCategory(id, { name });
+    await this.loadData();
+    this._renderMenuCats();
+    this.renderCatFilterChips();
+    this.renderInventoryList();
+    this.toast('Переименовано ✓');
+  }
+
+  async _moveCat(id, dir) {
+    const c = this.categories.find(x => x.id === id);
+    if (!c) return;
+    const sibs = this.categories.filter(x => (x.parentId || null) === (c.parentId || null))
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+    const i = sibs.findIndex(x => x.id === id);
+    const j = dir === 'up' ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= sibs.length) return;
+    [sibs[i], sibs[j]] = [sibs[j], sibs[i]];
+    await Promise.all(sibs.map((x, idx) => x.order === idx ? null : this.db.updateCategory(x.id, { order: idx })));
+    await this.loadData();
+    this._renderMenuCats();
+    this.renderCatFilterChips();
   }
 
   async _openCatPrompt(parentId = null) {
@@ -799,6 +842,7 @@ class App {
     document.getElementById('selectModeBtn').addEventListener('click', () => {
       this._selectMode ? this.exitSelectMode() : this.enterSelectMode();
     });
+    document.getElementById('catFilterToggle').addEventListener('click', () => this.toggleCatFilter());
 
     /* Inventory list item click (delegated) */
     document.getElementById('inventoryList').addEventListener('click', (e) => {
@@ -1213,8 +1257,16 @@ class App {
 
   renderCatFilterChips() {
     const el = document.getElementById('catFilterChips');
-    const tops = this.categories.filter(c => !c.parentId);
-    if (!tops.length) { el.style.display = 'none'; return; }
+    const toggle = document.getElementById('catFilterToggle');
+    const tops = this.categories.filter(c => !c.parentId).sort((a, b) => (a.order || 0) - (b.order || 0));
+    // Кнопка-фильтр видна, только если есть категории; подсвечена при активном фильтре
+    if (toggle) {
+      toggle.classList.toggle('hidden', !tops.length);
+      toggle.classList.toggle('has-filter', !!this._filterCat);
+      toggle.classList.toggle('active', this._catFilterOpen && !!tops.length);
+    }
+    // Сама строка чипов скрыта, пока не открыта кнопкой
+    if (!tops.length || !this._catFilterOpen) { el.style.display = 'none'; return; }
     el.style.display = '';
     el.innerHTML =
       `<button class="chip ${!this._filterCat ? 'active' : ''}" data-cat="">Все</button>` +
@@ -1228,6 +1280,11 @@ class App {
         this.renderInventoryList();
       })
     );
+  }
+
+  toggleCatFilter() {
+    this._catFilterOpen = !this._catFilterOpen;
+    this.renderCatFilterChips();
   }
 
   async renderInventoryList() {
@@ -1577,9 +1634,10 @@ class App {
 
     /* Category select */
     const catSel = document.getElementById('fieldCategory');
-    const topCats = this.categories.filter(c => !c.parentId);
+    const byOrd = (a, b) => (a.order || 0) - (b.order || 0);
+    const topCats = this.categories.filter(c => !c.parentId).sort(byOrd);
     const catOpts = topCats.map(top => {
-      const subs = this.categories.filter(c => c.parentId === top.id);
+      const subs = this.categories.filter(c => c.parentId === top.id).sort(byOrd);
       return `<option value="${top.id}">${this.esc(top.name)}</option>` +
         subs.map(s => `<option value="${s.id}">  — ${this.esc(s.name)}</option>`).join('');
     }).join('');

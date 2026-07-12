@@ -259,6 +259,10 @@ class InventoryDB {
     const r = await fetch('/api/categories', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(cat) });
     return r.json();
   }
+  async updateCategory(id, patch) {
+    const r = await fetch(`/api/categories/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) });
+    return r.json();
+  }
   async deleteCategory(id) { await fetch(`/api/categories/${id}`, { method:'DELETE' }); }
 
   /* ─── COLLECTIONS (подборки для сайта) ─── */

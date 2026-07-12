@@ -64,7 +64,8 @@ function renderChips() {
   const used = new Set(ITEMS.map(i => i.categoryId).filter(Boolean));
   const kids = catKidsMap();
   const inUse = id => [...catSubtree(id)].some(x => used.has(x));
-  const tops = CATS.filter(c => !c.parentId && inUse(c.id));
+  const byOrder = (a, b) => (a.order || 0) - (b.order || 0);
+  const tops = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
   // Фильтр показываем, только если есть основные категории с товарами
   if (!tops.length) { el.hidden = true; el.innerHTML = ''; return; }
   el.hidden = false;
@@ -79,7 +80,7 @@ function renderChips() {
     `</div>`;
 
   if (expanded) {
-    const subs = (kids[expanded] || []).filter(c => inUse(c.id));
+    const subs = (kids[expanded] || []).filter(c => inUse(c.id)).sort(byOrder);
     if (subs.length) {
       const parent = CATS.find(c => c.id === expanded);
       html += `<div class="cat-row cat-subrow">` +

@@ -1026,10 +1026,23 @@ html, body {
 .nav-label { font-size: 9.5px; white-space: nowrap; letter-spacing: -.1px; }
 
 /* Категории — иерархия в меню */
-.cat-row-adm.cat-sub { padding-left: 30px; }
+.cat-row-adm { gap: 8px; }
+.cat-row-adm.cat-sub { padding-left: 28px; }
 .cat-row-adm.cat-sub .settings-row-icon { transform: scale(.8); opacity: .72; }
-.cat-addsub-btn { color: var(--accent) !important; }
-.cat-addsub-btn:active { background: var(--fill2); }
+.cat-row-actions { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
+.cat-mini {
+  width: 25px; height: 26px; border-radius: 7px; flex-shrink: 0;
+  border: none; background: none; color: var(--text3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; cursor: pointer; transition: color .15s, background .15s;
+}
+.cat-mini:active:not(:disabled) { background: var(--fill2); color: var(--text); }
+.cat-mini:disabled { opacity: .28; cursor: default; }
+.cat-addsub-btn { color: var(--accent); }
+.cat-del-btn:active { color: var(--danger); }
+
+/* Кнопка-переключатель фильтра категорий (подсветка при активном фильтре) */
+.select-mode-btn.has-filter { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 
 /* FAQ-топик, опубликованный на сайте */
 .faq-item.faq-on-site { border: 1px solid rgba(52,211,153,.35); }
