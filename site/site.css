@@ -395,11 +395,26 @@ img { max-width: 100%; display: block; }
   min-height: 200px; border-radius: var(--radius); border: 1px solid var(--line);
   background: #17150f; text-decoration: none;
 }
-.block-banner img {
+.block-banner.size-sm { min-height: 150px; }
+.block-banner.size-md { min-height: 230px; }
+.block-banner.size-lg { min-height: clamp(340px, 46vw, 460px); }
+.block-banner .banner-slides { position: absolute; inset: 0; }
+.block-banner .banner-slide {
   position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; display: block; transition: transform .5s ease;
+  object-fit: cover; display: block; opacity: 0; transition: opacity 1s ease;
 }
-a.block-banner:hover img { transform: scale(1.03); }
+.block-banner .banner-slide.active { opacity: 1; }
+.block-banner:not(.multi) .banner-slide { transition: transform .5s ease; }
+a.block-banner:not(.multi):hover .banner-slide { transform: scale(1.03); }
+.banner-dots {
+  position: absolute; z-index: 2; bottom: 14px; right: 16px;
+  display: flex; gap: 6px;
+}
+.banner-dots span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,.4); transition: background .3s;
+}
+.banner-dots span.on { background: #fff; }
 .block-banner-cap {
   position: relative; z-index: 1; width: 100%; padding: 30px;
   background: linear-gradient(0deg, rgba(0,0,0,.68) 0%, rgba(0,0,0,.12) 65%, rgba(0,0,0,0) 100%);

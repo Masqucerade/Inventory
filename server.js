@@ -356,7 +356,9 @@ app.get('/api/public/blocks', (req, res) => {
     .map(b => {
       const order = b.order || 0;   // общий порядок с подборками — для чередования на витрине
       if (b.type === 'banner') return {
-        id: b.id, type: 'banner', order, image: b.image || '',
+        id: b.id, type: 'banner', order,
+        images: (Array.isArray(b.images) && b.images.length) ? b.images : (b.image ? [b.image] : []),
+        size: b.size || 'md',
         heading: b.heading || '', subtext: b.subtext || '',
         linkType: b.linkType || 'none', linkValue: b.linkValue || '',
       };
@@ -373,7 +375,7 @@ app.get('/api/public/blocks', (req, res) => {
       return { id: b.id, type: b.type, order };
     })
     .filter(b => {
-      if (b.type === 'banner')    return b.image || b.heading;   // пустой баннер не показываем
+      if (b.type === 'banner')    return (b.images && b.images.length) || b.heading;   // пустой баннер не показываем
       if (b.type === 'duo')       return b.imageA || b.imageB;
       if (b.type === 'statement' || b.type === 'marquee') return b.text;
       if (b.type === 'weekly')    return (b.itemIds || []).length;
@@ -1023,8 +1025,9 @@ app.put('/api/blocks', (req, res) => {
   if (!db.blocks) db.blocks = [];
   const b = { ...req.body };
   // Картинки (баннер + обе картинки двойного баннера): base64 → файл на volume.
-  for (const f of ['image', 'imageA', 'imageB'])
-    if (typeof b[f] === 'string' && b[f].startsWith('data:')) b[f] = saveDataUrl(b[f]) || b[f];
+  const toRef = v => (typeof v === 'string' && v.startsWith('data:')) ? (saveDataUrl(v) || v) : v;
+  for (const f of ['image', 'imageA', 'imageB']) b[f] = toRef(b[f]);
+  if (Array.isArray(b.images)) b.images = b.images.map(toRef).filter(Boolean);   // мультифото баннера
   if (!b.id) {
     b.id = uid();
     if (b.order == null) b.order = db.blocks.reduce((m, x) => Math.max(m, x.order || 0), 0) + 1;

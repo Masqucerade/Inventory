@@ -3643,6 +3643,16 @@ class App {
         </select>
         <input type="text" class="form-input blk-linkvalue" value="${esc(b[valueKey] || '')}" placeholder="https://…" style="margin-top:8px;${b[typeKey] === 'url' ? '' : 'display:none'}">
       </div>`);
+    // Несколько картинок в поле-массиве field
+    const imagesField = (field, label) => {
+      const arr = b[field] || [];
+      return g(label, `
+        <div class="blk-images" data-imgsfield="${field}">
+          ${arr.map((src, idx) => `<div class="blk-img-tile"><img src="${esc(src)}" alt="">${idx === 0 ? '<span class="blk-img-main">Главное</span>' : ''}<button type="button" class="blk-img-del" data-idx="${idx}" title="Убрать">×</button></div>`).join('')}
+          <button type="button" class="blk-imgs-add" title="Добавить фото">＋</button>
+          <input type="file" class="blk-imgs-input" accept="image/*" hidden multiple>
+        </div>`);
+    };
 
     let html = '';
     if (this._blockIsNew)
@@ -3653,7 +3663,10 @@ class App {
     html += g('Раздел', seg('section', [{ v: 'all', t: 'Везде' }, { v: 'monarc', t: 'Monarc' }, { v: 'type', t: 'Type' }]));
 
     if (b.type === 'banner') {
-      html += imgField('image', 'Картинка');
+      if (!b.size) b.size = 'md';
+      if (!b.images && b.image) b.images = [b.image];   // миграция одиночной картинки
+      html += g('Размер', seg('size', [{ v: 'sm', t: 'Компактный' }, { v: 'md', t: 'Обычный' }, { v: 'lg', t: 'Крупный' }]));
+      html += imagesField('images', 'Фото (можно несколько — будут листаться)');
       html += g('Заголовок (необязательно)', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || '')}" placeholder="Например: Новая коллекция">`);
       html += g('Подпись (необязательно)', `<textarea class="form-input form-textarea" id="blkSubtext" rows="2" placeholder="Короткий текст под заголовком…">${esc(b.subtext || '')}</textarea>`);
       html += linkField('linkType', 'linkValue', 'Ссылка при клике');
@@ -3737,7 +3750,16 @@ class App {
     const btn = e.target.closest('.blk-img-btn');
     if (btn) { btn.closest('[data-imgfield]').querySelector('.blk-img-input').click(); return; }
     const clr = e.target.closest('.blk-img-clear');
-    if (clr) { this._readBlockForm(); this._block[clr.closest('[data-imgfield]').dataset.imgfield] = ''; this._renderBlockForm(); }
+    if (clr) { this._readBlockForm(); this._block[clr.closest('[data-imgfield]').dataset.imgfield] = ''; this._renderBlockForm(); return; }
+    const addImgs = e.target.closest('.blk-imgs-add');
+    if (addImgs) { addImgs.closest('[data-imgsfield]').querySelector('.blk-imgs-input').click(); return; }
+    const delImg = e.target.closest('.blk-img-del');
+    if (delImg) {
+      this._readBlockForm();
+      const field = delImg.closest('[data-imgsfield]').dataset.imgsfield;
+      (this._block[field] = this._block[field] || []).splice(+delImg.dataset.idx, 1);
+      this._renderBlockForm();
+    }
   }
 
   _onBlockFormChange(e) {
@@ -3746,6 +3768,14 @@ class App {
       const f = e.target.files[0];
       if (f) resizeImage(f, 1400, 1400, 0.85)
         .then(url => { this._readBlockForm(); this._block[field] = url; this._renderBlockForm(); })
+        .catch(() => this.toast('Ошибка загрузки фото'));
+      return;
+    }
+    if (e.target.classList.contains('blk-imgs-input')) {
+      const field = e.target.closest('[data-imgsfield]').dataset.imgsfield;
+      const files = [...e.target.files];
+      if (files.length) Promise.all(files.map(f => resizeImage(f, 1600, 1600, 0.85)))
+        .then(urls => { this._readBlockForm(); this._block[field] = [...(this._block[field] || []), ...urls]; this._renderBlockForm(); })
         .catch(() => this.toast('Ошибка загрузки фото'));
       return;
     }
@@ -3762,7 +3792,7 @@ class App {
     if (b.type === 'marquee'   && !b.text)                { this.toast('Введите текст строки'); return; }
     if (b.type === 'statement' && !b.text)                { this.toast('Введите текст слогана'); return; }
     if (b.type === 'text'      && !b.heading && !b.body)  { this.toast('Заполните заголовок или текст'); return; }
-    if (b.type === 'banner'    && !b.image && !b.heading) { this.toast('Добавьте картинку или заголовок'); return; }
+    if (b.type === 'banner'    && !(b.images && b.images.length) && !b.heading) { this.toast('Добавьте фото или заголовок'); return; }
     if (b.type === 'duo'       && !b.imageA && !b.imageB) { this.toast('Добавьте хотя бы одну картинку'); return; }
     if (b.type === 'weekly'    && !(b.itemIds && b.itemIds.length)) { this.toast('Выберите хотя бы один товар'); return; }
     if (this._blockIsNew && this.currentView === 'site') b.order = this._nextStreamOrder();  // в конец потока
