@@ -634,18 +634,22 @@ class App {
     this.categories = cats;
     if (!cats.length) { el.innerHTML = ''; return; }
     const svgDel = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
-    el.innerHTML = `<div class="settings-section">${cats.map(c => `
-      <div class="settings-row" style="cursor:default">
-        <div class="settings-row-icon" style="background:rgba(251,191,36,.1)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-        </div>
+    const svgAdd = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+    const tagIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`;
+    const row = (c, isSub) => `
+      <div class="settings-row cat-row-adm${isSub ? ' cat-sub' : ''}" style="cursor:default">
+        <div class="settings-row-icon" style="background:rgba(251,191,36,.1)">${tagIcon}</div>
         <div class="settings-row-info"><div class="settings-row-title">${this.esc(c.name)}</div></div>
-        <button class="menu-del-btn cat-del-btn" data-cat-id="${c.id}">${svgDel}</button>
-      </div>`).join('')}
-    </div>`;
+        ${isSub ? '' : `<button class="menu-del-btn cat-addsub-btn" data-parent-id="${c.id}" title="Добавить подкатегорию">${svgAdd}</button>`}
+        <button class="menu-del-btn cat-del-btn" data-cat-id="${c.id}" title="Удалить">${svgDel}</button>
+      </div>`;
+    const tops = cats.filter(c => !c.parentId);
+    el.innerHTML = `<div class="settings-section">${
+      tops.map(t => row(t, false) + cats.filter(c => c.parentId === t.id).map(s => row(s, true)).join('')).join('')
+    }</div>`;
     el.querySelectorAll('.cat-del-btn').forEach(btn =>
       btn.addEventListener('click', async () => {
-        const ok = await this.confirm('Удалить категорию?');
+        const ok = await this.confirm('Удалить категорию? Подкатегории станут основными.');
         if (!ok) return;
         await this.db.deleteCategory(btn.dataset.catId);
         await this.loadData();
@@ -653,16 +657,21 @@ class App {
         this.renderCatFilterChips();
       })
     );
+    el.querySelectorAll('.cat-addsub-btn').forEach(btn =>
+      btn.addEventListener('click', () => this._openCatPrompt(btn.dataset.parentId))
+    );
   }
 
-  async _openCatPrompt() {
-    const name = await this._prompt('Название категории', '', 'Футболки, Кофты, Обувь…');
+  async _openCatPrompt(parentId = null) {
+    const name = await this._prompt(
+      parentId ? 'Название подкатегории' : 'Название категории',
+      '', parentId ? 'Футболки, Кофты…' : 'Одежда, Обувь, Аксессуары…');
     if (!name) return;
-    await this.db.addCategory({ name });
+    await this.db.addCategory(parentId ? { name, parentId } : { name });
     await this.loadData();
     this._renderMenuCats();
     this.renderCatFilterChips();
-    this.toast('Категория добавлена ✓');
+    this.toast(parentId ? 'Подкатегория добавлена ✓' : 'Категория добавлена ✓');
   }
 
   _prompt(title, defaultVal = '', placeholder = '') {
@@ -1192,13 +1201,24 @@ class App {
     this.renderCatFilterChips();
   }
 
+  // id категории + все её подкатегории (для фильтра по поддереву)
+  _catSubtreeIds(id) {
+    const set = new Set(), stack = [id];
+    while (stack.length) {
+      const x = stack.pop(); if (set.has(x)) continue; set.add(x);
+      this.categories.filter(c => c.parentId === x).forEach(c => stack.push(c.id));
+    }
+    return set;
+  }
+
   renderCatFilterChips() {
     const el = document.getElementById('catFilterChips');
-    if (!this.categories.length) { el.style.display = 'none'; return; }
+    const tops = this.categories.filter(c => !c.parentId);
+    if (!tops.length) { el.style.display = 'none'; return; }
     el.style.display = '';
     el.innerHTML =
       `<button class="chip ${!this._filterCat ? 'active' : ''}" data-cat="">Все</button>` +
-      this.categories.map(c =>
+      tops.map(c =>
         `<button class="chip ${this._filterCat === c.id ? 'active' : ''}" data-cat="${c.id}">${this.esc(c.name)}</button>`
       ).join('');
     el.querySelectorAll('[data-cat]').forEach(btn =>
@@ -1239,8 +1259,11 @@ class App {
       items = items.filter(i => !i.isMonarc);
     }
 
-    // Category filter
-    if (this._filterCat) items = items.filter(i => i.categoryId === this._filterCat);
+    // Category filter — по выбранной категории и всем её подкатегориям
+    if (this._filterCat) {
+      const ids = this._catSubtreeIds(this._filterCat);
+      items = items.filter(i => ids.has(i.categoryId));
+    }
 
     // Archive split: done items go to collapsed section unless explicitly filtering by done
     let activeItems   = items;
@@ -1554,8 +1577,13 @@ class App {
 
     /* Category select */
     const catSel = document.getElementById('fieldCategory');
-    catSel.innerHTML = `<option value="">— Без категории —</option>` +
-      this.categories.map(c => `<option value="${c.id}">${this.esc(c.name)}</option>`).join('');
+    const topCats = this.categories.filter(c => !c.parentId);
+    const catOpts = topCats.map(top => {
+      const subs = this.categories.filter(c => c.parentId === top.id);
+      return `<option value="${top.id}">${this.esc(top.name)}</option>` +
+        subs.map(s => `<option value="${s.id}">  — ${this.esc(s.name)}</option>`).join('');
+    }).join('');
+    catSel.innerHTML = `<option value="">— Без категории —</option>` + catOpts;
     const hasCats = this.categories.length > 0;
     document.getElementById('categoryGroup').style.display   = hasCats ? '' : 'none';
     document.getElementById('categoryDivider').style.display = hasCats ? '' : 'none';

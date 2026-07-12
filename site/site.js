@@ -47,18 +47,48 @@ async function boot() {
   }
 }
 
+// карта «родитель → дети» и поддерево категории (id + все потомки)
+function catKidsMap() {
+  const m = {};
+  CATS.forEach(c => { if (c.parentId) (m[c.parentId] = m[c.parentId] || []).push(c); });
+  return m;
+}
+function catSubtree(id) {
+  const kids = catKidsMap(), set = new Set(), st = [id];
+  while (st.length) { const x = st.pop(); if (set.has(x)) continue; set.add(x); (kids[x] || []).forEach(k => st.push(k.id)); }
+  return set;
+}
+
 function renderChips() {
-  const usedCatIds = new Set(ITEMS.map(i => i.categoryId).filter(Boolean));
-  const cats = CATS.filter(c => usedCatIds.has(c.id));
   const el = document.getElementById('catChips');
-  // Фильтр по категориям показываем, только если есть из чего выбирать
-  if (cats.length < 1) { el.hidden = true; el.innerHTML = ''; return; }
+  const used = new Set(ITEMS.map(i => i.categoryId).filter(Boolean));
+  const kids = catKidsMap();
+  const inUse = id => [...catSubtree(id)].some(x => used.has(x));
+  const tops = CATS.filter(c => !c.parentId && inUse(c.id));
+  // Фильтр показываем, только если есть основные категории с товарами
+  if (!tops.length) { el.hidden = true; el.innerHTML = ''; return; }
   el.hidden = false;
-  el.innerHTML =
+
+  // какой родитель «раскрыт» (по активному фильтру) → показываем его подкатегории
+  const act = activeCat ? CATS.find(c => c.id === activeCat) : null;
+  const expanded = act ? (act.parentId || act.id) : null;
+
+  let html = `<div class="cat-row">` +
     `<button class="cat-chip${!activeCat ? ' active' : ''}" data-cat="">Все</button>` +
-    cats.map(c =>
-      `<button class="cat-chip${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`
-    ).join('');
+    tops.map(c => `<button class="cat-chip${expanded === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('') +
+    `</div>`;
+
+  if (expanded) {
+    const subs = (kids[expanded] || []).filter(c => inUse(c.id));
+    if (subs.length) {
+      const parent = CATS.find(c => c.id === expanded);
+      html += `<div class="cat-row cat-subrow">` +
+        `<button class="cat-chip sub${activeCat === expanded ? ' active' : ''}" data-cat="${esc(expanded)}">Все · ${esc(parent.name)}</button>` +
+        subs.map(c => `<button class="cat-chip sub${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('') +
+        `</div>`;
+    }
+  }
+  el.innerHTML = html;
 }
 
 document.getElementById('catChips').addEventListener('click', (e) => {
@@ -122,7 +152,8 @@ function cardHTML(i) {
 
 function renderGrid() {
   const el = document.getElementById('goodsGrid');
-  const items = activeCat ? ITEMS.filter(i => i.categoryId === activeCat) : ITEMS;
+  const ids = activeCat ? catSubtree(activeCat) : null;
+  const items = ids ? ITEMS.filter(i => ids.has(i.categoryId)) : ITEMS;
   if (!items.length) {
     el.innerHTML = '<div class="goods-empty">Пока пусто — загляните позже</div>';
     return;

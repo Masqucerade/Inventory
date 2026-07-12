@@ -200,14 +200,19 @@ img { max-width: 100%; display: block; }
 /* Фильтр по категориям — липкая полоса под шапкой, горизонтальный скролл на узких */
 .cat-filter {
   position: sticky; top: var(--header-h, 56px); z-index: 15;
-  flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+  display: flex; flex-direction: column; gap: 9px;
   margin: 0 0 8px; padding: 14px 0;
   background: var(--bg); border-bottom: 1px solid var(--line);
 }
-.cat-filter::-webkit-scrollbar { display: none; }
 .cat-filter[hidden] { display: none; }
-.cat-filter .cat-chip { flex-shrink: 0; }
-.grid-heading { scroll-margin-top: calc(var(--header-h, 56px) + 70px); }
+.cat-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.cat-row::-webkit-scrollbar { display: none; }
+.cat-row .cat-chip { flex-shrink: 0; }
+/* Второй уровень — подкатегории: компактнее и мягче */
+.cat-subrow { padding-left: 2px; }
+.cat-chip.sub { padding: 6px 13px; font-size: 12px; border-radius: 99px; opacity: .95; }
+.cat-chip.sub:not(.active) { background: color-mix(in srgb, var(--gold) 6%, transparent); }
+.grid-heading { scroll-margin-top: calc(var(--header-h, 56px) + 90px); }
 
 .goods-grid {
   display: grid; gap: 22px;

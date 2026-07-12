@@ -320,7 +320,7 @@ app.get('/api/public/items', (req, res) => {
 
 app.get('/api/public/categories', (req, res) => {
   res.set('Cache-Control', 'no-cache');
-  res.json((load().categories || []).map(c => ({ id: c.id, name: c.name, emoji: c.emoji || '' })));
+  res.json((load().categories || []).map(c => ({ id: c.id, name: c.name, parentId: c.parentId || null })));
 });
 
 app.get('/api/public/collections', (req, res) => {
@@ -967,7 +967,8 @@ app.post('/api/categories', (req, res) => {
 });
 app.delete('/api/categories/:id', (req, res) => {
   const db = load();
-  db.categories = (db.categories || []).filter(c => c.id !== req.params.id);
+  db.categories = (db.categories || []).filter(c => c.id !== req.params.id)
+    .map(c => c.parentId === req.params.id ? { ...c, parentId: null } : c);  // подкатегории → в корень
   db.items = (db.items || []).map(i => i.categoryId === req.params.id ? { ...i, categoryId: null } : i);
   save(db);
   res.json({ ok: true });
