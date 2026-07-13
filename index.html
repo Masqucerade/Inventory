@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=52">
+  <link rel="stylesheet" href="css/app.css?v=53">
 </head>
 <body>
 
@@ -406,6 +406,9 @@
 <div class="delivery-bar hidden" id="deliveryBar">
   <span id="deliveryBarCount" class="delivery-bar-count">Выберите товары</span>
   <div class="select-bar-actions">
+    <button id="bulkParcelBtn" class="select-bar-btn" disabled title="Добавить в посылку">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    </button>
     <button id="bulkDeliveryBtn" class="select-bar-btn" disabled title="Стоимость доставки">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 4v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
     </button>
@@ -965,6 +968,6 @@
 
 <script src="js/db.js?v=45"></script>
 <script src="js/backup.js?v=44"></script>
-<script src="js/app.js?v=57"></script>
+<script src="js/app.js?v=58"></script>
 </body>
 </html>

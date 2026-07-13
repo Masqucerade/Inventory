@@ -853,6 +853,16 @@ class App {
     });
 
     /* Delivery */
+    document.getElementById('bulkParcelBtn').addEventListener('click', async () => {
+      if (!this._selectedIds.size) return;
+      const input = await this._prompt('Номер посылки', '', 'Например: 1 (пусто — убрать)');
+      if (input === null || input === undefined) return;
+      const parcel = input.trim() || null;
+      await this.applyBulk(
+        { parcel },
+        parcel ? `Добавлены в посылку #${parcel}` : 'Убраны из посылки',
+        parcel ? `В посылке #${parcel} ✓` : 'Убрано из посылки ✓');
+    });
     document.getElementById('bulkDeliveryBtn').addEventListener('click', () => this.openDeliveryModal());
     document.getElementById('bulkOwnerBtn').addEventListener('click', () => this.openBulkOwnerModal());
     document.getElementById('bulkFlagsBtn').addEventListener('click', () => {
@@ -1406,7 +1416,7 @@ class App {
             <div class="item-type-size">${this.esc(this.categories.find(c => c.id === item.categoryId)?.name || '')}</div>
           </div>
           <div class="item-top-badges">
-            <span class="status-badge ${item.orderStatus}">${st.label}</span>${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
+            <span class="status-badge ${item.orderStatus}">${st.label}</span>${item.parcel ? `<span class="parcel-badge" title="Посылка">#${this.esc(String(item.parcel))}</span>` : ''}${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="2" y1="12" x2="22" y2="12"/>
@@ -1787,7 +1797,7 @@ class App {
     const word = n === 1 ? 'товар' : n > 1 && n < 5 ? 'товара' : 'товаров';
     document.getElementById('deliveryBarCount').textContent =
       n === 0 ? 'Выберите товары' : `${n} ${word}`;
-    ['bulkDeliveryBtn', 'bulkOwnerBtn', 'bulkFlagsBtn'].forEach(id => {
+    ['bulkParcelBtn', 'bulkDeliveryBtn', 'bulkOwnerBtn', 'bulkFlagsBtn'].forEach(id => {
       const b = document.getElementById(id);
       if (b) b.disabled = n === 0;
     });
