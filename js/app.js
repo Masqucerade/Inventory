@@ -1416,7 +1416,7 @@ class App {
             <div class="item-type-size">${this.esc(this.categories.find(c => c.id === item.categoryId)?.name || '')}</div>
           </div>
           <div class="item-top-badges">
-            <span class="status-badge ${item.orderStatus}">${st.label}</span>${item.parcel ? `<span class="parcel-badge" title="Посылка">#${this.esc(String(item.parcel))}</span>` : ''}${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
+            <span class="status-badge ${item.orderStatus}">${st.label}</span>${item.parcel && (item.orderStatus === 'ordered' || item.orderStatus === 'at_warehouse') ? `<span class="parcel-badge" title="Посылка">#${this.esc(String(item.parcel))}</span>` : ''}${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="2" y1="12" x2="22" y2="12"/>
