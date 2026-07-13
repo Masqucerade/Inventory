@@ -16,7 +16,15 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
 const fmtPrice = (p) => p == null || p === '' ? '' :
   new Intl.NumberFormat('ru-RU').format(p) + ' ₽';
 
-let ITEMS = [], CATS = [], activeCat = null;
+let ITEMS = [], CATS = [], activeCat = null, activeGarment = null;
+
+// Фиксированные типы одежды
+const GARMENTS = [
+  { id: 'top',       name: 'Верх' },
+  { id: 'bottom',    name: 'Низ' },
+  { id: 'shoes',     name: 'Обувь' },
+  { id: 'outerwear', name: 'Верхняя одежда' },
+];
 
 async function boot() {
   document.getElementById('sectionKicker').textContent = TITLES[SECTION].kicker;
@@ -65,55 +73,67 @@ function renderChips() {
   const kids = catKidsMap();
   const inUse = id => [...catSubtree(id)].some(x => used.has(x));
   const byOrder = (a, b) => (a.order || 0) - (b.order || 0);
+
+  // Ряд «тип одежды» — фиксированные, показываем только те, что есть у товаров
+  const usedG = new Set(ITEMS.map(i => i.garment).filter(Boolean));
+  const gShown = GARMENTS.filter(g => usedG.has(g.id));
+  const garmentRow = gShown.length ? `<div class="cat-row garment-row">` +
+    `<button class="cat-chip garment-chip${!activeGarment ? ' active' : ''}" data-garment="">Все</button>` +
+    gShown.map(g => `<button class="cat-chip garment-chip${activeGarment === g.id ? ' active' : ''}" data-garment="${g.id}">${esc(g.name)}</button>`).join('') +
+    `</div>` : '';
+
+  // Ряды категорий (двухуровневые)
   const tops = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
-  // Фильтр показываем, только если есть основные категории с товарами
-  if (!tops.length) { el.hidden = true; el.innerHTML = ''; return; }
-  el.hidden = false;
-
-  // какой родитель «раскрыт» (по активному фильтру) → показываем его подкатегории
-  const act = activeCat ? CATS.find(c => c.id === activeCat) : null;
-  const expanded = act ? (act.parentId || act.id) : null;
-
-  let html = `<div class="cat-row">` +
-    `<button class="cat-chip${!activeCat ? ' active' : ''}" data-cat="">Все</button>` +
-    tops.map(c => `<button class="cat-chip${expanded === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('') +
-    `</div>`;
-
-  if (expanded) {
-    const subs = (kids[expanded] || []).filter(c => inUse(c.id)).sort(byOrder);
-    if (subs.length) {
-      const parent = CATS.find(c => c.id === expanded);
-      html += `<div class="cat-row cat-subrow">` +
-        `<button class="cat-chip sub${activeCat === expanded ? ' active' : ''}" data-cat="${esc(expanded)}">Все · ${esc(parent.name)}</button>` +
-        subs.map(c => `<button class="cat-chip sub${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('') +
-        `</div>`;
+  let catHtml = '';
+  if (tops.length) {
+    const act = activeCat ? CATS.find(c => c.id === activeCat) : null;
+    const expanded = act ? (act.parentId || act.id) : null;
+    catHtml = `<div class="cat-row">` +
+      `<button class="cat-chip${!activeCat ? ' active' : ''}" data-cat="">Все</button>` +
+      tops.map(c => `<button class="cat-chip${expanded === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('') +
+      `</div>`;
+    if (expanded) {
+      const subs = (kids[expanded] || []).filter(c => inUse(c.id)).sort(byOrder);
+      if (subs.length) {
+        const parent = CATS.find(c => c.id === expanded);
+        catHtml += `<div class="cat-row cat-subrow">` +
+          `<button class="cat-chip sub${activeCat === expanded ? ' active' : ''}" data-cat="${esc(expanded)}">Все · ${esc(parent.name)}</button>` +
+          subs.map(c => `<button class="cat-chip sub${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('') +
+          `</div>`;
+      }
     }
   }
-  el.innerHTML = html;
+
+  if (!garmentRow && !catHtml) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = garmentRow + catHtml;
 }
 
 document.getElementById('catChips').addEventListener('click', (e) => {
   const chip = e.target.closest('.cat-chip');
   if (!chip) return;
-  activeCat = chip.dataset.cat || null;
+  if (chip.dataset.garment !== undefined) activeGarment = chip.dataset.garment || null;
+  else                                    activeCat = chip.dataset.cat || null;
   renderChips();
   renderGrid();
   updateCatalogChrome();
-  // При выборе категории — сразу к товарам (промо-блоки скрыты)
-  if (activeCat) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // При выборе фильтра — сразу к товарам (промо-блоки скрыты)
+  if (activeCat || activeGarment) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 // При активном фильтре показываем только товары категории, пряча промо-поток
 let _streamHasContent = false;
 function updateCatalogChrome() {
-  const filtering = !!activeCat;
+  const filtering = !!activeCat || !!activeGarment;
   // inline-стиль, т.к. #siteBlocks:not(:empty){display:flex} перебивает [hidden]
   document.getElementById('siteBlocks').style.display = filtering ? 'none' : '';
   const gh = document.getElementById('gridHeading');
   if (filtering) {
-    const cat = CATS.find(c => c.id === activeCat);
+    const parts = [];
+    if (activeGarment) parts.push((GARMENTS.find(g => g.id === activeGarment) || {}).name);
+    if (activeCat)     parts.push((CATS.find(c => c.id === activeCat) || {}).name);
     gh.hidden = false;
-    gh.textContent = cat ? cat.name : 'Товары';
+    gh.textContent = parts.filter(Boolean).join(' · ') || 'Товары';
   } else {
     gh.hidden = !_streamHasContent;
     gh.textContent = 'Все товары';
@@ -154,7 +174,8 @@ function cardHTML(i) {
 function renderGrid() {
   const el = document.getElementById('goodsGrid');
   const ids = activeCat ? catSubtree(activeCat) : null;
-  const items = ids ? ITEMS.filter(i => ids.has(i.categoryId)) : ITEMS;
+  let items = ids ? ITEMS.filter(i => ids.has(i.categoryId)) : ITEMS;
+  if (activeGarment) items = items.filter(i => i.garment === activeGarment);
   if (!items.length) {
     el.innerHTML = '<div class="goods-empty">Пока пусто — загляните позже</div>';
     return;

@@ -1632,7 +1632,7 @@ class App {
     this._sizes        = [{ size: '', qty: 1 }];
 
     /* Reset */
-    ['fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements'].forEach(k => document.getElementById(k).value = '');
+    ['fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements','fieldGarment'].forEach(k => document.getElementById(k).value = '');
     document.getElementById('fieldIsMonarc').checked   = false;
     document.getElementById('fieldShowOnSite').checked = false;
     document.getElementById('siteDescGroup').style.display = 'none';
@@ -1676,6 +1676,7 @@ class App {
         document.getElementById('fieldMeasurements').value  = item.measurements || '';
         document.getElementById('siteDescGroup').style.display = item.showOnSite ? '' : 'none';
         catSel.value    = item.categoryId  || '';
+        document.getElementById('fieldGarment').value = item.garment || '';
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'ordered';
         this._sizes = item.sizes?.length > 0
@@ -1917,6 +1918,7 @@ class App {
       thumbs:       this._photos.map(p => p.thumb),
       photo:        this._photos[0]?.full || null,
       categoryId:  document.getElementById('fieldCategory').value || null,
+      garment:     document.getElementById('fieldGarment').value || null,
       _updatedBy:  null,
     };
 

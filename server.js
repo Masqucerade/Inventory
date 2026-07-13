@@ -313,6 +313,7 @@ app.get('/api/public/items', (req, res) => {
       description:  i.description || '',
       measurements: i.measurements || '',
       categoryId:   i.categoryId || null,
+      garment:      i.garment || null,
       quantity:     i.quantity ?? null,
     };
   }));
