@@ -2866,11 +2866,6 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
 }
 
-#view-inventory .chip.active:not(.chip-warehouse) {
-  background: linear-gradient(180deg, #8b7dff, #7161f5);
-  border-color: transparent; color: #fff;
-  box-shadow: 0 5px 16px -6px rgba(124,109,250,.7);
-}
 #view-inventory .sort-opt.active { color: var(--accent); }
 
 .items-list {
