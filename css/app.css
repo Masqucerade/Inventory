@@ -2831,3 +2831,126 @@ html.is-web #guideModal { height: min(760px, 86vh); }
    ============================================= */
 .hidden { display: none !important; }
 
+/* =============================================
+   DESIGN REFRESH — Товары · Счёт · Проект
+   Точечно, чтобы не задеть Статистику, Сайт, Гайды.
+   Единый язык: «приподнятый» материал + фиолетовый
+   акцент + мягкое фирменное свечение сверху.
+   ============================================= */
+
+/* Мягкое свечение сверху в трёх вкладках */
+#view-inventory::before, #view-finance::before, #view-project::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0; height: 260px;
+  background: radial-gradient(120% 130% at 50% -30%, rgba(124,109,250,.18), transparent 68%);
+  pointer-events: none; z-index: 0;
+}
+#view-inventory > *, #view-finance > *, #view-project > * { position: relative; z-index: 1; }
+[data-theme="light"] #view-inventory::before,
+[data-theme="light"] #view-finance::before,
+[data-theme="light"] #view-project::before {
+  background: radial-gradient(120% 130% at 50% -30%, rgba(124,109,250,.11), transparent 68%);
+}
+
+/* ── ТОВАРЫ ── */
+.search-wrap {
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.035));
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  transition: border-color .15s, box-shadow .15s;
+}
+.search-wrap:focus-within { border-color: rgba(124,109,250,.55); box-shadow: 0 0 0 3px rgba(124,109,250,.16); }
+[data-theme="light"] .search-wrap {
+  background: linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.045));
+  border-color: rgba(0,0,0,.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+
+#view-inventory .chip.active:not(.chip-warehouse) {
+  background: linear-gradient(180deg, #8b7dff, #7161f5);
+  border-color: transparent; color: #fff;
+  box-shadow: 0 5px 16px -6px rgba(124,109,250,.7);
+}
+#view-inventory .sort-opt.active { color: var(--accent); }
+
+.items-list {
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.022));
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 14px 34px -20px rgba(0,0,0,.95);
+}
+[data-theme="light"] .items-list {
+  background: linear-gradient(180deg, #ffffff, rgba(0,0,0,.012));
+  border-color: rgba(0,0,0,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 14px 30px -22px rgba(0,0,0,.22);
+}
+.item-card { min-height: 68px; }
+.item-card:not(:last-child) > .item-info { border-bottom: 1px solid rgba(255,255,255,.06); }
+[data-theme="light"] .item-card:not(:last-child) > .item-info { border-bottom-color: rgba(0,0,0,.07); }
+.item-thumb {
+  width: 66px; margin: 9px 0 9px 9px; height: calc(100% - 18px);
+  align-self: center; border-right: none; border-radius: 13px;
+  background: linear-gradient(140deg, rgba(255,255,255,.09), rgba(255,255,255,.03));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+}
+[data-theme="light"] .item-thumb {
+  background: linear-gradient(140deg, rgba(0,0,0,.05), rgba(0,0,0,.02));
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
+}
+.item-info { padding: 12px 14px 12px 12px; gap: 5px; }
+.item-name { font-size: 15px; font-weight: 650; letter-spacing: -0.35px; }
+
+/* ── СЧЁТ ── */
+.balance-card {
+  background:
+    radial-gradient(130% 120% at 50% -10%, rgba(124,109,250,.18), transparent 62%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 22px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 22px 48px -26px rgba(0,0,0,.95);
+  position: relative; overflow: hidden;
+}
+.balance-card::before {
+  content: ''; position: absolute; top: 0; left: 24px; right: 24px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139,125,255,.7), transparent);
+}
+.balance-amount { letter-spacing: -2px; }
+[data-theme="light"] .balance-card {
+  background:
+    radial-gradient(130% 120% at 50% -10%, rgba(124,109,250,.12), transparent 62%),
+    linear-gradient(180deg, #ffffff, rgba(0,0,0,.012));
+  border-color: rgba(0,0,0,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 22px 44px -28px rgba(0,0,0,.25);
+}
+
+.pay-list, .emp-bal-list, .plan-list {
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.018));
+  border: 1px solid rgba(255,255,255,.085);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 12px 30px -22px rgba(0,0,0,.9);
+}
+[data-theme="light"] .pay-list,
+[data-theme="light"] .emp-bal-list,
+[data-theme="light"] .plan-list {
+  background: linear-gradient(180deg, #ffffff, rgba(0,0,0,.012));
+  border-color: rgba(0,0,0,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 12px 26px -22px rgba(0,0,0,.2);
+}
+.emp-bal-avatar { box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+#view-finance .section-title { letter-spacing: 0.8px; }
+
+/* ── ПРОЕКТ ── */
+#projectContent .task-item,
+#projectContent .note-item,
+#projectContent .quick-item {
+  background: linear-gradient(180deg, rgba(255,255,255,.052), rgba(255,255,255,.018));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px -20px rgba(0,0,0,.9);
+}
+[data-theme="light"] #projectContent .task-item,
+[data-theme="light"] #projectContent .note-item,
+[data-theme="light"] #projectContent .quick-item {
+  background: linear-gradient(180deg, #ffffff, rgba(0,0,0,.012));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 10px 24px -20px rgba(0,0,0,.18);
+}
+.proj-tabs { border-radius: 15px; }
+
