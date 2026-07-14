@@ -360,6 +360,8 @@ app.get('/api/public/blocks', (req, res) => {
         id: b.id, type: 'banner', order,
         images: (Array.isArray(b.images) && b.images.length) ? b.images : (b.image ? [b.image] : []),
         size: b.size || 'md',
+        fit: b.fit === 'contain' ? 'contain' : 'cover',
+        focus: ['top', 'bottom', 'center', 'left', 'right'].includes(b.focus) ? b.focus : 'center',
         heading: b.heading || '', subtext: b.subtext || '',
         linkType: b.linkType || 'none', linkValue: b.linkValue || '',
       };

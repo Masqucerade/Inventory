@@ -3950,9 +3950,15 @@ class App {
 
     if (b.type === 'banner') {
       if (!b.size) b.size = 'md';
+      if (!b.fit) b.fit = 'cover';
+      if (!b.focus) b.focus = 'center';
       if (!b.images && b.image) b.images = [b.image];   // миграция одиночной картинки
       html += g('Размер', seg('size', [{ v: 'sm', t: 'Компактный' }, { v: 'md', t: 'Обычный' }, { v: 'lg', t: 'Крупный' }]));
       html += imagesField('images', 'Фото (можно несколько — будут листаться)');
+      html += g('Кадрирование', seg('fit', [{ v: 'cover', t: 'Заполнить' }, { v: 'contain', t: 'Целиком' }]));
+      html += `<div class="blk-hint">«Заполнить» — фото обрезается под баннер. «Целиком» — видно всё фото без обрезки.</div>`;
+      if (b.fit !== 'contain')
+        html += g('Что оставить в кадре', seg('focus', [{ v: 'center', t: 'Центр' }, { v: 'top', t: 'Сверху' }, { v: 'bottom', t: 'Снизу' }]));
       html += g('Заголовок (необязательно)', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || '')}" placeholder="Например: Новая коллекция">`);
       html += g('Подпись (необязательно)', `<textarea class="form-input form-textarea" id="blkSubtext" rows="2" placeholder="Короткий текст под заголовком…">${esc(b.subtext || '')}</textarea>`);
       html += linkField('linkType', 'linkValue', 'Ссылка при клике');

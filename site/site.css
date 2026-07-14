@@ -404,6 +404,14 @@ img { max-width: 100%; display: block; }
   object-fit: cover; display: block; opacity: 0; transition: opacity 1s ease;
 }
 .block-banner .banner-slide.active { opacity: 1; }
+/* Кадрирование и положение фото в баннере */
+.block-banner.fit-contain .banner-slide { object-fit: contain; }
+.block-banner.pos-top    .banner-slide { object-position: center top; }
+.block-banner.pos-bottom .banner-slide { object-position: center bottom; }
+.block-banner.pos-left   .banner-slide { object-position: left center; }
+.block-banner.pos-right  .banner-slide { object-position: right center; }
+/* При «Целиком» зум на ховере не нужен — фото и так видно полностью */
+a.block-banner.fit-contain:not(.multi):hover .banner-slide { transform: none; }
 .block-banner:not(.multi) .banner-slide { transition: transform .5s ease; }
 a.block-banner:not(.multi):hover .banner-slide { transform: scale(1.03); }
 .banner-dots {

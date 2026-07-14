@@ -210,8 +210,10 @@ function bannerHtml(b) {
       ${b.heading ? `<h2>${nl2br(b.heading)}</h2>` : ''}
       ${b.subtext ? `<p>${esc(b.subtext)}</p>` : ''}
     </div>` : '';
+  const fit   = b.fit === 'contain' ? 'contain' : 'cover';
+  const focus = ['top', 'bottom', 'center', 'left', 'right'].includes(b.focus) ? b.focus : 'center';
   const inner = slides + cap + dots;
-  const cls = `site-block block-banner size-${size}${imgs.length > 1 ? ' multi' : ''}`;
+  const cls = `site-block block-banner size-${size} fit-${fit} pos-${focus}${imgs.length > 1 ? ' multi' : ''}`;
   return href
     ? `<a class="${cls}" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
     : `<div class="${cls}">${inner}</div>`;
