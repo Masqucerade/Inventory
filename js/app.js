@@ -539,7 +539,7 @@ class App {
   _renderAccessChips(access) {
     const el = document.getElementById('userAccessChips');
     if (!el) return;
-    const LABELS = { inventory: '📦 Товары', stats: '📊 Статистика', finance: '💳 Счёт', project: '📁 Проект', site: '🌐 Сайт', faq: '💬 FAQ' };
+    const LABELS = { inventory: '📦 Товары', stats: '📊 Статистика', finance: '💳 Счёт', project: '📁 Проект', site: '🌐 Сайт', faq: '📖 Гайды' };
     const on = s => !Array.isArray(access) || access.includes(s);
     el.innerHTML = Object.entries(LABELS).map(([s, label]) =>
       `<button type="button" class="vis-chip${on(s) ? ' active' : ''}" data-acc="${s}">${label}</button>`
@@ -773,7 +773,7 @@ class App {
         if (this._projectSubTab === 'quick')      this.openQuickModal();
         else if (this._projectSubTab === 'notes') this.openNoteModal();
         else this.openTaskModal();
-      } else if (this.currentView === 'settings') this.openFaqModal();
+      } else if (this.currentView === 'settings') this.openGuideModal();
       else this.openItemModal();
     });
 
@@ -1156,6 +1156,20 @@ class App {
     document.getElementById('faqModalClose').addEventListener('click', () => this.closeModal('faqModal'));
     document.getElementById('faqModalSave').addEventListener('click', () => this.saveFaqItem());
 
+    /* Guide modal (Markdown) */
+    document.getElementById('guideModalClose').addEventListener('click', () => this.closeModal('guideModal'));
+    document.getElementById('guideModalSave').addEventListener('click', () => this.saveGuide());
+    document.querySelectorAll('#guideModal .guide-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const preview = tab.dataset.gtab === 'preview';
+        document.querySelectorAll('#guideModal .guide-tab').forEach(t => t.classList.toggle('active', t === tab));
+        const ta = document.getElementById('guideBody');
+        const pv = document.getElementById('guidePreview');
+        if (preview) { pv.innerHTML = this._mdRender(ta.value); pv.style.display = ''; ta.style.display = 'none'; }
+        else { ta.style.display = ''; pv.style.display = 'none'; }
+      });
+    });
+
     document.getElementById('saleModalClose').addEventListener('click', () => this.closeModal('saleModal'));
     document.getElementById('saleModalSave').addEventListener('click', () => this.saveSale());
 
@@ -1224,7 +1238,10 @@ class App {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`view-${view}`)?.classList.add('active');
     document.querySelector(`.nav-btn[data-view="${view}"]`)?.classList.add('active');
-    document.getElementById('fabBtn').classList.toggle('hidden', !['inventory','project','settings'].includes(view));
+    const isRoot = this.currentUser?.role === 'root';
+    // На вкладке «Гайды» создавать может только root
+    const fabHidden = !['inventory','project','settings'].includes(view) || (view === 'settings' && !isRoot);
+    document.getElementById('fabBtn').classList.toggle('hidden', fabHidden);
 
     switch (view) {
       case 'inventory': this.renderInventoryView(); break;
@@ -1232,7 +1249,7 @@ class App {
       case 'finance':   this.renderFinance();       break;
       case 'project':   this.renderProject();       break;
       case 'site':      this.renderSiteView();      break;
-      case 'settings':  this.renderFaq();           break;
+      case 'settings':  this.renderGuides();         break;
     }
   }
 
@@ -1419,6 +1436,17 @@ class App {
     const sizePills = sizesArr.filter(s => s.qty > 0 || s.size)
       .map(s => `<span class="size-pill">${this.esc(s.size||'?')}${s.qty !== 1 ? ' ×'+s.qty : ''}</span>`).join('');
 
+    // Разделение по владельцам: собираем уникальных владельцев размеров
+    const splitOwners = [...new Set(sizesArr.map(s => s.ownerId || item.ownerId).filter(Boolean))]
+      .map(oid => this.owners.find(o => o.id === oid)).filter(Boolean);
+    const isSplit = sizesArr.some(s => s.ownerId && s.ownerId !== item.ownerId) && splitOwners.length > 1;
+    const ownerTag = isSplit
+      ? `<span class="item-owner-tag item-owner-split" title="Разделён между: ${splitOwners.map(o => this.esc(o.name)).join(', ')}">
+           <span class="owner-dot-stack">${splitOwners.slice(0, 3).map(o => `<span class="owner-dot" style="background:${o.color}"></span>`).join('')}</span>
+           ${splitOwners.length} ${(n => (n % 10 === 1 && n % 100 !== 11) ? 'владелец' : ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) ? 'владельца' : 'владельцев')(splitOwners.length)}
+         </span>`
+      : (owner ? `<span class="item-owner-tag"><span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}</span>` : '');
+
     return `<div class="item-card${this._selectMode && this._selectedIds.has(item.id) ? ' selected' : ''}" data-id="${item.id}" style="animation-delay:${Math.min(idx*28,200)}ms">
       <div class="item-thumb">${thumb}</div>
       <div class="item-info">
@@ -1437,7 +1465,7 @@ class App {
           </div>
         </div>
         <div class="item-meta">
-          ${owner ? `<span class="item-owner-tag"><span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}</span>` : ''}
+          ${ownerTag}
           ${sizePills || `<span class="size-pill">—</span>`}
         </div>
         ${item.notes ? `<div class="item-notes-preview">${this.esc(item.notes)}</div>` : ''}
@@ -1464,20 +1492,48 @@ class App {
 
     const sizesArr = item.sizes?.length > 0 ? item.sizes : (item.size ? [{size: item.size, qty: item.quantity||0}] : []);
     // владелец у размера: свой (s.ownerId) или, если не задан, — владелец объявления
+    const ownerOfSize = s => this.owners.find(o => o.id === (s.ownerId || item.ownerId)) || null;
     const mixedOwners = sizesArr.some(s => s.ownerId && s.ownerId !== item.ownerId);
-    const sizesCard = sizesArr.length > 0 ? `
-      <div class="detail-card">
-        ${sizesArr.map(s => {
-          const so = this.owners.find(o => o.id === (s.ownerId || item.ownerId));
-          return `<div class="detail-row">
+
+    let sizesCard = '';
+    if (sizesArr.length > 0 && mixedOwners) {
+      // Разделение между владельцами — группируем размеры по владельцу
+      const groups = new Map();
+      sizesArr.forEach(s => {
+        const o   = ownerOfSize(s);
+        const key = o?.id || '__none__';
+        if (!groups.has(key)) groups.set(key, { owner: o, sizes: [], qty: 0 });
+        const g = groups.get(key);
+        g.sizes.push(s);
+        g.qty += (parseInt(s.qty) || 0);
+      });
+      sizesCard = `
+        <div class="detail-card owner-split-card">
+          <div class="owner-split-head">
+            <span>Владельцы по размерам</span>
+            <span class="owner-split-badge">${groups.size}</span>
+          </div>
+          ${[...groups.values()].map(g => `
+            <div class="owner-split-group">
+              <div class="owner-split-owner">
+                <span class="owner-avatar" style="background:${g.owner?.color || 'var(--fill)'}">${g.owner ? this.esc(g.owner.name.trim()[0].toUpperCase()) : '?'}</span>
+                <span class="owner-split-name">${g.owner ? this.esc(g.owner.name) : 'Без владельца'}</span>
+                <span class="owner-split-qty">${g.qty} шт</span>
+              </div>
+              <div class="owner-split-sizes">
+                ${g.sizes.map(s => `<span class="size-pill">${this.esc(s.size || '—')}${(parseInt(s.qty) || 0) !== 1 ? ' ×' + (parseInt(s.qty) || 0) : ''}</span>`).join('')}
+              </div>
+            </div>`).join('')}
+        </div>`;
+    } else if (sizesArr.length > 0) {
+      sizesCard = `
+        <div class="detail-card">
+          ${sizesArr.map(s => `<div class="detail-row">
             <span class="detail-key">${this.esc(s.size || 'Без размера')}</span>
-            <span class="detail-val" style="display:flex;align-items:center;gap:10px;justify-content:flex-end">
-              ${so ? `<span class="detail-owner-tag"><span class="owner-dot" style="background:${so.color}"></span>${this.esc(so.name)}</span>` : ''}
-              <span>${s.qty} шт</span>
-            </span>
-          </div>`;
-        }).join('')}
-      </div>` : '';
+            <span class="detail-val">${s.qty} шт</span>
+          </div>`).join('')}
+        </div>`;
+    }
 
     const margin    = (item.price && item.buyPrice) ? item.price - item.buyPrice : null;
     const marginStr = margin !== null
@@ -1505,7 +1561,7 @@ class App {
 
     const metaRows = [
       ['Владелец', mixedOwners
-        ? `<span style="color:var(--text3)">разделён по размерам ↑</span>`
+        ? `<span class="owner-split-tag">разделён по размерам ↑</span>`
         : (owner
           ? `<span style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
                <span style="width:8px;height:8px;border-radius:50%;background:${owner.color};display:inline-block;flex-shrink:0"></span>
@@ -3324,23 +3380,144 @@ class App {
   }
 
   /* ──────────────────────────────────────────
-     FAQ
+     ГАЙДЫ (внутренняя база для сотрудников, Markdown)
      ────────────────────────────────────────── */
-  async renderFaq() {
-    const el    = document.getElementById('settingsContent');
+  async renderGuides() {
+    const el = document.getElementById('settingsContent');
+    if (!el) return;
+    const isRoot = this.currentUser?.role === 'root';
+    const guides = await this.db.getGuides();
+
+    if (!guides.length) {
+      el.innerHTML = `
+        <div class="faq-empty">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          <p>${isRoot ? 'Пока нет гайдов — нажмите + чтобы написать первый' : 'Пока нет гайдов'}</p>
+        </div>`;
+      return;
+    }
+
+    const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+    const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+
+    el.innerHTML = `<div class="guide-list">${guides.map(g => `
+      <div class="guide-item" data-guide-id="${g.id}">
+        <div class="guide-head">
+          <span class="guide-title">${this.esc(g.title || 'Без названия')}</span>
+          <svg class="faq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+        <div class="guide-body">
+          <div class="md-body">${this._mdRender(g.body || '')}</div>
+          ${isRoot ? `<div class="faq-actions">
+            <button class="guide-edit" data-guide-id="${g.id}">${svgEdit} Изменить</button>
+            <button class="guide-delete" data-guide-id="${g.id}">${svgDel} Удалить</button>
+          </div>` : ''}
+        </div>
+      </div>`).join('')}
+    </div>`;
+
+    el.querySelectorAll('.guide-head').forEach(head => {
+      head.addEventListener('click', () => head.closest('.guide-item').classList.toggle('open'));
+    });
+    el.querySelectorAll('.guide-edit').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const g = guides.find(x => x.id === btn.dataset.guideId);
+        if (g) this.openGuideModal(g);
+      });
+    });
+    el.querySelectorAll('.guide-delete').forEach(btn => {
+      btn.addEventListener('click', e => { e.stopPropagation(); this.deleteGuide(btn.dataset.guideId); });
+    });
+  }
+
+  /* Мини-рендер Markdown (безопасный: сначала эскейпим, потом размечаем) */
+  _mdRender(raw) {
+    const esc = this.esc(raw);
+    const lines = esc.split('\n');
+    let html = '', listType = null;
+    const closeList = () => { if (listType) { html += `</${listType}>`; listType = null; } };
+    const inline = t => t
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*([^*\n]+?)\*/g, '$1<em>$2</em>')
+      .replace(/`([^`]+?)`/g, '<code>$1</code>')
+      .replace(/\[([^\]]+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    for (let line of lines) {
+      const h = line.match(/^(#{1,3})\s+(.*)$/);
+      const ul = line.match(/^\s*[-*]\s+(.*)$/);
+      const ol = line.match(/^\s*\d+\.\s+(.*)$/);
+      if (h) {
+        closeList();
+        const lvl = h[1].length;
+        html += `<h${lvl + 2} class="md-h md-h${lvl}">${inline(h[2])}</h${lvl + 2}>`;
+      } else if (ul) {
+        if (listType !== 'ul') { closeList(); html += '<ul>'; listType = 'ul'; }
+        html += `<li>${inline(ul[1])}</li>`;
+      } else if (ol) {
+        if (listType !== 'ol') { closeList(); html += '<ol>'; listType = 'ol'; }
+        html += `<li>${inline(ol[1])}</li>`;
+      } else if (line.trim() === '') {
+        closeList();
+      } else {
+        closeList();
+        html += `<p>${inline(line)}</p>`;
+      }
+    }
+    closeList();
+    return html;
+  }
+
+  openGuideModal(guide = null) {
+    if (this.currentUser?.role !== 'root') { this.toast('Только администратор может писать гайды'); return; }
+    this._editingGuideId = guide?.id || null;
+    document.querySelector('#guideModal .modal-title').textContent = guide ? 'Редактировать гайд' : 'Новый гайд';
+    document.getElementById('guideTitle').value = guide?.title || '';
+    document.getElementById('guideBody').value  = guide?.body  || '';
+    // Сброс на вкладку «Текст»
+    document.querySelectorAll('#guideModal .guide-tab').forEach(t => t.classList.toggle('active', t.dataset.gtab === 'edit'));
+    document.getElementById('guideBody').style.display    = '';
+    document.getElementById('guidePreview').style.display = 'none';
+    this.openModal('guideModal');
+    setTimeout(() => document.getElementById('guideTitle').focus(), 350);
+  }
+
+  async saveGuide() {
+    const title = document.getElementById('guideTitle').value.trim();
+    const body  = document.getElementById('guideBody').value;
+    if (!title) { this.toast('Введите заголовок'); return; }
+    if (this._editingGuideId) {
+      await this.db.patchGuide(this._editingGuideId, { title, body });
+      this.toast('Гайд обновлён ✓');
+    } else {
+      await this.db.addGuide({ title, body });
+      this.toast('Гайд добавлен ✓');
+    }
+    this._editingGuideId = null;
+    this.closeModal('guideModal');
+    this.renderGuides();
+  }
+
+  async deleteGuide(id) {
+    const ok = await this.confirm('Удалить этот гайд?');
+    if (!ok) return;
+    await this.db.deleteGuide(id);
+    this.renderGuides();
+  }
+
+  /* ──────────────────────────────────────────
+     FAQ-ТОПИКИ ВИТРИНЫ (управление во вкладке «Сайт»)
+     ────────────────────────────────────────── */
+  async renderFaqManageInto(el) {
     if (!el) return;
     const items = await this.db.getFaqItems();
 
     if (!items.length) {
-      el.innerHTML = `
-        <div class="faq-empty">
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-            <line x1="12" y1="17" x2="12.01" y2="17" stroke-linecap="round" stroke-width="2.5"/>
-          </svg>
-          <p>Нет топиков — нажмите + чтобы добавить</p>
-        </div>`;
+      el.innerHTML = `<div class="site-mgmt-empty"><span>💬</span>Пока нет топиков — добавьте первый</div>`;
       return;
     }
 
@@ -3504,14 +3681,19 @@ class App {
     }
     this._editingFaqId = null;
     this.closeModal('faqModal');
-    this.renderFaq();
+    this._refreshFaqManage();
   }
 
   async deleteFaqItem(id) {
     const ok = await this.confirm('Удалить этот топик?');
     if (!ok) return;
     await this.db.deleteFaqItem(id);
-    this.renderFaq();
+    this._refreshFaqManage();
+  }
+
+  _refreshFaqManage() {
+    const el = document.getElementById('faqManageList');
+    if (el) this.renderFaqManageInto(el);
   }
 
   /* ──────────────────────────────────────────
@@ -3883,7 +4065,20 @@ class App {
           </div>
         </div>
         <div class="settings-section">${stream.length ? rows : '<div class="site-mgmt-empty"><span>🧱</span>Пока пусто — добавьте блок или подборку</div>'}</div>
+      </div>
+
+      <div class="site-mgmt-card">
+        <div class="site-mgmt-head">
+          <div><div class="site-mgmt-title">FAQ на витрине</div><div class="site-mgmt-hint">Вопросы-ответы, которые видны на сайте-витрине</div></div>
+          <div class="site-mgmt-addrow">
+            <button class="site-mgmt-add faq-topic-add">＋ Топик</button>
+          </div>
+        </div>
+        <div class="settings-section" id="faqManageList"></div>
       </div>`;
+
+    document.querySelector('.faq-topic-add')?.addEventListener('click', () => this.openFaqModal());
+    this.renderFaqManageInto(document.getElementById('faqManageList'));
   }
 
   _trashSvg() {

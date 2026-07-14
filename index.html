@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=55">
+  <link rel="stylesheet" href="css/app.css?v=56">
 </head>
 <body>
 
@@ -158,7 +158,7 @@
   <!-- ═══ SETTINGS VIEW ═══ -->
   <div id="view-settings" class="view">
     <div class="view-header simple-header">
-      <h1 class="view-title">FAQ</h1>
+      <h1 class="view-title">Гайды</h1>
     </div>
     <div class="view-body" id="settingsContent"></div>
   </div>
@@ -205,11 +205,10 @@
     </button>
     <button class="nav-btn" data-view="settings">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-        <line x1="12" y1="17" x2="12.01" y2="17" stroke-linecap="round" stroke-width="2.5"/>
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
       </svg>
-      <span class="nav-label">FAQ</span>
+      <span class="nav-label">Гайды</span>
     </button>
   </nav>
 
@@ -845,6 +844,34 @@
     </div>
   </div>
 
+  <!-- Guide Add/Edit (Markdown) -->
+  <div class="modal" id="guideModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <button class="modal-close" id="guideModalClose">
+          <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+        <span class="modal-title">Новый гайд</span>
+        <button class="modal-action-btn" id="guideModalSave">Сохранить</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Заголовок</label>
+          <input type="text" class="form-input" id="guideTitle" placeholder="Например: Как оформить заказ" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <div class="guide-editor-tabs">
+            <button class="guide-tab active" data-gtab="edit" type="button">Текст</button>
+            <button class="guide-tab" data-gtab="preview" type="button">Превью</button>
+            <span class="guide-md-hint">Markdown: **жирный**, # заголовок, - список</span>
+          </div>
+          <textarea class="form-input guide-md-input" id="guideBody" placeholder="# Заголовок&#10;&#10;Текст гайда в **Markdown**…" rows="16"></textarea>
+          <div class="guide-md-preview md-body" id="guidePreview" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ USER MODAL (root) ═══ -->
   <div class="modal" id="userModal">
     <div class="modal-sheet">
@@ -977,8 +1004,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=45"></script>
+<script src="js/db.js?v=46"></script>
 <script src="js/backup.js?v=44"></script>
-<script src="js/app.js?v=62"></script>
+<script src="js/app.js?v=63"></script>
 </body>
 </html>
