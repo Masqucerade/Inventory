@@ -359,6 +359,36 @@ html, body {
 .chip-warehouse.active { background: rgba(251,146,60,.15); border-color: rgba(251,146,60,.45); color: #fb923c; }
 [data-theme="light"] .chip-warehouse.active { background: rgba(234,88,12,.10); border-color: rgba(234,88,12,.40); color: #ea580c; }
 
+/* Статус-фильтр: активный чип «загорается» в цвет своего статуса + свечение */
+#statusFilterChips .chip.active { font-weight: 600; }
+#statusFilterChips .chip[data-status="ordered"].active {
+  background: rgba(255,255,255,.11); border-color: rgba(255,255,255,.45); color: #fff;
+  box-shadow: 0 0 16px -3px rgba(255,255,255,.30);
+}
+#statusFilterChips .chip[data-status="in_stock"].active {
+  background: rgba(74,222,128,.16); border-color: rgba(74,222,128,.55); color: var(--s-in_stock);
+  box-shadow: 0 0 16px -2px rgba(74,222,128,.55);
+}
+#statusFilterChips .chip[data-status="processing"].active {
+  background: rgba(147,197,253,.16); border-color: rgba(147,197,253,.55); color: var(--s-processing);
+  box-shadow: 0 0 16px -2px rgba(147,197,253,.55);
+}
+#statusFilterChips .chip[data-status="done"].active {
+  background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.30); color: rgba(255,255,255,.75);
+  box-shadow: 0 0 12px -3px rgba(255,255,255,.22);
+}
+#statusFilterChips .chip-warehouse.active { box-shadow: 0 0 16px -2px rgba(251,146,60,.6); }
+
+[data-theme="light"] #statusFilterChips .chip[data-status="ordered"].active {
+  background: rgba(0,0,0,.06); border-color: rgba(0,0,0,.4); color: #000;
+  box-shadow: 0 0 14px -4px rgba(0,0,0,.18);
+}
+[data-theme="light"] #statusFilterChips .chip[data-status="done"].active {
+  background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.28); color: rgba(0,0,0,.55);
+  box-shadow: none;
+}
+[data-theme="light"] #statusFilterChips .chip-warehouse.active { box-shadow: 0 0 14px -3px rgba(234,88,12,.4); }
+
 /* =============================================
    EMPTY STATE
    ============================================= */
