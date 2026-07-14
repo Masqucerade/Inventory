@@ -1607,20 +1607,50 @@ html, body {
 .md-body a { color: var(--accent); text-decoration: none; }
 .md-body a:active { opacity: .6; }
 
-/* Редактор гайда: вкладки Текст/Превью */
-.guide-editor-tabs { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+/* Полноэкранный редактор гайда */
+#guideModal .modal-sheet { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+#guideModal .modal-body {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  padding: 0; gap: 0;
+}
+#guideModal .modal-body > * { flex-shrink: 0; }
+
+.guide-title-input {
+  width: 100%; border: none; outline: none; background: none;
+  font-family: inherit; font-size: 20px; font-weight: 700; letter-spacing: -0.4px;
+  color: var(--text); padding: 16px 18px 10px;
+}
+.guide-title-input::placeholder { color: var(--text3); }
+
+.guide-editor-tabs {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 16px 10px; border-bottom: 1px solid var(--sep);
+}
 .guide-tab {
   font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--text3);
   background: none; border: none; padding: 5px 11px; border-radius: 8px; cursor: pointer;
   transition: all .15s;
 }
 .guide-tab.active { color: var(--text); background: var(--fill); }
-.guide-md-hint { margin-left: auto; font-size: 10.5px; color: var(--text3); }
-.guide-md-input { font-family: ui-monospace, Menlo, monospace; font-size: 13px; line-height: 1.55; resize: vertical; min-height: 260px; }
-.guide-md-preview {
-  min-height: 260px; padding: 12px 14px;
-  background: var(--card); border: 1px solid var(--sep); border-radius: 12px;
+.guide-md-hint { margin-left: auto; font-size: 10.5px; color: var(--text3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.guide-md-input {
+  flex: 1; min-height: 0; width: 100%; box-sizing: border-box;
+  border: none; outline: none; background: none; resize: none;
+  font-family: ui-monospace, Menlo, monospace; font-size: 14px; line-height: 1.6;
+  color: var(--text); padding: 16px 18px calc(24px + var(--safe-bot));
+  -webkit-overflow-scrolling: touch;
 }
+.guide-md-input::placeholder { color: var(--text3); }
+.guide-md-preview {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 16px 18px calc(24px + var(--safe-bot));
+  scrollbar-width: none;
+}
+.guide-md-preview::-webkit-scrollbar { display: none; }
+
+/* На десктопе диалог фиксированной высоты — редактор всё равно тянется */
+html.is-web #guideModal { height: min(760px, 86vh); }
 
 /* ─── Script lines in FAQ modal form ─── */
 .faq-lines-header {
