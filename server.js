@@ -1194,8 +1194,9 @@ app.post('/api/guides', (req, res) => {
   const entry = {
     id: uid(), createdAt: now, updatedAt: now,
     order: db.guides.length,
-    title: String(req.body.title || '').trim(),
-    body:  String(req.body.body || ''),
+    title:  String(req.body.title || '').trim(),
+    body:   String(req.body.body || ''),
+    format: req.body.format === 'html' ? 'html' : 'markdown',
   };
   db.guides.push(entry);
   save(db);
@@ -1211,6 +1212,7 @@ app.patch('/api/guides/:id', (req, res) => {
   if (req.body.title !== undefined) patch.title = String(req.body.title).trim();
   if (req.body.body  !== undefined) patch.body  = String(req.body.body);
   if (req.body.order !== undefined) patch.order = req.body.order;
+  if (req.body.format !== undefined) patch.format = req.body.format === 'html' ? 'html' : 'markdown';
   db.guides[idx] = { ...db.guides[idx], ...patch, id: req.params.id, updatedAt: new Date().toISOString() };
   save(db);
   res.json(db.guides[idx]);

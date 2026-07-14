@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=57">
+  <link rel="stylesheet" href="css/app.css?v=58">
 </head>
 <body>
 
@@ -857,9 +857,12 @@
       <div class="modal-body">
         <input type="text" class="guide-title-input" id="guideTitle" placeholder="Заголовок гайда" autocomplete="off">
         <div class="guide-editor-tabs">
+          <div class="guide-fmt-seg" id="guideFmtSeg">
+            <button class="guide-fmt active" data-fmt="markdown" type="button">Markdown</button>
+            <button class="guide-fmt" data-fmt="html" type="button">HTML</button>
+          </div>
           <button class="guide-tab active" data-gtab="edit" type="button">Текст</button>
           <button class="guide-tab" data-gtab="preview" type="button">Превью</button>
-          <span class="guide-md-hint">Markdown: **жирный**, # заголовок, - список</span>
         </div>
         <textarea class="guide-md-input" id="guideBody" placeholder="# Заголовок&#10;&#10;Текст гайда в **Markdown**…"></textarea>
         <div class="guide-md-preview md-body" id="guidePreview" style="display:none"></div>
@@ -1001,6 +1004,6 @@
 
 <script src="js/db.js?v=46"></script>
 <script src="js/backup.js?v=44"></script>
-<script src="js/app.js?v=63"></script>
+<script src="js/app.js?v=64"></script>
 </body>
 </html>

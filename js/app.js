@@ -1156,16 +1156,29 @@ class App {
     document.getElementById('faqModalClose').addEventListener('click', () => this.closeModal('faqModal'));
     document.getElementById('faqModalSave').addEventListener('click', () => this.saveFaqItem());
 
-    /* Guide modal (Markdown) */
+    /* Guide modal (Markdown / HTML) */
     document.getElementById('guideModalClose').addEventListener('click', () => this.closeModal('guideModal'));
     document.getElementById('guideModalSave').addEventListener('click', () => this.saveGuide());
+    document.querySelectorAll('#guideModal .guide-fmt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._guideFormat = btn.dataset.fmt === 'html' ? 'html' : 'markdown';
+        document.querySelectorAll('#guideModal .guide-fmt').forEach(b => b.classList.toggle('active', b === btn));
+        document.getElementById('guideBody').placeholder = this._guideFormat === 'html'
+          ? 'Вставьте HTML-страницу целиком…'
+          : '# Заголовок\n\nТекст гайда в **Markdown**…';
+        // если сейчас открыто превью — перерисовать под новый формат
+        if (document.querySelector('#guideModal .guide-tab[data-gtab="preview"]').classList.contains('active')) {
+          this._renderGuidePreview();
+        }
+      });
+    });
     document.querySelectorAll('#guideModal .guide-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         const preview = tab.dataset.gtab === 'preview';
         document.querySelectorAll('#guideModal .guide-tab').forEach(t => t.classList.toggle('active', t === tab));
         const ta = document.getElementById('guideBody');
         const pv = document.getElementById('guidePreview');
-        if (preview) { pv.innerHTML = this._mdRender(ta.value); pv.style.display = ''; ta.style.display = 'none'; }
+        if (preview) { this._renderGuidePreview(); pv.style.display = ''; ta.style.display = 'none'; }
         else { ta.style.display = ''; pv.style.display = 'none'; }
       });
     });
@@ -3403,23 +3416,35 @@ class App {
     const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
     const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 
-    el.innerHTML = `<div class="guide-list">${guides.map(g => `
-      <div class="guide-item" data-guide-id="${g.id}">
+    el.innerHTML = `<div class="guide-list">${guides.map(g => {
+      const isHtml = g.format === 'html';
+      const content = isHtml
+        ? `<iframe class="guide-html-frame" data-guide-id="${g.id}"></iframe>`
+        : `<div class="md-body">${this._mdRender(g.body || '')}</div>`;
+      return `
+      <div class="guide-item${isHtml ? ' guide-item--html' : ''}" data-guide-id="${g.id}">
         <div class="guide-head">
-          <span class="guide-title">${this.esc(g.title || 'Без названия')}</span>
+          <span class="guide-title">${this.esc(g.title || 'Без названия')}${isHtml ? '<span class="guide-html-tag">HTML</span>' : ''}</span>
           <svg class="faq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </div>
         <div class="guide-body">
-          <div class="md-body">${this._mdRender(g.body || '')}</div>
+          ${content}
           ${isRoot ? `<div class="faq-actions">
             <button class="guide-edit" data-guide-id="${g.id}">${svgEdit} Изменить</button>
             <button class="guide-delete" data-guide-id="${g.id}">${svgDel} Удалить</button>
           </div>` : ''}
         </div>
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
     </div>`;
+
+    // Смонтировать HTML-гайды в песочницу
+    guides.filter(g => g.format === 'html').forEach(g => {
+      const frame = el.querySelector(`iframe.guide-html-frame[data-guide-id="${g.id}"]`);
+      if (frame) this._mountGuideHtml(frame, g.body || '');
+    });
 
     el.querySelectorAll('.guide-head').forEach(head => {
       head.addEventListener('click', () => head.closest('.guide-item').classList.toggle('open'));
@@ -3475,26 +3500,65 @@ class App {
   openGuideModal(guide = null) {
     if (this.currentUser?.role !== 'root') { this.toast('Только администратор может писать гайды'); return; }
     this._editingGuideId = guide?.id || null;
+    this._guideFormat = guide?.format === 'html' ? 'html' : 'markdown';
     document.querySelector('#guideModal .modal-title').textContent = guide ? 'Редактировать гайд' : 'Новый гайд';
     document.getElementById('guideTitle').value = guide?.title || '';
-    document.getElementById('guideBody').value  = guide?.body  || '';
+    const ta = document.getElementById('guideBody');
+    ta.value = guide?.body || '';
+    ta.placeholder = this._guideFormat === 'html'
+      ? 'Вставьте HTML-страницу целиком…'
+      : '# Заголовок\n\nТекст гайда в **Markdown**…';
+    // Переключатель формата
+    document.querySelectorAll('#guideModal .guide-fmt').forEach(b => b.classList.toggle('active', b.dataset.fmt === this._guideFormat));
     // Сброс на вкладку «Текст»
     document.querySelectorAll('#guideModal .guide-tab').forEach(t => t.classList.toggle('active', t.dataset.gtab === 'edit'));
-    document.getElementById('guideBody').style.display    = '';
+    ta.style.display = '';
     document.getElementById('guidePreview').style.display = 'none';
     this.openModal('guideModal');
     setTimeout(() => document.getElementById('guideTitle').focus(), 350);
   }
 
+  /* Отрисовать превью редактора по текущему формату */
+  _renderGuidePreview() {
+    const ta = document.getElementById('guideBody');
+    const pv = document.getElementById('guidePreview');
+    if (this._guideFormat === 'html') {
+      pv.classList.remove('md-body');
+      pv.innerHTML = '';
+      const frame = document.createElement('iframe');
+      frame.className = 'guide-html-frame';
+      pv.appendChild(frame);
+      this._mountGuideHtml(frame, ta.value);
+    } else {
+      pv.classList.add('md-body');
+      pv.innerHTML = this._mdRender(ta.value);
+    }
+  }
+
+  /* Отрендерить произвольный HTML в песочнице (скрипты не исполняются),
+     подогнать высоту iframe под контент. */
+  _mountGuideHtml(frame, html) {
+    frame.setAttribute('sandbox', 'allow-same-origin');
+    const fit = () => {
+      try {
+        const d = frame.contentDocument;
+        if (d) frame.style.height = Math.max(d.documentElement.scrollHeight, d.body?.scrollHeight || 0) + 'px';
+      } catch {}
+    };
+    frame.addEventListener('load', () => { fit(); setTimeout(fit, 120); });
+    frame.srcdoc = html || '';
+  }
+
   async saveGuide() {
     const title = document.getElementById('guideTitle').value.trim();
     const body  = document.getElementById('guideBody').value;
+    const format = this._guideFormat === 'html' ? 'html' : 'markdown';
     if (!title) { this.toast('Введите заголовок'); return; }
     if (this._editingGuideId) {
-      await this.db.patchGuide(this._editingGuideId, { title, body });
+      await this.db.patchGuide(this._editingGuideId, { title, body, format });
       this.toast('Гайд обновлён ✓');
     } else {
-      await this.db.addGuide({ title, body });
+      await this.db.addGuide({ title, body, format });
       this.toast('Гайд добавлен ✓');
     }
     this._editingGuideId = null;

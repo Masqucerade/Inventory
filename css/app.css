@@ -1649,8 +1649,30 @@ html, body {
 }
 .guide-md-preview::-webkit-scrollbar { display: none; }
 
+/* Переключатель формата Markdown / HTML */
+.guide-fmt-seg { display: inline-flex; background: var(--fill); border: 1px solid var(--sep); border-radius: 9px; padding: 2px; gap: 2px; }
+.guide-fmt {
+  font-family: inherit; font-size: 12px; font-weight: 600; color: var(--text3);
+  background: none; border: none; padding: 4px 10px; border-radius: 7px; cursor: pointer;
+  transition: all .15s;
+}
+.guide-fmt.active { color: var(--text); background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+
 /* На десктопе диалог фиксированной высоты — редактор всё равно тянется */
 html.is-web #guideModal { height: min(760px, 86vh); }
+
+/* HTML-гайд: рендер в песочнице */
+.guide-html-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.6px; vertical-align: 2px;
+  color: var(--accent); background: rgba(124,109,250,.12); border: 1px solid rgba(124,109,250,.3);
+  border-radius: 5px; padding: 1px 5px; margin-left: 8px;
+}
+.guide-html-frame { width: 100%; border: 0; display: block; background: #fff; min-height: 200px; }
+.guide-item--html .guide-body { transition: none; }
+.guide-item--html.open .guide-body { max-height: none; }
+.guide-item--html .guide-html-frame { border-radius: 0 0 14px 14px; }
+/* В превью редактора рамка занимает всю доступную высоту */
+#guideModal .guide-md-preview .guide-html-frame { min-height: 100%; }
 
 /* ─── Script lines in FAQ modal form ─── */
 .faq-lines-header {
