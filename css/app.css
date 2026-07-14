@@ -222,9 +222,9 @@ html, body {
 .chip:active { opacity: .5; }
 .chip-sep { flex-shrink: 0; align-self: center; width: 1px; height: 18px; background: var(--sep2, var(--sep)); margin: 0 4px; }
 .chip.active {
-  background: var(--text);
+  background: var(--bg);
   border-color: var(--text);
-  color: var(--bg);
+  color: var(--text);
   font-weight: 600;
 }
 
@@ -2663,6 +2663,11 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   html.is-web .chip:hover,
   html.is-web .sale-entry:hover,
   html.is-web .pay-entry:hover { background: var(--fill); }
+  /* Активная «таблетка» (Все и т.п.): по умолчанию чёрная с белой
+     окантовкой, при наведении — инверсия в белую с чёрным текстом */
+  html.is-web .chip.active:hover {
+    background: var(--text); border-color: var(--text); color: var(--bg);
+  }
   html.is-web * { cursor: default; }
   html.is-web button,
   html.is-web .item-card,
