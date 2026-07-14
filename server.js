@@ -411,7 +411,10 @@ app.use('/api', (req, res, next) => {
 app.use(['/api/payments', '/api/employee-payments', '/api/plans', '/api/sales'], (req, res, next) => requireAccess('finance')(req, res, next));
 app.use('/api/tasks',       (req, res, next) => requireAccess('project')(req, res, next));
 app.use('/api/quickaccess', (req, res, next) => requireAccess('project')(req, res, next));
-app.use('/api/faq',         (req, res, next) => requireAccess('faq')(req, res, next));
+// FAQ-топики витрины управляются во вкладке «Сайт» → доступ по разделу 'site'
+app.use('/api/faq',         (req, res, next) => requireAccess('site')(req, res, next));
+// Внутренние гайды для сотрудников живут во вкладке «Гайды» (раздел 'faq')
+app.use('/api/guides',      (req, res, next) => requireAccess('faq')(req, res, next));
 app.use(['/api/blocks', '/api/collections'], (req, res, next) => requireAccess('site')(req, res, next));
 
 app.get('/api/me', (req, res) => {
@@ -1173,6 +1176,50 @@ app.patch('/api/faq/:id', (req, res) => {
 app.delete('/api/faq/:id', (req, res) => {
   const db = load();
   db.faq = (db.faq || []).filter(f => f.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
+/* ─── ГАЙДЫ (внутренняя база для сотрудников, Markdown) ───
+   Читают все с доступом к разделу 'faq', редактирует только root. */
+app.get('/api/guides', (req, res) => {
+  res.json((load().guides || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+});
+
+app.post('/api/guides', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db  = load();
+  if (!db.guides) db.guides = [];
+  const now = new Date().toISOString();
+  const entry = {
+    id: uid(), createdAt: now, updatedAt: now,
+    order: db.guides.length,
+    title: String(req.body.title || '').trim(),
+    body:  String(req.body.body || ''),
+  };
+  db.guides.push(entry);
+  save(db);
+  res.json(entry);
+});
+
+app.patch('/api/guides/:id', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db  = load();
+  const idx = (db.guides || []).findIndex(g => g.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  const patch = {};
+  if (req.body.title !== undefined) patch.title = String(req.body.title).trim();
+  if (req.body.body  !== undefined) patch.body  = String(req.body.body);
+  if (req.body.order !== undefined) patch.order = req.body.order;
+  db.guides[idx] = { ...db.guides[idx], ...patch, id: req.params.id, updatedAt: new Date().toISOString() };
+  save(db);
+  res.json(db.guides[idx]);
+});
+
+app.delete('/api/guides/:id', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  db.guides = (db.guides || []).filter(g => g.id !== req.params.id);
   save(db);
   res.json({ ok: true });
 });

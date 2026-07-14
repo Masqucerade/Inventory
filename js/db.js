@@ -375,6 +375,36 @@ class InventoryDB {
     await fetch(`/api/faq/${id}`, { method: 'DELETE' });
   }
 
+  /* ─── ГАЙДЫ (внутренние, Markdown) ─── */
+  async getGuides() {
+    try {
+      const r = await fetch('/api/guides');
+      return r.ok ? r.json() : [];
+    } catch { return []; }
+  }
+
+  async addGuide(guide) {
+    const r = await fetch('/api/guides', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(guide),
+    });
+    return r.json();
+  }
+
+  async patchGuide(id, patch) {
+    const r = await fetch(`/api/guides/${id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(patch),
+    });
+    return r.json();
+  }
+
+  async deleteGuide(id) {
+    await fetch(`/api/guides/${id}`, { method: 'DELETE' });
+  }
+
   /* ─── SALES ─── */
   async getSales() {
     try { const r = await fetch('/api/sales'); return r.ok ? r.json() : []; }
