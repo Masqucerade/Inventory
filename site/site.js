@@ -286,13 +286,12 @@ function blockToHtml(b) {
 function collectionHtml(c, items) {
   return `<section class="collection-block">
     <div class="collection-head">
-      <p class="collection-kicker">Подборка</p>
-      <span class="carousel-hint" aria-hidden="true">листайте →</span>
-    </div>
+      <p class="collection-kicker">Подборка</p>    </div>
     <h2>${esc(c.title)}</h2>
     ${c.description ? `<p class="collection-desc">${esc(c.description)}</p>` : ''}
     <div class="collection-carousel">
       <div class="goods-grid collection-grid">${items.map(cardHTML).join('')}</div>
+      <button class="carousel-next" aria-label="Листать дальше" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button>
     </div>
   </section>`;
 }
@@ -303,12 +302,11 @@ function weeklyHtml(b, items) {
   const custom = h && h !== 'Товары недели';
   return `<section class="collection-block week-block">
     <div class="collection-head">
-      <p class="collection-kicker week-kicker">★ Товары недели</p>
-      <span class="carousel-hint" aria-hidden="true">листайте →</span>
-    </div>
+      <p class="collection-kicker week-kicker">★ Товары недели</p>    </div>
     ${custom ? `<h2>${esc(h)}</h2>` : ''}
     <div class="collection-carousel">
       <div class="goods-grid collection-grid">${items.map(cardHTML).join('')}</div>
+      <button class="carousel-next" aria-label="Листать дальше" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button>
     </div>
   </section>`;
 }
@@ -317,7 +315,13 @@ function weeklyHtml(b, items) {
 function markCarousels() {
   document.querySelectorAll('.collection-block').forEach(block => {
     const grid = block.querySelector('.collection-grid');
-    block.classList.toggle('scrollable', !!grid && grid.scrollWidth - grid.clientWidth > 8);
+    if (!grid) return;
+    const update = () => {
+      block.classList.toggle('scrollable', grid.scrollWidth - grid.clientWidth > 8);
+      block.classList.toggle('at-end', grid.scrollLeft >= grid.scrollWidth - grid.clientWidth - 8);
+    };
+    update();
+    if (!grid._carBound) { grid._carBound = true; grid.addEventListener('scroll', update, { passive: true }); }
   });
 }
 let _carouselResizeT;
@@ -357,12 +361,20 @@ function renderStream(blocks, collections) {
   document.getElementById('siteBlocks').innerHTML = stream.map(x => x.html).join('');
   document.getElementById('collectionsWrap').innerHTML = '';
   _streamHasContent = stream.length > 0;
-  requestAnimationFrame(markCarousels);
+  requestAnimationFrame(() => requestAnimationFrame(markCarousels));
+  setTimeout(markCarousels, 400);   // подстраховка: дождаться загрузки фото/шрифтов
   initBannerSlideshows();
 }
 
 /* Клик по карточке товара в потоке (подборки) — та же модалка */
 document.getElementById('siteBlocks').addEventListener('click', (e) => {
+  // Стрелка-шеврон — прокрутить карусель дальше
+  const next = e.target.closest('.carousel-next');
+  if (next) {
+    const grid = next.closest('.collection-carousel')?.querySelector('.collection-grid');
+    if (grid) { grid.scrollLeft += Math.round(grid.clientWidth * 0.85); setTimeout(markCarousels, 60); }   // scroll-snap мягко доводит до карточки
+    return;
+  }
   const card = e.target.closest('.good-card');
   if (!card) return;
   const item = ITEMS.find(i => i.id === card.dataset.id);

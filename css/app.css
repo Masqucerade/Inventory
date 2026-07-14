@@ -220,6 +220,7 @@ html, body {
   transition: all .15s;
 }
 .chip:active { opacity: .5; }
+.chip-sep { flex-shrink: 0; align-self: center; width: 1px; height: 18px; background: var(--sep2, var(--sep)); margin: 0 4px; }
 .chip.active {
   background: var(--text);
   border-color: var(--text);

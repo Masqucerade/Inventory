@@ -477,20 +477,28 @@ a.duo-tile:hover img { transform: scale(1.04); }
 }
 .duo-tile .block-banner-cap h2 { font-family: var(--font-d); font-weight: 500; font-size: clamp(20px, 2.6vw, 30px); color: #fff; line-height: 1.1; }
 
-/* Индикатор карусели — подсказка + мягкое затухание справа */
-.collection-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.carousel-hint {
-  opacity: 0; white-space: nowrap; font-size: 11px; letter-spacing: .16em;
-  text-transform: uppercase; color: var(--text3); transition: opacity .3s;
-}
-.collection-block.scrollable .carousel-hint { opacity: .7; }
+/* Индикатор карусели — мягкое затухание + изящный шеврон справа */
+.collection-head { display: flex; align-items: center; gap: 12px; }
 .collection-carousel { position: relative; }
 .collection-carousel::after {
-  content: ''; position: absolute; top: 0; right: 0; bottom: 8px; width: 64px;
-  pointer-events: none; opacity: 0; transition: opacity .3s;
-  background: linear-gradient(90deg, transparent, var(--bg));
+  content: ''; position: absolute; top: 0; right: 0; bottom: 8px; width: 80px;
+  pointer-events: none; opacity: 0; transition: opacity .35s;
+  background: linear-gradient(90deg, transparent, var(--bg) 78%);
 }
-.collection-block.scrollable .collection-carousel::after { opacity: 1; }
+.collection-block.scrollable:not(.at-end) .collection-carousel::after { opacity: 1; }
+
+.carousel-next {
+  position: absolute; z-index: 2; top: 50%; right: 12px; margin-top: -21px;
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 1px solid var(--line2); color: var(--gold);
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  opacity: 0; pointer-events: none; transition: opacity .35s, background .2s, transform .2s;
+}
+.carousel-next svg { transform: translateX(1px); }
+.carousel-next:hover { background: var(--bg); border-color: var(--gold); }
+.collection-block.scrollable:not(.at-end) .carousel-next { opacity: 1; pointer-events: auto; }
 
 @media (max-width: 640px) {
   .block-duo { grid-template-columns: 1fr; }

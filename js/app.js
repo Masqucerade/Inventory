@@ -111,6 +111,7 @@ class App {
 
     this._filterMonarc      = false;
     this._filterCat         = null;
+    this._filterGarment     = null;
     this._catFilterOpen     = false;
     this._projectSubTab     = 'tasks';
     this.categories         = [];
@@ -1269,23 +1270,28 @@ class App {
     const el = document.getElementById('catFilterChips');
     const toggle = document.getElementById('catFilterToggle');
     const tops = this.categories.filter(c => !c.parentId).sort((a, b) => (a.order || 0) - (b.order || 0));
-    // Кнопка-фильтр видна, только если есть категории; подсвечена при активном фильтре
+    const GARM = [{ id: 'top', name: 'Верх' }, { id: 'bottom', name: 'Низ' }, { id: 'shoes', name: 'Обувь' }, { id: 'outerwear', name: 'Верхняя одежда' }];
+    const gShown = GARM.filter(g => this.items.some(i => i.garment === g.id));
+    const hasAny = tops.length || gShown.length;
+    // Кнопка-фильтр видна, если есть категории или типы одежды; подсвечена при активном фильтре
     if (toggle) {
-      toggle.classList.toggle('hidden', !tops.length);
-      toggle.classList.toggle('has-filter', !!this._filterCat);
-      toggle.classList.toggle('active', this._catFilterOpen && !!tops.length);
+      toggle.classList.toggle('hidden', !hasAny);
+      toggle.classList.toggle('has-filter', !!this._filterCat || !!this._filterGarment);
+      toggle.classList.toggle('active', this._catFilterOpen && !!hasAny);
     }
     // Сама строка чипов скрыта, пока не открыта кнопкой
-    if (!tops.length || !this._catFilterOpen) { el.style.display = 'none'; return; }
+    if (!hasAny || !this._catFilterOpen) { el.style.display = 'none'; return; }
     el.style.display = '';
-    el.innerHTML =
-      `<button class="chip ${!this._filterCat ? 'active' : ''}" data-cat="">Все</button>` +
-      tops.map(c =>
-        `<button class="chip ${this._filterCat === c.id ? 'active' : ''}" data-cat="${c.id}">${this.esc(c.name)}</button>`
-      ).join('');
-    el.querySelectorAll('[data-cat]').forEach(btn =>
+    let html = `<button class="chip ${!this._filterCat && !this._filterGarment ? 'active' : ''}" data-clear>Все</button>`;
+    if (gShown.length) html += gShown.map(g => `<button class="chip ${this._filterGarment === g.id ? 'active' : ''}" data-garment="${g.id}">${this.esc(g.name)}</button>`).join('');
+    if (gShown.length && tops.length) html += `<span class="chip-sep"></span>`;
+    if (tops.length) html += tops.map(c => `<button class="chip ${this._filterCat === c.id ? 'active' : ''}" data-cat="${c.id}">${this.esc(c.name)}</button>`).join('');
+    el.innerHTML = html;
+    el.querySelectorAll('button').forEach(btn =>
       btn.addEventListener('click', () => {
-        this._filterCat = btn.dataset.cat || null;
+        if (btn.dataset.clear !== undefined) { this._filterCat = null; this._filterGarment = null; }
+        else if (btn.dataset.garment !== undefined) this._filterGarment = this._filterGarment === btn.dataset.garment ? null : btn.dataset.garment;
+        else this._filterCat = this._filterCat === btn.dataset.cat ? null : btn.dataset.cat;
         this.renderCatFilterChips();
         this.renderInventoryList();
       })
@@ -1335,6 +1341,8 @@ class App {
       const ids = this._catSubtreeIds(this._filterCat);
       items = items.filter(i => ids.has(i.categoryId));
     }
+    // Тип одежды
+    if (this._filterGarment) items = items.filter(i => i.garment === this._filterGarment);
 
     // Archive split: done items go to collapsed section unless explicitly filtering by done
     let activeItems   = items;
