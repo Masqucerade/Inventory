@@ -981,6 +981,10 @@ class App {
       if (si) { const i = +si.dataset.idx; this._sizes[i].size = si.value; }
       if (qi) { const i = +qi.dataset.idx; this._sizes[i].qty  = parseInt(qi.value) || 0; this.updateTotal(); }
     });
+    document.getElementById('sizesList').addEventListener('change', (e) => {
+      const os = e.target.closest('.size-owner-select');
+      if (os) { const i = +os.dataset.idx; this._sizes[i].ownerId = os.value || null; }
+    });
     document.getElementById('addSizeBtn').addEventListener('click', () => {
       this._sizes.push({ size: '', qty: 1 });
       this.renderSizes();
@@ -1459,13 +1463,20 @@ class App {
     const owner = this.owners.find(o => o.id === item.ownerId);
 
     const sizesArr = item.sizes?.length > 0 ? item.sizes : (item.size ? [{size: item.size, qty: item.quantity||0}] : []);
+    // владелец у размера: свой (s.ownerId) или, если не задан, — владелец объявления
+    const mixedOwners = sizesArr.some(s => s.ownerId && s.ownerId !== item.ownerId);
     const sizesCard = sizesArr.length > 0 ? `
       <div class="detail-card">
-        ${sizesArr.map(s => `
-          <div class="detail-row">
+        ${sizesArr.map(s => {
+          const so = this.owners.find(o => o.id === (s.ownerId || item.ownerId));
+          return `<div class="detail-row">
             <span class="detail-key">${this.esc(s.size || 'Без размера')}</span>
-            <span class="detail-val">${s.qty} шт</span>
-          </div>`).join('')}
+            <span class="detail-val" style="display:flex;align-items:center;gap:10px;justify-content:flex-end">
+              ${so ? `<span class="detail-owner-tag"><span class="owner-dot" style="background:${so.color}"></span>${this.esc(so.name)}</span>` : ''}
+              <span>${s.qty} шт</span>
+            </span>
+          </div>`;
+        }).join('')}
       </div>` : '';
 
     const margin    = (item.price && item.buyPrice) ? item.price - item.buyPrice : null;
@@ -1493,11 +1504,13 @@ class App {
     ).join('');
 
     const metaRows = [
-      ['Владелец', owner
-        ? `<span style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
-             <span style="width:8px;height:8px;border-radius:50%;background:${owner.color};display:inline-block;flex-shrink:0"></span>
-             ${this.esc(owner.name)}</span>`
-        : '—'],
+      ['Владелец', mixedOwners
+        ? `<span style="color:var(--text3)">разделён по размерам ↑</span>`
+        : (owner
+          ? `<span style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+               <span style="width:8px;height:8px;border-radius:50%;background:${owner.color};display:inline-block;flex-shrink:0"></span>
+               ${this.esc(owner.name)}</span>`
+          : '—')],
       ['Создан', this.fmtDate(item.createdAt)],
     ].map(([k,v]) =>
       `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`
@@ -1688,7 +1701,7 @@ class App {
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'ordered';
         this._sizes = item.sizes?.length > 0
-          ? item.sizes.map(s => ({ size: s.size || '', qty: s.qty || 0 }))
+          ? item.sizes.map(s => ({ size: s.size || '', qty: s.qty || 0, ownerId: s.ownerId || null }))
           : [{ size: item.size || '', qty: item.quantity || 1 }];
         this._photos = Array.isArray(item.photos) && item.photos.length
           ? item.photos.map((full, i) => ({ full, thumb: item.thumbs?.[i] || full }))
@@ -1729,20 +1742,27 @@ class App {
     const list = document.getElementById('sizesList');
     if (!list) return;
     list.innerHTML = this._sizes.map((s, i) => `
-      <div class="size-row">
-        <input type="text" class="size-row-input" data-idx="${i}"
-               value="${this.esc(s.size)}" placeholder="Размер…"
-               list="sizeSuggestions" autocomplete="off">
-        <button type="button" class="size-dec" data-idx="${i}">−</button>
-        <input type="number" class="size-qty-input" data-idx="${i}"
-               value="${s.qty}" min="0" inputmode="numeric">
-        <button type="button" class="size-inc" data-idx="${i}">+</button>
-        ${this._sizes.length > 1
-          ? `<button type="button" class="size-remove" data-idx="${i}">
-               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
-                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-               </svg></button>`
-          : ''}
+      <div class="size-item">
+        <div class="size-row">
+          <input type="text" class="size-row-input" data-idx="${i}"
+                 value="${this.esc(s.size)}" placeholder="Размер…"
+                 list="sizeSuggestions" autocomplete="off">
+          <button type="button" class="size-dec" data-idx="${i}">−</button>
+          <input type="number" class="size-qty-input" data-idx="${i}"
+                 value="${s.qty}" min="0" inputmode="numeric">
+          <button type="button" class="size-inc" data-idx="${i}">+</button>
+          ${this._sizes.length > 1
+            ? `<button type="button" class="size-remove" data-idx="${i}">
+                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8">
+                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                 </svg></button>`
+            : ''}
+        </div>
+        ${this.owners.length ? `
+          <select class="size-owner-select" data-idx="${i}">
+            <option value="">Владелец — как у объявления</option>
+            ${this.owners.map(o => `<option value="${o.id}"${s.ownerId === o.id ? ' selected' : ''}>${this.esc(o.name)}</option>`).join('')}
+          </select>` : ''}
       </div>`).join('');
     this.updateTotal();
   }

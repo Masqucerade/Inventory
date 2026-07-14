@@ -309,7 +309,7 @@ app.get('/api/public/items', (req, res) => {
       price:        i.price ?? null,
       photos,
       thumbs,
-      sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0) : null,
+      sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0).map(s => ({ size: s.size, qty: s.qty })) : null,
       description:  i.description || '',
       measurements: i.measurements || '',
       categoryId:   i.categoryId || null,
