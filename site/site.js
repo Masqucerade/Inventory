@@ -44,6 +44,7 @@ async function boot() {
     ]);
     ITEMS = items; CATS = cats;
     renderStream(blocks, collections);
+    renderHeaderNav();
     renderChips();
     renderGrid();
     updateCatalogChrome();
@@ -67,6 +68,40 @@ function catSubtree(id) {
   return set;
 }
 
+// Верхний уровень навигации (Все · типы одежды · категории) — в шапке, как у Gurbich
+function renderHeaderNav() {
+  const nav = document.getElementById('siteNav');
+  if (!nav) return;
+  const used = new Set(ITEMS.map(i => i.categoryId).filter(Boolean));
+  const inUse = id => [...catSubtree(id)].some(x => used.has(x));
+  const byOrder = (a, b) => (a.order || 0) - (b.order || 0);
+  const usedG = new Set(ITEMS.map(i => i.garment).filter(Boolean));
+  const gShown = GARMENTS.filter(g => usedG.has(g.id));
+  const tops = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
+  const act = activeCat ? CATS.find(c => c.id === activeCat) : null;
+  const topActive = act ? (act.parentId || act.id) : null;
+  let html = `<a class="hnav${!activeCat && !activeGarment ? ' active' : ''}" data-all href="#">Все</a>`;
+  html += gShown.map(g => `<a class="hnav${activeGarment === g.id ? ' active' : ''}" data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('');
+  html += tops.map(c => `<a class="hnav${topActive === c.id ? ' active' : ''}" data-cat="${esc(c.id)}" href="#">${esc(c.name)}</a>`).join('');
+  nav.innerHTML = html;
+}
+
+const _siteNav = document.getElementById('siteNav');
+if (_siteNav) _siteNav.addEventListener('click', (e) => {
+  const a = e.target.closest('.hnav');
+  if (!a) return;
+  e.preventDefault();
+  if (a.dataset.all !== undefined)            { activeCat = null; activeGarment = null; }
+  else if (a.dataset.garment !== undefined)   { activeGarment = a.dataset.garment || null; activeCat = null; }
+  else                                        { activeCat = a.dataset.cat || null; activeGarment = null; }
+  renderHeaderNav();
+  renderChips();
+  renderGrid();
+  updateCatalogChrome();
+  if (activeCat || activeGarment) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+// Ниже героя — только подкатегории выбранной категории (верхний уровень — в шапке)
 function renderChips() {
   const el = document.getElementById('catChips');
   const used = new Set(ITEMS.map(i => i.categoryId).filter(Boolean));
@@ -74,39 +109,23 @@ function renderChips() {
   const inUse = id => [...catSubtree(id)].some(x => used.has(x));
   const byOrder = (a, b) => (a.order || 0) - (b.order || 0);
 
-  // Ряд «тип одежды» — фиксированные, показываем только те, что есть у товаров
-  const usedG = new Set(ITEMS.map(i => i.garment).filter(Boolean));
-  const gShown = GARMENTS.filter(g => usedG.has(g.id));
-  const garmentRow = gShown.length ? `<div class="cat-row garment-row">` +
-    `<button class="cat-chip garment-chip${!activeGarment ? ' active' : ''}" data-garment="">Все</button>` +
-    gShown.map(g => `<button class="cat-chip garment-chip${activeGarment === g.id ? ' active' : ''}" data-garment="${g.id}">${esc(g.name)}</button>`).join('') +
-    `</div>` : '';
-
-  // Ряды категорий (двухуровневые)
-  const tops = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
+  const act = activeCat ? CATS.find(c => c.id === activeCat) : null;
+  const expanded = act ? (act.parentId || act.id) : null;
   let catHtml = '';
-  if (tops.length) {
-    const act = activeCat ? CATS.find(c => c.id === activeCat) : null;
-    const expanded = act ? (act.parentId || act.id) : null;
-    catHtml = `<div class="cat-row">` +
-      `<button class="cat-chip${!activeCat ? ' active' : ''}" data-cat="">Все</button>` +
-      tops.map(c => `<button class="cat-chip${expanded === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('') +
-      `</div>`;
-    if (expanded) {
-      const subs = (kids[expanded] || []).filter(c => inUse(c.id)).sort(byOrder);
-      if (subs.length) {
-        const parent = CATS.find(c => c.id === expanded);
-        catHtml += `<div class="cat-row cat-subrow">` +
-          `<button class="cat-chip sub${activeCat === expanded ? ' active' : ''}" data-cat="${esc(expanded)}">Все · ${esc(parent.name)}</button>` +
-          subs.map(c => `<button class="cat-chip sub${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('') +
-          `</div>`;
-      }
+  if (expanded) {
+    const subs = (kids[expanded] || []).filter(c => inUse(c.id)).sort(byOrder);
+    if (subs.length) {
+      const parent = CATS.find(c => c.id === expanded);
+      catHtml = `<div class="cat-row cat-subrow">` +
+        `<button class="cat-chip sub${activeCat === expanded ? ' active' : ''}" data-cat="${esc(expanded)}">Все · ${esc(parent.name)}</button>` +
+        subs.map(c => `<button class="cat-chip sub${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('') +
+        `</div>`;
     }
   }
 
-  if (!garmentRow && !catHtml) { el.hidden = true; el.innerHTML = ''; return; }
+  if (!catHtml) { el.hidden = true; el.innerHTML = ''; return; }
   el.hidden = false;
-  el.innerHTML = garmentRow + catHtml;
+  el.innerHTML = catHtml;
 }
 
 document.getElementById('catChips').addEventListener('click', (e) => {
@@ -114,6 +133,7 @@ document.getElementById('catChips').addEventListener('click', (e) => {
   if (!chip) return;
   if (chip.dataset.garment !== undefined) activeGarment = chip.dataset.garment || null;
   else                                    activeCat = chip.dataset.cat || null;
+  renderHeaderNav();
   renderChips();
   renderGrid();
   updateCatalogChrome();

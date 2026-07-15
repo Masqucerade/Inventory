@@ -161,14 +161,21 @@ img { max-width: 100%; display: block; }
 }
 .site-logo em { font-style: italic; color: var(--gold); }
 .brand-mark-sm { width: 34px; height: 34px; margin: 0; font-size: 17px; }
-.site-nav { display: flex; gap: 4px; justify-self: center; }
+.site-nav {
+  display: flex; align-items: center; gap: clamp(14px, 2vw, 30px);
+  justify-self: center; max-width: min(64vw, 680px);
+  overflow-x: auto; scrollbar-width: none;
+}
+.site-nav::-webkit-scrollbar { display: none; }
 .site-nav a {
-  padding: 8px 16px; border-radius: 99px;
-  font-size: 12.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--text2);
-  transition: color .2s, background .2s;
+  padding: 4px 0; background: none; border-radius: 0;
+  font-size: 12.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text2); white-space: nowrap; cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color .2s, border-color .2s;
 }
 .site-nav a:hover { color: var(--text); }
-.site-nav a.active { color: var(--gold-hi); background: rgba(212,180,131,.09); }
+.site-nav a.active { color: var(--text); border-bottom-color: currentColor; }
 
 /* ─── Каталог: контент ─── */
 .catalog-wrap {
@@ -498,7 +505,10 @@ a.duo-tile:hover img { transform: scale(1.04); }
   @keyframes sheet-in { from { transform: translateY(60px); opacity: 0; } }
   .item-modal-photo { aspect-ratio: 4 / 3; min-height: 0; }
   .item-modal-info { padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); }
-  .site-nav a { padding: 7px 12px; }
+  /* Шапка: логотип сверху, навигация строкой ниже (горизонтальный скролл) */
+  .site-header { grid-template-columns: 1fr; row-gap: 10px; justify-items: start; }
+  .site-nav { justify-self: stretch; max-width: 100%; width: 100%; gap: 20px; }
+  .site-nav a { padding: 2px 0; }
 }
 
 /* ─── Тема Type Clothes: светлый минимализм (COS-подход) ───
@@ -548,7 +558,7 @@ body.theme-type .item-modal-info h3 {
 body.theme-type .item-modal-backdrop { background: rgba(40, 38, 32, .45); }
 body.theme-type .tg-btn { background: #17150f; color: #f6f5f1; }
 body.theme-type .tg-btn:hover { background: #000; }
-body.theme-type .site-nav a.active { background: #17150f; color: #f6f5f1; }
+body.theme-type .site-nav a.active { background: none; color: var(--text); border-bottom-color: currentColor; }
 body.theme-type .cat-chip.active { background: #17150f; color: #f6f5f1; border-color: #17150f; }
 
 /* ─── Gurbich-стиль для Type: галерея + теги наличия ─── */
