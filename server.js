@@ -307,6 +307,7 @@ app.get('/api/public/items', (req, res) => {
       id:           i.id,
       name:         i.name,
       price:        i.price ?? null,
+      inStock:      i.orderStatus === 'in_stock',
       photos,
       thumbs,
       sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0).map(s => ({ size: s.size, qty: s.qty })) : null,

@@ -167,6 +167,7 @@ function cardHTML(i) {
           <span class="good-price">${fmtPrice(i.price)}</span>
           <span class="good-sizes">${esc(sizesLabel(i.sizes))}</span>
         </div>
+        <span class="good-tag ${i.inStock ? 'in-stock' : 'preorder'}">${i.inStock ? 'В наличии' : 'Под заказ'}</span>
       </div>
     </article>`;
 }

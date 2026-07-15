@@ -504,17 +504,20 @@ a.duo-tile:hover img { transform: scale(1.04); }
 /* ─── Тема Type Clothes: светлый минимализм (COS-подход) ───
    Переопределяем токены — вся разметка остаётся общей. */
 body.theme-type {
-  --bg:      #f6f5f1;
+  --bg:      #fafafa;
   --bg2:     #ffffff;
-  --surface: #edebe5;
+  --surface: #f2f1ee;
   --line:    rgba(23, 21, 15, .10);
-  --line2:   rgba(23, 21, 15, .26);
+  --line2:   rgba(23, 21, 15, .22);
   --gold:    #17150f;   /* акцент — чернила вместо золота */
-  --gold-hi: #000000;
+  --gold-hi: #0f0f0f;
   --text:    #17150f;
   --text2:   #6d685c;
   --text3:   #9b968a;
-  --radius:  12px;
+  --pink:    #ffc6d4;   /* акцент-тег наличия (в стиле Gurbich) */
+  --radius:  10px;
+  --font-b:  'DM Sans', 'Manrope', -apple-system, sans-serif;
+  font-family: var(--font-b);
 }
 body.theme-type .bg-grain { display: none; }
 body.theme-type .site-header {
@@ -547,6 +550,41 @@ body.theme-type .tg-btn { background: #17150f; color: #f6f5f1; }
 body.theme-type .tg-btn:hover { background: #000; }
 body.theme-type .site-nav a.active { background: #17150f; color: #f6f5f1; }
 body.theme-type .cat-chip.active { background: #17150f; color: #f6f5f1; border-color: #17150f; }
+
+/* ─── Gurbich-стиль для Type: галерея + теги наличия ─── */
+/* Просторный грид как у Gurbich (3 колонки на десктопе) */
+body.theme-type .goods-grid { grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); }
+body.theme-type .good-card {
+  background: #fff; border: none; border-radius: 0; transition: none;
+}
+body.theme-type .good-card:hover { transform: none; }
+body.theme-type .good-photo { background: #fff; }
+body.theme-type .good-card:hover .good-photo img { transform: scale(1.03); }
+body.theme-type .good-info { padding: 14px 16px 20px; }
+/* Название — КАПС DM Sans, как у Gurbich */
+body.theme-type .good-name {
+  text-transform: uppercase; letter-spacing: .04em; font-weight: 600;
+  font-size: 13px; line-height: 1.35;
+}
+body.theme-type .good-price { color: var(--text); font-weight: 600; }
+body.theme-type .good-sizes { text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+
+/* Тег наличия — виден только на Type */
+.good-tag { display: none; }
+body.theme-type .good-tag {
+  display: inline-flex; align-items: center; margin-top: 9px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 4px;
+}
+body.theme-type .good-tag.in-stock { background: var(--pink); color: #3a2230; }
+body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
+
+/* Кнопка «Фильтры»-акцент и активный чип — розовые (как ФИЛЬТРЫ у Gurbich) */
+body.theme-type .cat-chip.active { background: var(--pink); color: #3a2230; border-color: var(--pink); }
+
+@media (max-width: 720px) {
+  body.theme-type .goods-grid { grid-template-columns: repeat(2, 1fr); }
+}
 
 /* ─── Мультифото ─── */
 .item-modal-photo { position: relative; }
