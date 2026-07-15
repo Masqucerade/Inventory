@@ -3862,11 +3862,11 @@ class App {
       </div>`;
       return;
     }
-    const TYPE = { banner: { t: 'Фото-баннер', e: '🖼' }, text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' } };
+    const TYPE = { text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' } };
     const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
     el.innerHTML = `<div class="settings-section">` + this._blocks.map((b, i) => {
       const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
-      const label = b.type === 'promo' ? b.text : (b.heading || (b.type === 'banner' ? 'Баннер без заголовка' : 'Без заголовка'));
+      const label = b.type === 'promo' ? b.text : (b.heading || 'Без заголовка');
       return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}">
         <div class="settings-row-icon" style="background:rgba(167,139,250,.14)">${meta.e}</div>
         <div class="settings-row-info">
@@ -3898,7 +3898,7 @@ class App {
 
   openBlockModal(block = null) {
     this._blockIsNew = !block;
-    this._block = block ? { ...block } : { type: 'banner', section: 'all', enabled: true, linkType: 'none' };
+    this._block = block ? { ...block } : { type: 'weekly', section: 'all', enabled: true, linkType: 'none' };
     document.getElementById('blockModalTitle').textContent = block ? 'Изменить блок' : 'Новый блок';
     this._renderBlockForm();
     this.openModal('blockModal');
@@ -3943,26 +3943,12 @@ class App {
     let html = '';
     if (this._blockIsNew)
       html += g('Тип блока', seg('type', [
-        { v: 'weekly', t: 'Товары' }, { v: 'banner', t: 'Баннер' }, { v: 'duo', t: 'Двойной' },
+        { v: 'weekly', t: 'Товары' }, { v: 'duo', t: 'Двойной' },
         { v: 'statement', t: 'Слоган' }, { v: 'text', t: 'Текст' }, { v: 'marquee', t: 'Строка' }, { v: 'promo', t: 'Промо' },
       ]));
     html += g('Раздел', seg('section', [{ v: 'all', t: 'Везде' }, { v: 'monarc', t: 'Monarc' }, { v: 'type', t: 'Type' }]));
 
-    if (b.type === 'banner') {
-      if (!b.size) b.size = 'md';
-      if (!b.fit) b.fit = 'cover';
-      if (!b.focus) b.focus = 'center';
-      if (!b.images && b.image) b.images = [b.image];   // миграция одиночной картинки
-      html += g('Размер', seg('size', [{ v: 'sm', t: 'Компактный' }, { v: 'md', t: 'Обычный' }, { v: 'lg', t: 'Крупный' }]));
-      html += imagesField('images', 'Фото (можно несколько — будут листаться)');
-      html += g('Кадрирование', seg('fit', [{ v: 'cover', t: 'Заполнить' }, { v: 'contain', t: 'Целиком' }]));
-      html += `<div class="blk-hint">«Заполнить» — фото обрезается под баннер. «Целиком» — видно всё фото без обрезки.</div>`;
-      if (b.fit !== 'contain')
-        html += g('Что оставить в кадре', seg('focus', [{ v: 'center', t: 'Центр' }, { v: 'top', t: 'Сверху' }, { v: 'bottom', t: 'Снизу' }]));
-      html += g('Заголовок (необязательно)', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || '')}" placeholder="Например: Новая коллекция">`);
-      html += g('Подпись (необязательно)', `<textarea class="form-input form-textarea" id="blkSubtext" rows="2" placeholder="Короткий текст под заголовком…">${esc(b.subtext || '')}</textarea>`);
-      html += linkField('linkType', 'linkValue', 'Ссылка при клике');
-    } else if (b.type === 'duo') {
+    if (b.type === 'duo') {
       html += `<div class="blk-hint">Две картинки рядом (на мобильном — друг под другом). Заголовок и ссылка у каждой — по желанию.</div>`;
       html += imgField('imageA', 'Картинка 1');
       html += g('Заголовок 1 (необязательно)', `<input type="text" class="form-input" id="blkCaptionA" value="${esc(b.captionA || '')}" placeholder="Например: Новинки">`);
@@ -4006,8 +3992,7 @@ class App {
   _readBlockForm() {
     const b = this._block;
     const set = (id, key, trim = true) => { const el = document.getElementById(id); if (el) b[key] = trim ? el.value.trim() : el.value; };
-    if (b.type === 'banner')          { set('blkHeading', 'heading'); set('blkSubtext', 'subtext'); }
-    else if (b.type === 'text')       { set('blkHeading', 'heading'); set('blkBody', 'body', false); }
+    if (b.type === 'text')            { set('blkHeading', 'heading'); set('blkBody', 'body', false); }
     else if (b.type === 'promo')      { set('blkText', 'text'); }
     else if (b.type === 'marquee')    { set('blkMarquee', 'text'); }
     else if (b.type === 'statement')  { set('blkKicker', 'kicker'); set('blkStatement', 'text', false); }
@@ -4084,7 +4069,6 @@ class App {
     if (b.type === 'marquee'   && !b.text)                { this.toast('Введите текст строки'); return; }
     if (b.type === 'statement' && !b.text)                { this.toast('Введите текст слогана'); return; }
     if (b.type === 'text'      && !b.heading && !b.body)  { this.toast('Заполните заголовок или текст'); return; }
-    if (b.type === 'banner'    && !(b.images && b.images.length) && !b.heading) { this.toast('Добавьте фото или заголовок'); return; }
     if (b.type === 'duo'       && !b.imageA && !b.imageB) { this.toast('Добавьте хотя бы одну картинку'); return; }
     if (b.type === 'weekly'    && !(b.itemIds && b.itemIds.length)) { this.toast('Выберите хотя бы один товар'); return; }
     if (this._blockIsNew && this.currentView === 'site') b.order = this._nextStreamOrder();  // в конец потока
@@ -4162,8 +4146,7 @@ class App {
 
   _blockRowHtml(b, i, n) {
     const TYPE = {
-      weekly: { t: 'Товары недели', e: '⭐' },
-      banner: { t: 'Фото-баннер', e: '🖼' }, duo: { t: 'Двойной баннер', e: '🖼' },
+      weekly: { t: 'Товары недели', e: '⭐' }, duo: { t: 'Двойной баннер', e: '🖼' },
       statement: { t: 'Слоган', e: '✦' }, text: { t: 'Текст', e: '📝' },
       marquee: { t: 'Бегущая строка', e: '➰' }, promo: { t: 'Промо-полоса', e: '📣' },
     };
@@ -4172,7 +4155,7 @@ class App {
     const label = (b.type === 'promo' || b.type === 'marquee' || b.type === 'statement') ? b.text
       : b.type === 'duo' ? (b.captionA || b.captionB || 'Двойной баннер')
       : b.type === 'weekly' ? `${b.heading || 'Товары недели'} · ${(b.itemIds || []).length} тов.`
-      : (b.heading || (b.type === 'banner' ? 'Баннер без заголовка' : 'Без заголовка'));
+      : (b.heading || 'Без заголовка');
     const sub = `${meta.t} · ${SEC[b.section] || b.section}${b.type === 'promo' ? ' · сверху' : ''}${b.enabled ? '' : ' · скрыт'}`;
     return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}" data-kind="block">
       <div class="settings-row-icon" style="background:rgba(167,139,250,.14)">${meta.e}</div>

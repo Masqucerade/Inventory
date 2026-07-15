@@ -195,46 +195,7 @@ function blockLinkHref(b) {
 }
 const nl2br = (s) => esc(s).replace(/\n/g, '<br>');
 
-function bannerHtml(b) {
-  const href = blockLinkHref(b);
-  const ext  = b.linkType === 'tg' || b.linkType === 'url';
-  const imgs = (Array.isArray(b.images) && b.images.length) ? b.images : (b.image ? [b.image] : []);
-  const size = ['sm', 'md', 'lg'].includes(b.size) ? b.size : 'md';
-  const slides = imgs.length
-    ? `<div class="banner-slides">${imgs.map((s, i) =>
-        `<img class="banner-slide${i === 0 ? ' active' : ''}" src="${esc(s)}" alt="${esc(b.heading)}" loading="lazy" draggable="false">`).join('')}</div>`
-    : '';
-  const dots = imgs.length > 1
-    ? `<div class="banner-dots">${imgs.map((_, i) => `<span class="${i === 0 ? 'on' : ''}"></span>`).join('')}</div>` : '';
-  const cap = (b.heading || b.subtext) ? `<div class="block-banner-cap">
-      ${b.heading ? `<h2>${nl2br(b.heading)}</h2>` : ''}
-      ${b.subtext ? `<p>${esc(b.subtext)}</p>` : ''}
-    </div>` : '';
-  const fit   = b.fit === 'contain' ? 'contain' : 'cover';
-  const focus = ['top', 'bottom', 'center', 'left', 'right'].includes(b.focus) ? b.focus : 'center';
-  const inner = slides + cap + dots;
-  const cls = `site-block block-banner size-${size} fit-${fit} pos-${focus}${imgs.length > 1 ? ' multi' : ''}`;
-  return href
-    ? `<a class="${cls}" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
-    : `<div class="${cls}">${inner}</div>`;
-}
-
-// Авто-листание баннеров с несколькими фото
-let _bannerTimers = [];
-function initBannerSlideshows() {
-  _bannerTimers.forEach(clearInterval); _bannerTimers = [];
-  document.querySelectorAll('.block-banner.multi').forEach(banner => {
-    const slides = [...banner.querySelectorAll('.banner-slide')];
-    const dots   = [...banner.querySelectorAll('.banner-dots span')];
-    if (slides.length < 2) return;
-    let idx = 0;
-    _bannerTimers.push(setInterval(() => {
-      slides[idx].classList.remove('active'); dots[idx] && dots[idx].classList.remove('on');
-      idx = (idx + 1) % slides.length;
-      slides[idx].classList.add('active'); dots[idx] && dots[idx].classList.add('on');
-    }, 4500));
-  });
-}
+// Блок «Баннер» удалён.
 function textHtml(b) {
   if (!b.heading && !b.body) return '';
   return `<section class="site-block block-text">
@@ -276,7 +237,6 @@ function duoHtml(b) {
 }
 function blockToHtml(b) {
   switch (b.type) {
-    case 'banner':    return bannerHtml(b);
     case 'text':      return textHtml(b);
     case 'statement': return statementHtml(b);
     case 'marquee':   return marqueeHtml(b);
@@ -365,7 +325,6 @@ function renderStream(blocks, collections) {
   _streamHasContent = stream.length > 0;
   requestAnimationFrame(() => requestAnimationFrame(markCarousels));
   setTimeout(markCarousels, 400);   // подстраховка: дождаться загрузки фото/шрифтов
-  initBannerSlideshows();
 }
 
 /* Клик по карточке товара в потоке (подборки) — та же модалка */

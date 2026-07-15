@@ -356,15 +356,6 @@ app.get('/api/public/blocks', (req, res) => {
     .sort((a, b) => (a.order || 0) - (b.order || 0))
     .map(b => {
       const order = b.order || 0;   // общий порядок с подборками — для чередования на витрине
-      if (b.type === 'banner') return {
-        id: b.id, type: 'banner', order,
-        images: (Array.isArray(b.images) && b.images.length) ? b.images : (b.image ? [b.image] : []),
-        size: b.size || 'md',
-        fit: b.fit === 'contain' ? 'contain' : 'cover',
-        focus: ['top', 'bottom', 'center', 'left', 'right'].includes(b.focus) ? b.focus : 'center',
-        heading: b.heading || '', subtext: b.subtext || '',
-        linkType: b.linkType || 'none', linkValue: b.linkValue || '',
-      };
       if (b.type === 'text')      return { id: b.id, type: 'text',  order, heading: b.heading || '', body: b.body || '' };
       if (b.type === 'promo')     return { id: b.id, type: 'promo', order, text: b.text || '' };
       if (b.type === 'marquee')   return { id: b.id, type: 'marquee', order, text: b.text || '' };
@@ -378,7 +369,7 @@ app.get('/api/public/blocks', (req, res) => {
       return { id: b.id, type: b.type, order };
     })
     .filter(b => {
-      if (b.type === 'banner')    return (b.images && b.images.length) || b.heading;   // пустой баннер не показываем
+      if (b.type === 'banner')    return false;   // блок «Баннер» удалён — не отдаём на витрину
       if (b.type === 'duo')       return b.imageA || b.imageB;
       if (b.type === 'statement' || b.type === 'marquee') return b.text;
       if (b.type === 'weekly')    return (b.itemIds || []).length;
