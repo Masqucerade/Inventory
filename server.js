@@ -362,6 +362,12 @@ app.get('/api/public/blocks', (req, res) => {
       if (b.type === 'marquee')   return { id: b.id, type: 'marquee', order, text: b.text || '' };
       if (b.type === 'statement') return { id: b.id, type: 'statement', order, kicker: b.kicker || '', text: b.text || '' };
       if (b.type === 'weekly')    return { id: b.id, type: 'weekly', order, heading: b.heading || 'Товары недели', itemIds: b.itemIds || [] };
+      if (b.type === 'banner') return {
+        id: b.id, type: 'banner', order,
+        image: b.image || '', heading: b.heading || '', sub: b.sub || '',
+        height: b.height || 'm', fit: b.fit || 'cover', pos: b.pos || 'center center',
+        linkType: b.linkType || 'none', linkValue: b.linkValue || '',
+      };
       if (b.type === 'duo') return {
         id: b.id, type: 'duo', order,
         imageA: b.imageA || '', captionA: b.captionA || '', linkTypeA: b.linkTypeA || 'none', linkValueA: b.linkValueA || '',
@@ -370,7 +376,7 @@ app.get('/api/public/blocks', (req, res) => {
       return { id: b.id, type: b.type, order };
     })
     .filter(b => {
-      if (b.type === 'banner')    return false;   // блок «Баннер» удалён — не отдаём на витрину
+      if (b.type === 'banner')    return !!b.image;
       if (b.type === 'duo')       return b.imageA || b.imageB;
       if (b.type === 'statement' || b.type === 'marquee') return b.text;
       if (b.type === 'weekly')    return (b.itemIds || []).length;

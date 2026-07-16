@@ -337,7 +337,21 @@ function blockLinkHref(b) {
 }
 const nl2br = (s) => esc(s).replace(/\n/g, '<br>');
 
-// Блок «Баннер» удалён.
+// Универсальный баннер: высота, кадрирование и фокус настраиваются в панели
+function bannerHtml(b) {
+  if (!b.image) return '';
+  const href  = blockLinkHref(b);
+  const ext   = b.linkType === 'tg' || b.linkType === 'url';
+  const style = `object-fit:${b.fit === 'contain' ? 'contain' : 'cover'};object-position:${esc(b.pos || 'center center')}`;
+  const cap   = (b.heading || b.sub)
+    ? `<div class="block-banner-cap">${b.heading ? `<h2>${nl2br(b.heading)}</h2>` : ''}${b.sub ? `<p>${nl2br(b.sub)}</p>` : ''}</div>`
+    : '';
+  const inner = `<img src="${esc(b.image)}" alt="${esc(b.heading || '')}" loading="lazy" draggable="false" style="${style}">${cap}`;
+  const cls   = `site-block block-banner banner-${b.height || 'm'}${b.fit === 'contain' ? ' banner-contain' : ''}`;
+  return href
+    ? `<a class="${cls}" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
+    : `<section class="${cls}">${inner}</section>`;
+}
 function textHtml(b) {
   if (!b.heading && !b.body) return '';
   return `<section class="site-block block-text">
@@ -379,6 +393,7 @@ function duoHtml(b) {
 }
 function blockToHtml(b) {
   switch (b.type) {
+    case 'banner':    return bannerHtml(b);
     case 'text':      return textHtml(b);
     case 'statement': return statementHtml(b);
     case 'marquee':   return marqueeHtml(b);

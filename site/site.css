@@ -455,7 +455,26 @@ img { max-width: 100%; display: block; }
 
 #siteBlocks:not(:empty) { display: flex; flex-direction: column; gap: 30px; margin: 6px 0 46px; }
 
-/* .block-banner-cap используется двойным баннером (duo) */
+/* Универсальный баннер: высота задаётся классом banner-s/m/l/xl */
+.block-banner {
+  position: relative; display: flex; align-items: flex-end; overflow: hidden;
+  border-radius: var(--radius); border: 1px solid var(--line);
+  background: var(--surface); text-decoration: none;
+}
+.block-banner img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  transition: transform .5s ease;
+}
+a.block-banner:hover img { transform: scale(1.03); }
+.banner-s  { min-height: clamp(150px, 24vw, 250px); }
+.banner-m  { min-height: clamp(230px, 36vw, 400px); }
+.banner-l  { min-height: clamp(320px, 50vw, 560px); }
+.banner-xl { min-height: min(78vh, 800px); }
+/* «Фото целиком» — без наезжающей плашки, подпись под фото не нужна тёмная */
+.banner-contain img { transition: none; }
+a.banner-contain:hover img { transform: none; }
+
+/* .block-banner-cap используется баннером и старым двойным (duo) */
 .block-banner-cap {
   position: relative; z-index: 1; width: 100%; padding: 30px;
   background: linear-gradient(0deg, rgba(0,0,0,.68) 0%, rgba(0,0,0,.12) 65%, rgba(0,0,0,0) 100%);

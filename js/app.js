@@ -1590,8 +1590,11 @@ class App {
       ${(() => {
         const ph = Array.isArray(item.photos) && item.photos.length ? item.photos : (item.photo ? [item.photo] : []);
         if (!ph.length) return '';
-        if (ph.length === 1) return `<img src="${ph[0]}" class="detail-photo" alt="">`;
-        return `<div class="detail-photos">${ph.map(p => `<img src="${p}" class="detail-photo" alt="">`).join('')}</div>`;
+        return `<div class="detail-gallery">
+          <div class="detail-photo-main" title="Открыть на весь экран"><img id="detailPhotoMain" src="${ph[0]}" alt=""></div>
+          ${ph.length > 1 ? `<div class="detail-thumbs">${ph.map((p, i) =>
+            `<button type="button" class="detail-thumb${i === 0 ? ' active' : ''}" data-src="${p}"><img src="${p}" alt=""></button>`).join('')}</div>` : ''}
+        </div>`;
       })()}
       ${sizesCard}
       <div class="detail-card">${priceRows}</div>
@@ -1624,6 +1627,18 @@ class App {
       </button>
       <button class="detail-delete-btn" id="detailDeleteBtn">Удалить товар</button>
     `;
+
+    /* Галерея: миниатюры переключают главное фото, клик по фото — на весь экран */
+    const dBody = document.getElementById('detailModalBody');
+    dBody.querySelectorAll('.detail-thumb').forEach(t =>
+      t.addEventListener('click', () => {
+        const main = document.getElementById('detailPhotoMain');
+        if (main) main.src = t.dataset.src;
+        dBody.querySelectorAll('.detail-thumb').forEach(x => x.classList.toggle('active', x === t));
+      })
+    );
+    document.getElementById('detailPhotoMain')?.addEventListener('click', (e) =>
+      this._openImage(e.currentTarget.src));
 
     document.getElementById('detailSellBtn').addEventListener('click', () => {
       this.closeModal('detailModal');
@@ -2196,30 +2211,57 @@ class App {
       </div>`;
     }).join('');
 
+    /* Банковская карта: машинная строка и бинарный след — детерминированы от баланса */
+    const binStr = Math.abs(Math.round(balance)).toString(2).padStart(24, '0').slice(-24);
+    const mrz1 = 'MASQUCERADE&lt;&lt;INC&lt;&lt;BALANCE&lt;&lt;ACCOUNT&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;';
+    const mrz2 = `${binStr}&lt;&lt;${String(new Date().getFullYear())}&lt;RU&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;`;
+
     el.innerHTML = `
-      <div class="balance-card">
-        <div class="balance-label">Бюджет компании</div>
-        <div class="balance-amount ${pos ? 'pos' : 'neg'}">${pos ? '' : '−'}<span data-count="${Math.abs(balance)}" data-fmt="money">0 ₽</span></div>
-        ${(salesProfit || pendingDebt || paidDebt) ? `
-        <div class="budget-breakdown">
-          ${salesProfit ? `<div class="budget-row"><span>Прибыль с продаж</span><span class="pos">+${fmtMoney(salesProfit)}</span></div>` : ''}
-          ${paidDebt ? `<div class="budget-row"><span>Погашено сотрудникам</span><span class="neg">−${fmtMoney(paidDebt)}</span></div>` : ''}
-          ${pendingDebt ? `
-            <div class="budget-row debt debt-toggle" id="debtToggle">
-              <span>Долг сотрудникам
-                <svg class="debt-chevron" id="debtChevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </span>
-              <span class="neg">−${fmtMoney(pendingDebt)}</span>
-            </div>
-            <div class="debt-details hidden" id="debtDetails">
-              ${debtDetailHtml}
-              <button class="debt-pay-btn" id="payDebtsBtn">Погасить долги…</button>
-            </div>
-          ` : ''}
-        </div>` : ''}
+      <div class="bank-card">
+        <div class="bank-guilloche" aria-hidden="true"></div>
+        <div class="bank-holo" aria-hidden="true"></div>
+        <div class="bank-card-top">
+          <span class="bank-card-brand">MASQUCERADE&nbsp;<b>·&nbsp;INC</b></span>
+          <span class="bank-card-icons">
+            <svg class="bank-chip" width="26" height="20" viewBox="0 0 26 20" fill="none" stroke="currentColor" stroke-width="1.3">
+              <rect x="1" y="1" width="24" height="18" rx="4"/>
+              <path d="M9 1v6a2 2 0 0 1-2 2H1M17 1v6a2 2 0 0 0 2 2h6M9 19v-6a2 2 0 0 0-2-2H1M17 19v-6a2 2 0 0 1 2-2h6"/>
+            </svg>
+            <svg class="bank-nfc" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <path d="M6 8.5a7 7 0 0 1 0 7M9.5 6a11 11 0 0 1 0 12M13 3.5a15 15 0 0 1 0 17"/>
+            </svg>
+          </span>
+        </div>
+        <div class="bank-card-mid">
+          <span class="bank-card-label">Баланс компании</span>
+          <div class="bank-card-amount">${pos ? '' : '−'}<span data-count="${Math.abs(balance)}" data-fmt="money">0 ₽</span></div>
+        </div>
+        <div class="bank-card-row">
+          <span class="bank-card-num">01&nbsp;01&nbsp;0001</span>
+          <span class="bank-card-holder">ROOT&nbsp;·&nbsp;MONARC</span>
+        </div>
+        <div class="bank-mrz">${mrz1}<br>${mrz2}</div>
       </div>
+
+      ${(salesProfit || pendingDebt || paidDebt) ? `
+      <div class="bank-breakdown">
+        ${salesProfit ? `<div class="budget-row"><span>Прибыль с продаж</span><span class="pos">+${fmtMoney(salesProfit)}</span></div>` : ''}
+        ${paidDebt ? `<div class="budget-row"><span>Погашено сотрудникам</span><span class="neg">−${fmtMoney(paidDebt)}</span></div>` : ''}
+        ${pendingDebt ? `
+          <div class="budget-row debt debt-toggle" id="debtToggle">
+            <span>Долг сотрудникам
+              <svg class="debt-chevron" id="debtChevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </span>
+            <span class="neg">−${fmtMoney(pendingDebt)}</span>
+          </div>
+          <div class="debt-details hidden" id="debtDetails">
+            ${debtDetailHtml}
+            <button class="debt-pay-btn" id="payDebtsBtn">Погасить долги…</button>
+          </div>
+        ` : ''}
+      </div>` : ''}
       <div class="finance-actions">
         <button class="fin-btn deposit" id="depositBtn">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -3862,7 +3904,12 @@ class App {
       </div>`;
       return;
     }
-    const TYPE = { text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' } };
+    const TYPE = {
+      banner: { t: 'Баннер', e: '🖼' }, weekly: { t: 'Товары недели', e: '⭐' },
+      duo: { t: 'Двойной баннер (старый)', e: '🖼' }, statement: { t: 'Слоган', e: '✦' },
+      marquee: { t: 'Бегущая строка', e: '➰' },
+      text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' },
+    };
     const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
     el.innerHTML = `<div class="settings-section">` + this._blocks.map((b, i) => {
       const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
@@ -3898,7 +3945,7 @@ class App {
 
   openBlockModal(block = null) {
     this._blockIsNew = !block;
-    this._block = block ? { ...block } : { type: 'weekly', section: 'all', enabled: true, linkType: 'none' };
+    this._block = block ? { ...block } : { type: 'banner', section: 'all', enabled: true, linkType: 'none' };
     document.getElementById('blockModalTitle').textContent = block ? 'Изменить блок' : 'Новый блок';
     this._renderBlockForm();
     this.openModal('blockModal');
@@ -3943,12 +3990,36 @@ class App {
     let html = '';
     if (this._blockIsNew)
       html += g('Тип блока', seg('type', [
-        { v: 'weekly', t: 'Товары' }, { v: 'duo', t: 'Двойной' },
+        { v: 'banner', t: 'Баннер' }, { v: 'weekly', t: 'Товары' },
         { v: 'statement', t: 'Слоган' }, { v: 'text', t: 'Текст' }, { v: 'marquee', t: 'Строка' }, { v: 'promo', t: 'Промо' },
       ]));
     html += g('Раздел', seg('section', [{ v: 'all', t: 'Везде' }, { v: 'monarc', t: 'Monarc' }, { v: 'type', t: 'Type' }]));
 
-    if (b.type === 'duo') {
+    if (b.type === 'banner') {
+      // Дефолты нового баннера
+      b.height = b.height || 'm'; b.fit = b.fit || 'cover'; b.pos = b.pos || 'center center';
+      html += `<div class="blk-hint">Большое фото на витрине. Высоту, кадрирование и фокус можно подстроить — предпросмотр покажет, как будет на сайте.</div>`;
+      html += imgField('image', 'Фото');
+      if (b.image) html += g('Предпросмотр', `
+        <div class="blk-banner-preview h-${b.height}">
+          <img src="${esc(b.image)}" alt="" style="object-fit:${b.fit};object-position:${esc(b.pos)}">
+          ${b.heading ? `<div class="blk-preview-cap">${esc(b.heading)}</div>` : ''}
+        </div>`);
+      html += g('Высота баннера', seg('height', [
+        { v: 's', t: 'Низкий' }, { v: 'm', t: 'Средний' }, { v: 'l', t: 'Высокий' }, { v: 'xl', t: 'Экран' },
+      ]));
+      html += g('Кадрирование', seg('fit', [
+        { v: 'cover', t: 'Заполнить' }, { v: 'contain', t: 'Фото целиком' },
+      ]));
+      if (b.fit === 'cover') html += g('Фокус фото — какая часть в кадре', `
+        <div class="blk-seg blk-pos-grid" data-seg="pos">
+          ${['left top','center top','right top','left center','center center','right center','left bottom','center bottom','right bottom']
+            .map(v => `<button type="button" class="${b.pos === v ? 'on' : ''}" data-val="${v}" title="${v}"><i></i></button>`).join('')}
+        </div>`);
+      html += g('Заголовок (необязательно)', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || '')}" placeholder="Например: Новая коллекция">`);
+      html += g('Подпись (необязательно)', `<input type="text" class="form-input" id="blkSub" value="${esc(b.sub || '')}" placeholder="Короткий текст под заголовком">`);
+      html += linkField('linkType', 'linkValue', 'Ссылка');
+    } else if (b.type === 'duo') {
       html += `<div class="blk-hint">Две картинки рядом (на мобильном — друг под другом). Заголовок и ссылка у каждой — по желанию.</div>`;
       html += imgField('imageA', 'Картинка 1');
       html += g('Заголовок 1 (необязательно)', `<input type="text" class="form-input" id="blkCaptionA" value="${esc(b.captionA || '')}" placeholder="Например: Новинки">`);
@@ -3997,6 +4068,7 @@ class App {
     else if (b.type === 'marquee')    { set('blkMarquee', 'text'); }
     else if (b.type === 'statement')  { set('blkKicker', 'kicker'); set('blkStatement', 'text', false); }
     else if (b.type === 'weekly')     { set('blkHeading', 'heading'); }
+    else if (b.type === 'banner')     { set('blkHeading', 'heading'); set('blkSub', 'sub'); }
     else if (b.type === 'duo')        { set('blkCaptionA', 'captionA'); set('blkCaptionB', 'captionB'); }
     // ссылки — общий механизм
     document.querySelectorAll('#blockFormBody .blk-linkgroup').forEach(gp => {
@@ -4069,6 +4141,7 @@ class App {
     if (b.type === 'marquee'   && !b.text)                { this.toast('Введите текст строки'); return; }
     if (b.type === 'statement' && !b.text)                { this.toast('Введите текст слогана'); return; }
     if (b.type === 'text'      && !b.heading && !b.body)  { this.toast('Заполните заголовок или текст'); return; }
+    if (b.type === 'banner'    && !b.image)               { this.toast('Добавьте фото баннера'); return; }
     if (b.type === 'duo'       && !b.imageA && !b.imageB) { this.toast('Добавьте хотя бы одну картинку'); return; }
     if (b.type === 'weekly'    && !(b.itemIds && b.itemIds.length)) { this.toast('Выберите хотя бы один товар'); return; }
     if (this._blockIsNew && this.currentView === 'site') b.order = this._nextStreamOrder();  // в конец потока
@@ -4146,7 +4219,8 @@ class App {
 
   _blockRowHtml(b, i, n) {
     const TYPE = {
-      weekly: { t: 'Товары недели', e: '⭐' }, duo: { t: 'Двойной баннер', e: '🖼' },
+      banner: { t: 'Баннер', e: '🖼' }, weekly: { t: 'Товары недели', e: '⭐' },
+      duo: { t: 'Двойной баннер (старый)', e: '🖼' },
       statement: { t: 'Слоган', e: '✦' }, text: { t: 'Текст', e: '📝' },
       marquee: { t: 'Бегущая строка', e: '➰' }, promo: { t: 'Промо-полоса', e: '📣' },
     };
@@ -4154,6 +4228,7 @@ class App {
     const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
     const label = (b.type === 'promo' || b.type === 'marquee' || b.type === 'statement') ? b.text
       : b.type === 'duo' ? (b.captionA || b.captionB || 'Двойной баннер')
+      : b.type === 'banner' ? (b.heading || 'Баннер')
       : b.type === 'weekly' ? `${b.heading || 'Товары недели'} · ${(b.itemIds || []).length} тов.`
       : (b.heading || 'Без заголовка');
     const sub = `${meta.t} · ${SEC[b.section] || b.section}${b.type === 'promo' ? ' · сверху' : ''}${b.enabled ? '' : ' · скрыт'}`;

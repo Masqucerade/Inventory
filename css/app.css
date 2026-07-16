@@ -811,6 +811,23 @@ html, body {
   background: var(--fill); border-radius: var(--r); margin-bottom: 4px;
   cursor: pointer;
 }
+/* Галерея: главное фото + миниатюры */
+.detail-gallery { display: flex; flex-direction: column; gap: 8px; }
+.detail-photo-main {
+  border-radius: 16px; overflow: hidden; cursor: zoom-in;
+  background: var(--fill); border: 1px solid var(--card-b);
+}
+.detail-photo-main img { width: 100%; max-height: 380px; object-fit: contain; display: block; }
+.detail-thumbs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.detail-thumbs::-webkit-scrollbar { display: none; }
+.detail-thumb {
+  width: 54px; height: 54px; flex-shrink: 0; padding: 0; cursor: pointer;
+  border-radius: 10px; overflow: hidden;
+  border: 1.5px solid var(--sep); background: var(--fill);
+  opacity: .65; transition: opacity .15s, border-color .15s;
+}
+.detail-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.detail-thumb.active { opacity: 1; border-color: var(--accent); }
 .detail-card { background: var(--card); border: 1px solid var(--card-b); border-radius: var(--r); overflow: hidden; }
 .detail-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; gap: 10px; min-height: 42px; }
 .detail-row:not(:last-child) { border-bottom: 1px solid var(--sep2); }
@@ -1087,6 +1104,36 @@ html, body {
 .blk-seg button.on { background: var(--fill); border-color: var(--sep); color: var(--text); }
 .blk-hint { font-size: 12px; color: var(--text3); line-height: 1.5; margin-bottom: 14px; background: var(--fill2); padding: 10px 12px; border-radius: 9px; }
 .blk-divider { height: 1px; background: var(--sep2); margin: 20px 0; }
+
+/* Баннер: сетка выбора фокуса фото (3×3) */
+.blk-pos-grid {
+  display: grid; grid-template-columns: repeat(3, 44px); gap: 5px;
+}
+.blk-pos-grid button {
+  flex: none; width: 44px; height: 36px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.blk-pos-grid button i {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text3); transition: all .15s;
+}
+.blk-pos-grid button.on i { background: var(--accent); transform: scale(1.35); }
+
+/* Баннер: предпросмотр, как будет выглядеть на витрине */
+.blk-banner-preview {
+  position: relative; overflow: hidden; border-radius: 12px;
+  background: var(--fill2); border: 1px solid var(--sep);
+}
+.blk-banner-preview img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.blk-banner-preview.h-s  { aspect-ratio: 5 / 1; }
+.blk-banner-preview.h-m  { aspect-ratio: 3 / 1; }
+.blk-banner-preview.h-l  { aspect-ratio: 2 / 1; }
+.blk-banner-preview.h-xl { aspect-ratio: 3 / 2; }
+.blk-preview-cap {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 12px 8px;
+  color: #fff; font-size: 13px; font-weight: 700;
+  background: linear-gradient(0deg, rgba(0,0,0,.6), transparent);
+}
 
 .blk-banner-upload { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .blk-thumb {
@@ -2875,9 +2922,17 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   html.is-web .item-info { padding: 15px 17px; gap: 4px; }
   html.is-web .item-card:hover { border-color: rgba(124,109,250,.35); }
 
-  /* Карточка товара (просмотр) — шире, фото крупнее */
-  html.is-web #detailModal { width: min(640px, calc(100% - 48px)); }
+  /* Карточка товара (просмотр) — широкая, фото слева, информация справа */
+  html.is-web #detailModal { width: min(880px, calc(100% - 48px)); max-height: 88vh; }
   html.is-web .detail-photo { max-height: 360px; border-radius: 14px; }
+  html.is-web #detailModalBody:has(.detail-gallery) {
+    display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    gap: 10px 16px; align-items: start; align-content: start;
+  }
+  html.is-web #detailModalBody:has(.detail-gallery) > * { grid-column: 2; min-width: 0; margin-bottom: 0; }
+  html.is-web #detailModalBody > .detail-gallery { grid-column: 1; position: sticky; top: 0; }
+  html.is-web .detail-photo-main img { max-height: 440px; }
+  html.is-web .detail-thumbs { flex-wrap: wrap; }
   /* Редактирование товара — просторная модалка (фото слева, настройки справа) */
   html.is-web #itemModal { width: min(920px, calc(100% - 48px)); }
 
@@ -3026,3 +3081,126 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 }
 .proj-tabs { border-radius: 15px; }
 
+
+/* =============================================
+   FINANCE 2.0 — банковское ч/б оформление «Счёта»
+   ============================================= */
+#view-finance { --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'Roboto Mono', monospace; }
+
+/* ── Карта компании: пластик в духе ID-карты ── */
+.bank-card {
+  position: relative; overflow: hidden;
+  width: 100%; aspect-ratio: 1.586; max-height: 250px;
+  border-radius: 18px; padding: 16px 18px 12px;
+  display: flex; flex-direction: column;
+  background: linear-gradient(133deg, #f6f5f1 0%, #e9e8e3 48%, #f2f1ec 100%);
+  color: #17150f;
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: 0 18px 44px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.7);
+  margin-bottom: 10px;
+}
+[data-theme="light"] .bank-card { box-shadow: 0 14px 34px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.7); }
+
+/* Гильоши: тонкая гравировка + «глобус» из колец */
+.bank-guilloche { position: absolute; inset: 0; pointer-events: none; opacity: .55; }
+.bank-guilloche::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    repeating-radial-gradient(circle at 88% 130%, transparent 0 5px, rgba(23,21,15,.05) 5px 6px),
+    repeating-radial-gradient(circle at -8% -45%, transparent 0 7px, rgba(23,21,15,.05) 7px 8px),
+    repeating-linear-gradient(115deg, transparent 0 3px, rgba(23,21,15,.028) 3px 4px);
+}
+.bank-guilloche::after {
+  content: ''; position: absolute; right: -46px; top: -54px;
+  width: 232px; height: 232px; border-radius: 50%;
+  background: repeating-radial-gradient(circle, transparent 0 9px, rgba(23,21,15,.08) 9px 10px);
+  -webkit-mask-image: radial-gradient(circle, #000 58%, transparent 71%);
+          mask-image: radial-gradient(circle, #000 58%, transparent 71%);
+}
+/* Лёгкий голографический отлив */
+.bank-holo {
+  position: absolute; inset: 0; pointer-events: none; opacity: .55;
+  background:
+    radial-gradient(130px 95px at 60% 58%, rgba(255,0,128,.09), transparent 70%),
+    radial-gradient(150px 105px at 48% 44%, rgba(0,190,255,.09), transparent 70%),
+    radial-gradient(120px 120px at 55% 70%, rgba(110,255,80,.07), transparent 70%);
+}
+.bank-card > *:not(.bank-guilloche):not(.bank-holo) { position: relative; z-index: 1; }
+
+.bank-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .24em;
+}
+.bank-card-top b { font-weight: 600; color: rgba(23,21,15,.55); }
+.bank-card-icons { display: flex; align-items: center; gap: 10px; color: rgba(23,21,15,.75); }
+
+.bank-card-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+.bank-card-label {
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  letter-spacing: .3em; text-transform: uppercase; color: rgba(23,21,15,.5);
+}
+.bank-card-amount {
+  font-size: clamp(30px, 8.6vw, 42px); font-weight: 800;
+  letter-spacing: -1.6px; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.bank-card-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+  color: rgba(23,21,15,.72); margin-bottom: 7px;
+}
+.bank-mrz {
+  font-family: var(--mono); font-size: 9.5px; line-height: 1.55; letter-spacing: .12em;
+  color: rgba(23,21,15,.45); white-space: nowrap; overflow: hidden;
+  border-top: 1px dashed rgba(23,21,15,.25); padding-top: 6px;
+  text-transform: uppercase;
+}
+
+/* ── Расшифровка баланса под картой ── */
+.bank-breakdown {
+  background: var(--card); border: 1px solid var(--card-b); border-radius: var(--r);
+  padding: 4px 14px; margin-bottom: 10px;
+}
+.bank-breakdown .budget-row { padding: 9px 0; }
+.bank-breakdown .budget-row:not(:last-child):not(.debt-toggle) { border-bottom: 1px solid var(--sep2); }
+
+/* ── Монохром: суммы без светофора ── */
+#view-finance .budget-row .pos,
+#view-finance .sales-stat-val.pos,
+#view-finance .sale-entry-profit.pos,
+#view-finance .pay-amount.deposit,
+#view-finance .emp-bal-amount.pos { color: var(--text); }
+#view-finance .budget-row .neg,
+#view-finance .sales-stat-val.neg,
+#view-finance .sale-entry-profit.neg,
+#view-finance .pay-amount.charge,
+#view-finance .emp-bal-amount.neg { color: var(--text3); }
+#view-finance .pay-amount, #view-finance .emp-bal-amount, #view-finance .plan-amount,
+#view-finance .sale-entry-profit, #view-finance .budget-row .pos, #view-finance .budget-row .neg {
+  font-variant-numeric: tabular-nums;
+}
+#view-finance .pay-icon.deposit { background: var(--fill); color: var(--text); }
+#view-finance .pay-icon.charge,
+#view-finance .pay-icon.expense { background: var(--fill2); color: var(--text3); }
+#view-finance .sales-stat-card.profit { border: 1px solid var(--sep); }
+#view-finance .sales-stat-label { font-family: var(--mono); font-size: 9px; letter-spacing: .18em; }
+#view-finance .section-title { font-family: var(--mono); letter-spacing: .2em; font-size: 10px; }
+
+/* ── Быстрые действия: строгие плитки ── */
+#view-finance .finance-actions { grid-template-columns: repeat(3, 1fr); }
+#view-finance .fin-btn {
+  flex-direction: column; gap: 7px; padding: 13px 8px 11px;
+  background: var(--card); border: 1px solid var(--card-b); color: var(--text);
+  font-size: 12px; border-radius: 14px;
+  transition: border-color .15s, background .15s, opacity .14s;
+}
+#view-finance .fin-btn:hover { border-color: var(--text3); }
+#view-finance .fin-btn svg { opacity: .85; }
+
+#view-finance .debt-pay-btn { font-family: inherit; }
+
+/* Широкий экран: колонка как в банковском приложении */
+@media (min-width: 820px) {
+  html.is-web #financeContent { max-width: 720px; margin-left: auto; margin-right: auto; }
+  html.is-web .bank-card { max-height: 265px; padding: 20px 24px 14px; }
+  html.is-web .bank-card-amount { font-size: 46px; }
+}
