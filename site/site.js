@@ -68,7 +68,19 @@ function catSubtree(id) {
   return set;
 }
 
-// Навигация в шапке (как у Gurbich): верхний уровень + подкатегории в выпадающем меню
+// Фиксированные разделы витрины — как у Gurbich (Под заказ → Другое)
+const HDR_SECTIONS = [
+  { id: 'm', label: 'Мужское' },
+  { id: 'w', label: 'Женское' },
+  { id: 'a', label: 'Аксессуары' },
+];
+// Категория верхнего уровня с тем же названием, что и раздел (если заведена в панели)
+function sectionCat(sec) {
+  const n = sec.label.trim().toLowerCase();
+  return CATS.find(c => !c.parentId && (c.name || '').trim().toLowerCase() === n) || null;
+}
+
+// Навигация в шапке — точно как у Gurbich: Мужское · Женское · Аксессуары · Другое
 function renderHeaderNav() {
   const nav = document.getElementById('siteNav');
   if (!nav) return;
@@ -76,29 +88,26 @@ function renderHeaderNav() {
   const inUse = id => [...catSubtree(id)].some(x => used.has(x));
   const byOrder = (a, b) => (a.order || 0) - (b.order || 0);
   const kids = catKidsMap();
-  const usedG = new Set(ITEMS.map(i => i.garment).filter(Boolean));
-  const gShown = GARMENTS.filter(g => usedG.has(g.id));
-  const tops = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
-  const act = activeCat ? CATS.find(c => c.id === activeCat) : null;
+  const act = (activeCat && !activeCat.startsWith('__')) ? CATS.find(c => c.id === activeCat) : null;
   const topActive = act ? (act.parentId || act.id) : null;
 
-  let html = `<a class="hnav${!activeCat && !activeGarment ? ' active' : ''}" data-all href="#">Все</a>`;
-  html += gShown.map(g => `<a class="hnav${activeGarment === g.id ? ' active' : ''}" data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('');
-  html += tops.map(c => {
-    const subs = (kids[c.id] || []).filter(s => inUse(s.id)).sort(byOrder);
+  let html = HDR_SECTIONS.map(sec => {
+    const cat = sectionCat(sec);
+    const dataCat = cat ? cat.id : `__sec-${sec.id}__`;
+    const secActive = cat ? topActive === cat.id : activeCat === dataCat;
+    const subs = cat ? (kids[cat.id] || []).filter(s => inUse(s.id)).sort(byOrder) : [];
     if (!subs.length)
-      return `<a class="hnav${topActive === c.id ? ' active' : ''}" data-cat="${esc(c.id)}" href="#">${esc(c.name)}</a>`;
-    return `<div class="hnav-group${topActive === c.id ? ' active' : ''}">
-      <a class="hnav${topActive === c.id ? ' active' : ''}" href="#">${esc(c.name)}<span class="hnav-caret" aria-hidden="true">▾</span></a>
+      return `<a class="hnav${secActive ? ' active' : ''}" data-cat="${esc(dataCat)}" href="#">${esc(sec.label)}</a>`;
+    return `<div class="hnav-group${secActive ? ' active' : ''}">
+      <a class="hnav${secActive ? ' active' : ''}" href="#">${esc(sec.label)}<span class="hnav-caret" aria-hidden="true">▾</span></a>
       <div class="hnav-drop">
-        <a class="hnav-sub${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}" href="#">Все · ${esc(c.name)}</a>
+        <a class="hnav-sub${activeCat === cat.id ? ' active' : ''}" data-cat="${esc(cat.id)}" href="#">Все · ${esc(sec.label)}</a>
         ${subs.map(s => `<a class="hnav-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
       </div>
     </div>`;
   }).join('');
-  // «Другое» — прочие товары без категории (в конце, как «Под заказ» у Gurbich)
-  if (ITEMS.some(i => !i.categoryId))
-    html += `<a class="hnav${activeCat === '__other__' ? ' active' : ''}" data-cat="__other__" href="#">Другое</a>`;
+  // «Другое» — вместо «Под заказ» у Gurbich (остальные товары)
+  html += `<a class="hnav${activeCat === '__other__' ? ' active' : ''}" data-cat="__other__" href="#">Другое</a>`;
   nav.innerHTML = html;
 }
 
@@ -151,7 +160,11 @@ function updateCatalogChrome() {
     const parts = [];
     if (activeGarment) parts.push((GARMENTS.find(g => g.id === activeGarment) || {}).name);
     if (activeCat === '__other__') parts.push('Другое');
-    else if (activeCat)            parts.push((CATS.find(c => c.id === activeCat) || {}).name);
+    else if (activeCat && activeCat.startsWith('__sec-')) {
+      const s = HDR_SECTIONS.find(x => `__sec-${x.id}__` === activeCat);
+      parts.push(s ? s.label : 'Товары');
+    }
+    else if (activeCat) parts.push((CATS.find(c => c.id === activeCat) || {}).name);
     gh.hidden = false;
     gh.textContent = parts.filter(Boolean).join(' · ') || 'Товары';
   } else {
@@ -195,9 +208,15 @@ function cardHTML(i) {
 function renderGrid() {
   const el = document.getElementById('goodsGrid');
   let items;
-  if (activeCat === '__other__') items = ITEMS.filter(i => !i.categoryId);            // «Другое» — без категории
-  else if (activeCat)            { const ids = catSubtree(activeCat); items = ITEMS.filter(i => ids.has(i.categoryId)); }
-  else                           items = ITEMS;
+  if (activeCat === '__other__') {
+    // «Другое» — товары вне разделов Мужское/Женское/Аксессуары
+    const inSec = new Set();
+    HDR_SECTIONS.map(sectionCat).filter(Boolean).forEach(c => catSubtree(c.id).forEach(id => inSec.add(id)));
+    items = ITEMS.filter(i => !inSec.has(i.categoryId));
+  }
+  else if (activeCat && activeCat.startsWith('__')) items = [];                        // раздел ещё не заведён
+  else if (activeCat) { const ids = catSubtree(activeCat); items = ITEMS.filter(i => ids.has(i.categoryId)); }
+  else items = ITEMS;
   if (activeGarment) items = items.filter(i => i.garment === activeGarment);
   if (!items.length) {
     el.innerHTML = '<div class="goods-empty">Пока пусто — загляните позже</div>';
