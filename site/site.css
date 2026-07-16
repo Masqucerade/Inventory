@@ -207,10 +207,25 @@ img { max-width: 100%; display: block; }
 .catalog-kicker {
   font-size: 11px; letter-spacing: .34em; text-transform: uppercase; color: var(--text3);
 }
+.catalog-hero {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+}
+.hero-titles { min-width: 0; }
 .catalog-hero h1 {
   font-family: var(--font-d); font-weight: 500;
   font-size: clamp(38px, 6vw, 62px); letter-spacing: .03em; margin-top: 8px;
 }
+/* Кнопка «Фильтры» (как у Gurbich) — открывает старые фильтры (тип одежды) */
+.filters-btn {
+  flex-shrink: 0; align-self: center; cursor: pointer;
+  padding: 9px 20px; border-radius: 99px;
+  border: 1px solid var(--line2); background: transparent; color: var(--text);
+  font-family: var(--font-b); font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  transition: color .2s, background .2s, border-color .2s;
+}
+.filters-btn:hover, .filters-btn.open { border-color: var(--text); }
+.filters-btn.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.filters-btn[hidden] { display: none; }
 
 .cat-chips {
   display: flex; gap: 8px; flex-wrap: wrap; margin: 26px 0 30px;

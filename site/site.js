@@ -45,7 +45,7 @@ async function boot() {
     ITEMS = items; CATS = cats;
     renderStream(blocks, collections);
     renderHeaderNav();
-    renderChips();
+    renderFilters();
     renderGrid();
     updateCatalogChrome();
     renderFaq(faq);
@@ -112,10 +112,12 @@ function renderHeaderNav() {
 }
 
 function applyNavFilter(link) {
-  if (link.dataset.all !== undefined)            { activeCat = null; activeGarment = null; }
-  else if (link.dataset.garment !== undefined)   { activeGarment = link.dataset.garment || null; activeCat = null; }
-  else                                           { activeCat = link.dataset.cat || null; activeGarment = null; }
+  // Раздел не сбрасывает выбранный тип одежды — фильтры комбинируются
+  if (link.dataset.all !== undefined)          activeCat = null;
+  else if (link.dataset.garment !== undefined) activeGarment = link.dataset.garment || null;
+  else                                         activeCat = link.dataset.cat || null;
   renderHeaderNav();
+  renderFilters();
   renderGrid();
   updateCatalogChrome();
   if (activeCat || activeGarment) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -143,11 +145,41 @@ document.addEventListener('click', (e) => {
     document.querySelectorAll('.hnav-group.open').forEach(g => g.classList.remove('open'));
 });
 
-// Подкатегории теперь в выпадающем меню шапки — ряд чипов под героем не используется
-function renderChips() {
-  const el = document.getElementById('catChips');
-  if (el) { el.hidden = true; el.innerHTML = ''; }
+// Старые фильтры (тип одежды) — под кнопкой «Фильтры», уточняют внутри раздела
+let _filtersOpen = false;
+function renderFilters() {
+  const el  = document.getElementById('catChips');
+  const btn = document.getElementById('filtersBtn');
+  const usedG = new Set(ITEMS.map(i => i.garment).filter(Boolean));
+  const gShown = GARMENTS.filter(g => usedG.has(g.id));
+  if (btn) { btn.hidden = !gShown.length; btn.classList.toggle('on', !!activeGarment); }
+  if (!el) return;
+  if (!gShown.length) { el.hidden = true; el.innerHTML = ''; _filtersOpen = false; return; }
+  el.innerHTML = `<div class="cat-row garment-row">` +
+    `<button class="cat-chip${!activeGarment ? ' active' : ''}" data-garment="">Все</button>` +
+    gShown.map(g => `<button class="cat-chip${activeGarment === g.id ? ' active' : ''}" data-garment="${esc(g.id)}">${esc(g.name)}</button>`).join('') +
+    `</div>`;
+  el.hidden = !_filtersOpen;
 }
+
+const _filtersBtn = document.getElementById('filtersBtn');
+if (_filtersBtn) _filtersBtn.addEventListener('click', () => {
+  _filtersOpen = !_filtersOpen;
+  const el = document.getElementById('catChips');
+  if (el) el.hidden = !_filtersOpen;
+  _filtersBtn.classList.toggle('open', _filtersOpen);
+});
+
+const _catChips = document.getElementById('catChips');
+if (_catChips) _catChips.addEventListener('click', (e) => {
+  const chip = e.target.closest('.cat-chip');
+  if (!chip || chip.dataset.garment === undefined) return;
+  activeGarment = chip.dataset.garment || null;   // уточняет внутри активного раздела
+  renderFilters();
+  renderGrid();
+  updateCatalogChrome();
+  if (activeCat || activeGarment) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 // При активном фильтре показываем только товары категории, пряча промо-поток
 let _streamHasContent = false;
