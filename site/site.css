@@ -162,11 +162,9 @@ img { max-width: 100%; display: block; }
 .site-logo em { font-style: italic; color: var(--gold); }
 .brand-mark-sm { width: 34px; height: 34px; margin: 0; font-size: 17px; }
 .site-nav {
-  display: flex; align-items: center; gap: clamp(14px, 2vw, 30px);
-  justify-self: center; max-width: min(64vw, 680px);
-  overflow-x: auto; scrollbar-width: none;
+  display: flex; align-items: center; flex-wrap: wrap; justify-content: center;
+  gap: clamp(14px, 2vw, 30px); justify-self: center; max-width: min(66vw, 720px);
 }
-.site-nav::-webkit-scrollbar { display: none; }
 .site-nav a {
   padding: 4px 0; background: none; border-radius: 0;
   font-size: 12.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase;
@@ -176,6 +174,29 @@ img { max-width: 100%; display: block; }
 }
 .site-nav a:hover { color: var(--text); }
 .site-nav a.active { color: var(--text); border-bottom-color: currentColor; }
+
+/* Выпадающее меню категории (подкатегории «вытекают» из родителя) */
+.hnav-group { position: relative; display: inline-flex; }
+.hnav-group > .hnav { display: inline-flex; align-items: center; gap: 5px; }
+.hnav-group.active > .hnav { color: var(--text); border-bottom-color: currentColor; }
+.hnav-caret { font-size: 8px; line-height: 1; transition: transform .2s; }
+.hnav-group:hover .hnav-caret, .hnav-group.open .hnav-caret { transform: rotate(180deg); }
+.hnav-drop {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  z-index: 40; display: none; flex-direction: column;
+  min-width: 190px; margin-top: 12px; padding: 8px 0;
+  background: var(--bg2); border: 1px solid var(--line);
+  box-shadow: 0 14px 34px rgba(0,0,0,.16);
+}
+.hnav-group:hover .hnav-drop, .hnav-group.open .hnav-drop { display: flex; }
+/* «мостик», чтобы меню не закрывалось при переходе курсора к нему */
+.hnav-drop::before { content: ''; position: absolute; left: 0; right: 0; top: -12px; height: 12px; }
+.hnav-sub {
+  padding: 8px 20px; font-size: 11.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text2); white-space: nowrap; cursor: pointer; transition: color .15s, background .15s;
+}
+.hnav-sub:hover { color: var(--text); background: var(--surface); }
+.hnav-sub.active { color: var(--text); }
 
 /* ─── Каталог: контент ─── */
 .catalog-wrap {
@@ -505,10 +526,12 @@ a.duo-tile:hover img { transform: scale(1.04); }
   @keyframes sheet-in { from { transform: translateY(60px); opacity: 0; } }
   .item-modal-photo { aspect-ratio: 4 / 3; min-height: 0; }
   .item-modal-info { padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); }
-  /* Шапка: логотип сверху, навигация строкой ниже (горизонтальный скролл) */
+  /* Шапка: логотип сверху, навигация строкой ниже */
   .site-header { grid-template-columns: 1fr; row-gap: 10px; justify-items: start; }
-  .site-nav { justify-self: stretch; max-width: 100%; width: 100%; gap: 20px; }
+  .site-nav { justify-self: stretch; max-width: 100%; width: 100%; gap: 18px; justify-content: flex-start; }
   .site-nav a { padding: 2px 0; }
+  /* Выпадающее меню: лево-выравнивание, чтобы не уходило за край */
+  .hnav-drop { left: 0; transform: none; margin-top: 8px; min-width: 170px; max-width: 78vw; }
 }
 
 /* ─── Тема Type Clothes: светлый минимализм (COS-подход) ───

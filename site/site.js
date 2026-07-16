@@ -68,78 +68,74 @@ function catSubtree(id) {
   return set;
 }
 
-// Верхний уровень навигации (Все · типы одежды · категории) — в шапке, как у Gurbich
+// Навигация в шапке (как у Gurbich): верхний уровень + подкатегории в выпадающем меню
 function renderHeaderNav() {
   const nav = document.getElementById('siteNav');
   if (!nav) return;
   const used = new Set(ITEMS.map(i => i.categoryId).filter(Boolean));
   const inUse = id => [...catSubtree(id)].some(x => used.has(x));
   const byOrder = (a, b) => (a.order || 0) - (b.order || 0);
+  const kids = catKidsMap();
   const usedG = new Set(ITEMS.map(i => i.garment).filter(Boolean));
   const gShown = GARMENTS.filter(g => usedG.has(g.id));
   const tops = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
   const act = activeCat ? CATS.find(c => c.id === activeCat) : null;
   const topActive = act ? (act.parentId || act.id) : null;
+
   let html = `<a class="hnav${!activeCat && !activeGarment ? ' active' : ''}" data-all href="#">Все</a>`;
   html += gShown.map(g => `<a class="hnav${activeGarment === g.id ? ' active' : ''}" data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('');
-  html += tops.map(c => `<a class="hnav${topActive === c.id ? ' active' : ''}" data-cat="${esc(c.id)}" href="#">${esc(c.name)}</a>`).join('');
+  html += tops.map(c => {
+    const subs = (kids[c.id] || []).filter(s => inUse(s.id)).sort(byOrder);
+    if (!subs.length)
+      return `<a class="hnav${topActive === c.id ? ' active' : ''}" data-cat="${esc(c.id)}" href="#">${esc(c.name)}</a>`;
+    return `<div class="hnav-group${topActive === c.id ? ' active' : ''}">
+      <a class="hnav${topActive === c.id ? ' active' : ''}" href="#">${esc(c.name)}<span class="hnav-caret" aria-hidden="true">▾</span></a>
+      <div class="hnav-drop">
+        <a class="hnav-sub${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}" href="#">Все · ${esc(c.name)}</a>
+        ${subs.map(s => `<a class="hnav-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
   nav.innerHTML = html;
+}
+
+function applyNavFilter(link) {
+  if (link.dataset.all !== undefined)            { activeCat = null; activeGarment = null; }
+  else if (link.dataset.garment !== undefined)   { activeGarment = link.dataset.garment || null; activeCat = null; }
+  else                                           { activeCat = link.dataset.cat || null; activeGarment = null; }
+  renderHeaderNav();
+  renderGrid();
+  updateCatalogChrome();
+  if (activeCat || activeGarment) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 const _siteNav = document.getElementById('siteNav');
 if (_siteNav) _siteNav.addEventListener('click', (e) => {
-  const a = e.target.closest('.hnav');
+  const a = e.target.closest('a');
   if (!a) return;
   e.preventDefault();
-  if (a.dataset.all !== undefined)            { activeCat = null; activeGarment = null; }
-  else if (a.dataset.garment !== undefined)   { activeGarment = a.dataset.garment || null; activeCat = null; }
-  else                                        { activeCat = a.dataset.cat || null; activeGarment = null; }
-  renderHeaderNav();
-  renderChips();
-  renderGrid();
-  updateCatalogChrome();
-  if (activeCat || activeGarment) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const group = a.closest('.hnav-group');
+  // Клик по родителю с подменю — только открыть/закрыть выпадающее (фильтр — по пунктам меню)
+  if (group && a.classList.contains('hnav')) {
+    const open = group.classList.contains('open');
+    _siteNav.querySelectorAll('.hnav-group.open').forEach(g => g.classList.remove('open'));
+    if (!open) group.classList.add('open');
+    return;
+  }
+  _siteNav.querySelectorAll('.hnav-group.open').forEach(g => g.classList.remove('open'));
+  applyNavFilter(a);
+});
+// Клик вне меню — закрыть выпадающие
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.hnav-group'))
+    document.querySelectorAll('.hnav-group.open').forEach(g => g.classList.remove('open'));
 });
 
-// Ниже героя — только подкатегории выбранной категории (верхний уровень — в шапке)
+// Подкатегории теперь в выпадающем меню шапки — ряд чипов под героем не используется
 function renderChips() {
   const el = document.getElementById('catChips');
-  const used = new Set(ITEMS.map(i => i.categoryId).filter(Boolean));
-  const kids = catKidsMap();
-  const inUse = id => [...catSubtree(id)].some(x => used.has(x));
-  const byOrder = (a, b) => (a.order || 0) - (b.order || 0);
-
-  const act = activeCat ? CATS.find(c => c.id === activeCat) : null;
-  const expanded = act ? (act.parentId || act.id) : null;
-  let catHtml = '';
-  if (expanded) {
-    const subs = (kids[expanded] || []).filter(c => inUse(c.id)).sort(byOrder);
-    if (subs.length) {
-      const parent = CATS.find(c => c.id === expanded);
-      catHtml = `<div class="cat-row cat-subrow">` +
-        `<button class="cat-chip sub${activeCat === expanded ? ' active' : ''}" data-cat="${esc(expanded)}">Все · ${esc(parent.name)}</button>` +
-        subs.map(c => `<button class="cat-chip sub${activeCat === c.id ? ' active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('') +
-        `</div>`;
-    }
-  }
-
-  if (!catHtml) { el.hidden = true; el.innerHTML = ''; return; }
-  el.hidden = false;
-  el.innerHTML = catHtml;
+  if (el) { el.hidden = true; el.innerHTML = ''; }
 }
-
-document.getElementById('catChips').addEventListener('click', (e) => {
-  const chip = e.target.closest('.cat-chip');
-  if (!chip) return;
-  if (chip.dataset.garment !== undefined) activeGarment = chip.dataset.garment || null;
-  else                                    activeCat = chip.dataset.cat || null;
-  renderHeaderNav();
-  renderChips();
-  renderGrid();
-  updateCatalogChrome();
-  // При выборе фильтра — сразу к товарам (промо-блоки скрыты)
-  if (activeCat || activeGarment) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
 
 // При активном фильтре показываем только товары категории, пряча промо-поток
 let _streamHasContent = false;
