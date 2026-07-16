@@ -813,6 +813,9 @@ html, body {
 }
 /* Галерея: главное фото + миниатюры */
 .detail-gallery { display: flex; flex-direction: column; gap: 8px; }
+/* Правая часть деталей: карточки и кнопки колонкой */
+.detail-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.detail-main > * { flex-shrink: 0; }
 .detail-photo-main {
   border-radius: 16px; overflow: hidden; cursor: zoom-in;
   background: var(--fill); border: 1px solid var(--card-b);
@@ -2925,12 +2928,12 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   /* Карточка товара (просмотр) — широкая, фото слева, информация справа */
   html.is-web #detailModal { width: min(880px, calc(100% - 48px)); max-height: 88vh; }
   html.is-web .detail-photo { max-height: 360px; border-radius: 14px; }
-  html.is-web #detailModalBody:has(.detail-gallery) {
-    display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
-    gap: 10px 16px; align-items: start; align-content: start;
+  html.is-web #detailModalBody { flex-direction: row; align-items: flex-start; gap: 16px; }
+  html.is-web #detailModalBody > .detail-gallery {
+    flex: 0 0 360px; min-width: 0;
+    position: sticky; top: 0;
   }
-  html.is-web #detailModalBody:has(.detail-gallery) > * { grid-column: 2; min-width: 0; margin-bottom: 0; }
-  html.is-web #detailModalBody > .detail-gallery { grid-column: 1; position: sticky; top: 0; }
+  html.is-web #detailModalBody > .detail-main { flex: 1 1 auto; min-width: 0; }
   html.is-web .detail-photo-main img { max-height: 440px; }
   html.is-web .detail-thumbs { flex-wrap: wrap; }
   /* Редактирование товара — просторная модалка (фото слева, настройки справа) */

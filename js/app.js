@@ -1596,6 +1596,7 @@ class App {
             `<button type="button" class="detail-thumb${i === 0 ? ' active' : ''}" data-src="${p}"><img src="${p}" alt=""></button>`).join('')}</div>` : ''}
         </div>`;
       })()}
+      <div class="detail-main">
       ${sizesCard}
       <div class="detail-card">${priceRows}</div>
       <div class="detail-card">
@@ -1626,6 +1627,7 @@ class App {
         </svg>Продать товар
       </button>
       <button class="detail-delete-btn" id="detailDeleteBtn">Удалить товар</button>
+      </div>
     `;
 
     /* Галерея: миниатюры переключают главное фото, клик по фото — на весь экран */
