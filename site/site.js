@@ -100,13 +100,23 @@ function renderHeaderNav() {
     const cat = sectionCat(sec);
     const dataCat = cat ? cat.id : `__sec-${sec.id}__`;
     const secActive = cat ? topActive === cat.id : activeCat === dataCat;
-    const subs = cat ? (kids[cat.id] || []).filter(s => inUse(s.id)).sort(byOrder) : [];
-    if (!subs.length)
-      return `<a class="hnav${secActive ? ' active' : ''}" data-cat="${esc(dataCat)}" href="#">${esc(sec.label)}</a>`;
-    // Типы одежды, реально встречающиеся в товарах раздела, — вторая колонка мега-меню
-    const inTree = catSubtree(cat.id);
-    const gUsed = new Set(ITEMS.filter(i => inTree.has(i.categoryId)).map(i => i.garment).filter(Boolean));
+
+    // Колонка категорий: подкатегории раздела; если одноимённая категория
+    // не заведена — показываем все верхние категории с товарами
+    let catsCol = cat ? (kids[cat.id] || []).filter(s => inUse(s.id)).sort(byOrder) : [];
+    if (!cat) catsCol = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
+
+    // Типы одежды: встречающиеся в товарах раздела (или во всех товарах)
+    const scope = cat ? (ids => ITEMS.filter(i => ids.has(i.categoryId)))(catSubtree(cat.id)) : ITEMS;
+    const gUsed = new Set(scope.map(i => i.garment).filter(Boolean));
     const gList = GARMENTS.filter(g => gUsed.has(g.id));
+
+    // Совсем нечего показать — обычная ссылка без панели
+    if (!catsCol.length && !gList.length)
+      return `<a class="hnav${secActive ? ' active' : ''}" data-cat="${esc(dataCat)}" href="#">${esc(sec.label)}</a>`;
+
+    // У типов одежды раздел ставится вместе с типом только если раздел заведён
+    const gCat = cat ? ` data-cat="${esc(cat.id)}"` : '';
     return `<div class="hnav-group${secActive ? ' active' : ''}">
       <a class="hnav${secActive ? ' active' : ''}" href="#">${esc(sec.label)}<span class="hnav-caret" aria-hidden="true">▾</span></a>
       <div class="hnav-drop">
@@ -114,18 +124,18 @@ function renderHeaderNav() {
           <div class="mega-head">
             <p class="mega-kicker">Раздел</p>
             <div class="mega-title">${esc(sec.label)}</div>
-            <a class="mega-all" data-cat="${esc(cat.id)}" data-garment="" href="#">Смотреть все →</a>
+            <a class="mega-all" ${cat ? `data-cat="${esc(cat.id)}"` : 'data-all'} data-garment="" href="#">Смотреть все →</a>
           </div>
-          <div class="mega-col">
+          ${catsCol.length ? `<div class="mega-col">
             <p class="mega-col-title">Категории</p>
             <div class="mega-links">
-              ${subs.map(s => `<a class="hnav-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
+              ${catsCol.map(s => `<a class="hnav-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
             </div>
-          </div>
+          </div>` : ''}
           ${gList.length ? `<div class="mega-col">
             <p class="mega-col-title">Тип одежды</p>
             <div class="mega-links">
-              ${gList.map(g => `<a class="hnav-sub${activeCat === cat.id && activeGarment === g.id ? ' active' : ''}" data-cat="${esc(cat.id)}" data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
+              ${gList.map(g => `<a class="hnav-sub${activeGarment === g.id && (!cat || activeCat === cat.id) ? ' active' : ''}"${gCat} data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
             </div>
           </div>` : ''}
         </div>
@@ -163,7 +173,10 @@ function bindMegaHover(nav) {
 function applyNavFilter(link) {
   // Раздел не сбрасывает выбранный тип одежды — фильтры комбинируются.
   // У ссылки могут быть оба атрибута (мега-меню: раздел + тип одежды разом).
-  if (link.dataset.all !== undefined) activeCat = null;
+  if (link.dataset.all !== undefined) {
+    activeCat = null;
+    if (link.dataset.garment !== undefined) activeGarment = link.dataset.garment || null;
+  }
   else {
     if (link.dataset.cat     !== undefined) activeCat     = link.dataset.cat || null;
     if (link.dataset.garment !== undefined) activeGarment = link.dataset.garment || null;
