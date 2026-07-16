@@ -3210,9 +3210,19 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 /* Широкий экран: банковский дашборд — карта слева, действия и показатели справа,
    ниже операции и продажи в две колонки */
 @media (min-width: 820px) {
-  html.is-web #financeContent { max-width: 1160px; margin-left: auto; margin-right: auto; }
+  /* Один экран без скролла страницы: #financeContent — это сам .view-body,
+     он занимает всю высоту; длинные списки прокручиваются внутри колонок */
+  html.is-web #financeContent {
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  html.is-web #financeContent > .fin-hero,
+  html.is-web #financeContent > .fin-cols {
+    width: 100%; max-width: 1560px;
+    margin-left: auto; margin-right: auto;
+  }
 
-  html.is-web .fin-hero { display: flex; gap: 20px; align-items: stretch; }
+  html.is-web .fin-hero { display: flex; gap: 20px; align-items: stretch; flex-shrink: 0; }
   html.is-web .fin-hero-main { flex: 0 0 470px; min-width: 0; }
   html.is-web .bank-card { max-height: 300px; padding: 24px 28px 16px; border-radius: 22px; }
   html.is-web .bank-card-amount { font-size: 50px; }
@@ -3230,6 +3240,24 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   }
   html.is-web .fin-hero-side .sales-stat-val { font-size: 26px; }
 
-  html.is-web .fin-cols { display: flex; gap: 24px; align-items: flex-start; }
-  html.is-web .fin-col { flex: 1; min-width: 0; }
+  html.is-web .fin-cols { display: flex; gap: 22px; align-items: stretch; flex: 1; min-height: 220px; margin-top: 2px; }
+  html.is-web .fin-col { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+  html.is-web .fin-col .section-title { flex-shrink: 0; }
+  /* Списки скроллятся внутри колонок — страница остаётся на месте */
+  html.is-web .fin-col .sales-list,
+  html.is-web .fin-col .pay-list,
+  html.is-web .fin-col .plan-list {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: var(--sep) transparent;
+    padding-right: 2px;
+  }
+  html.is-web .fin-col .sales-list::-webkit-scrollbar,
+  html.is-web .fin-col .pay-list::-webkit-scrollbar,
+  html.is-web .fin-col .plan-list::-webkit-scrollbar,
+  html.is-web .fin-col .emp-bal-list::-webkit-scrollbar { width: 5px; }
+  html.is-web .fin-col .sales-list::-webkit-scrollbar-thumb,
+  html.is-web .fin-col .pay-list::-webkit-scrollbar-thumb,
+  html.is-web .fin-col .plan-list::-webkit-scrollbar-thumb,
+  html.is-web .fin-col .emp-bal-list::-webkit-scrollbar-thumb { background: var(--sep); border-radius: 3px; }
+  html.is-web .fin-col .emp-bal-list { flex-shrink: 0; max-height: 230px; overflow-y: auto; }
 }

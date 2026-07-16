@@ -2292,7 +2292,9 @@ class App {
         <div class="fin-col">
           <div class="section-title">Записи продаж</div>
           ${salesListHtml}
-          ${payHistHtml}
+        </div>
+        <div class="fin-col">
+          ${payHistHtml || '<div class="section-title">Операции</div><div class="plan-empty">Операций пока нет</div>'}
         </div>
         <div class="fin-col">
           ${empSectionHtml}
