@@ -1566,6 +1566,9 @@ html, body {
   box-shadow: 0 14px 44px rgba(0,0,0,.55);
 }
 .header-menu::-webkit-scrollbar { display: none; }
+/* Перебивает «#view-inventory > * { position: relative; z-index: 1 }» —
+   меню теперь прямой ребёнок вью и должно лежать поверх списка товаров */
+#view-inventory > #headerMenu { position: absolute; z-index: 50; }
 .header-menu.open { transform: none; opacity: 1; pointer-events: all; }
 [data-theme="light"] .header-menu { box-shadow: 0 14px 36px rgba(0,0,0,.16); }
 
