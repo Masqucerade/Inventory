@@ -29,6 +29,11 @@ const GARMENTS = [
 async function boot() {
   document.getElementById('sectionKicker').textContent = TITLES[SECTION].kicker;
   document.getElementById('sectionTitle').textContent  = TITLES[SECTION].title;
+  // На разделе Monarc логотип в шапке — «Monarc»
+  if (SECTION === 'monarc') {
+    const ln = document.getElementById('logoName');
+    if (ln) ln.textContent = 'Monarc';
+  }
   document.title = `Masqucerade INC. — ${TITLES[SECTION].title}`;
   document.querySelectorAll('.site-nav a').forEach(a =>
     a.classList.toggle('active', a.dataset.nav === SECTION));
@@ -98,24 +103,71 @@ function renderHeaderNav() {
     const subs = cat ? (kids[cat.id] || []).filter(s => inUse(s.id)).sort(byOrder) : [];
     if (!subs.length)
       return `<a class="hnav${secActive ? ' active' : ''}" data-cat="${esc(dataCat)}" href="#">${esc(sec.label)}</a>`;
+    // Типы одежды, реально встречающиеся в товарах раздела, — вторая колонка мега-меню
+    const inTree = catSubtree(cat.id);
+    const gUsed = new Set(ITEMS.filter(i => inTree.has(i.categoryId)).map(i => i.garment).filter(Boolean));
+    const gList = GARMENTS.filter(g => gUsed.has(g.id));
     return `<div class="hnav-group${secActive ? ' active' : ''}">
       <a class="hnav${secActive ? ' active' : ''}" href="#">${esc(sec.label)}<span class="hnav-caret" aria-hidden="true">▾</span></a>
       <div class="hnav-drop">
-        <a class="hnav-sub${activeCat === cat.id ? ' active' : ''}" data-cat="${esc(cat.id)}" href="#">Все · ${esc(sec.label)}</a>
-        ${subs.map(s => `<a class="hnav-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
+        <div class="mega-inner">
+          <div class="mega-head">
+            <p class="mega-kicker">Раздел</p>
+            <div class="mega-title">${esc(sec.label)}</div>
+            <a class="mega-all" data-cat="${esc(cat.id)}" data-garment="" href="#">Смотреть все →</a>
+          </div>
+          <div class="mega-col">
+            <p class="mega-col-title">Категории</p>
+            <div class="mega-links">
+              ${subs.map(s => `<a class="hnav-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
+            </div>
+          </div>
+          ${gList.length ? `<div class="mega-col">
+            <p class="mega-col-title">Тип одежды</p>
+            <div class="mega-links">
+              ${gList.map(g => `<a class="hnav-sub${activeCat === cat.id && activeGarment === g.id ? ' active' : ''}" data-cat="${esc(cat.id)}" data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
+            </div>
+          </div>` : ''}
+        </div>
       </div>
     </div>`;
   }).join('');
   // «Другое» — вместо «Под заказ» у Gurbich (остальные товары)
   html += `<a class="hnav${activeCat === '__other__' ? ' active' : ''}" data-cat="__other__" href="#">Другое</a>`;
   nav.innerHTML = html;
+  bindMegaHover(nav);
+}
+
+/* Наведение открывает мега-меню (десктоп); на тач-устройствах — по тапу.
+   После выбора пункта меню не выскакивает снова, пока курсор не покинет шапку. */
+const HOVER_CAPABLE = window.matchMedia('(hover: hover)').matches;
+function bindMegaHover(nav) {
+  if (!HOVER_CAPABLE) return;
+  nav.querySelectorAll('.hnav-group').forEach(g => {
+    g.addEventListener('mouseenter', () => {
+      if (nav.classList.contains('suppress')) return;
+      clearTimeout(g._closeT);
+      nav.querySelectorAll('.hnav-group.open').forEach(o => { if (o !== g) o.classList.remove('open'); });
+      g.classList.add('open');
+    });
+    g.addEventListener('mouseleave', () => {
+      g._closeT = setTimeout(() => g.classList.remove('open'), 140);
+    });
+  });
+  if (!nav._suppressBound) {
+    nav._suppressBound = true;
+    nav.addEventListener('mouseleave', () => nav.classList.remove('suppress'));
+  }
 }
 
 function applyNavFilter(link) {
-  // Раздел не сбрасывает выбранный тип одежды — фильтры комбинируются
-  if (link.dataset.all !== undefined)          activeCat = null;
-  else if (link.dataset.garment !== undefined) activeGarment = link.dataset.garment || null;
-  else                                         activeCat = link.dataset.cat || null;
+  // Раздел не сбрасывает выбранный тип одежды — фильтры комбинируются.
+  // У ссылки могут быть оба атрибута (мега-меню: раздел + тип одежды разом).
+  if (link.dataset.all !== undefined) activeCat = null;
+  else {
+    if (link.dataset.cat     !== undefined) activeCat     = link.dataset.cat || null;
+    if (link.dataset.garment !== undefined) activeGarment = link.dataset.garment || null;
+  }
   renderHeaderNav();
   renderFilters();
   renderGrid();
@@ -129,14 +181,17 @@ if (_siteNav) _siteNav.addEventListener('click', (e) => {
   if (!a) return;
   e.preventDefault();
   const group = a.closest('.hnav-group');
-  // Клик по родителю с подменю — только открыть/закрыть выпадающее (фильтр — по пунктам меню)
+  // Клик по родителю с подменю — только открыть/закрыть панель (фильтр — по пунктам меню)
   if (group && a.classList.contains('hnav')) {
+    if (HOVER_CAPABLE) return;               // на десктопе панель управляется наведением
     const open = group.classList.contains('open');
     _siteNav.querySelectorAll('.hnav-group.open').forEach(g => g.classList.remove('open'));
     if (!open) group.classList.add('open');
     return;
   }
   _siteNav.querySelectorAll('.hnav-group.open').forEach(g => g.classList.remove('open'));
+  // Пока курсор в шапке — меню не выскакивает снова после выбора
+  if (HOVER_CAPABLE && group) _siteNav.classList.add('suppress');
   applyNavFilter(a);
 });
 // Клик вне меню — закрыть выпадающие

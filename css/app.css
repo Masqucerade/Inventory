@@ -650,6 +650,22 @@ html, body {
 .form-group { padding: 10px 14px; }
 .form-divider { height: 1px; background: var(--sep2); margin: 0 14px; }
 
+/* Колонка настроек и заголовки секций формы товара */
+.form-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.form-col > * { flex-shrink: 0; }
+.form-section-title {
+  margin: 12px 4px 0; font-size: 10.5px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase; color: var(--text3);
+}
+.form-col > .form-section-title:first-child { margin-top: 2px; }
+/* Поля в один ряд (категория + тип, цены) */
+.form-row { display: flex; align-items: stretch; }
+.form-row > .form-group { flex: 1; min-width: 0; }
+.form-divider.vert {
+  width: 1px; height: auto; align-self: stretch;
+  margin: 10px 0; background: var(--sep2); flex-shrink: 0;
+}
+
 .form-label { display: block; font-size: 10px; font-weight: 600; color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 .required { color: #f87171; }
 
@@ -2650,6 +2666,30 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   }
   html.is-web .modal-body { padding-bottom: 24px; }
 
+  /* Товар: просторная модалка — фото слева, настройки справа */
+  html.is-web #itemModal { max-height: 90vh; }
+  html.is-web #itemModal .modal-body { padding: 18px 20px 24px; }
+  html.is-web #itemForm {
+    display: grid; grid-template-columns: 300px minmax(0, 1fr);
+    gap: 16px; align-items: start;
+  }
+  html.is-web #itemForm .photo-section-multi {
+    position: sticky; top: 0; margin-bottom: 0;
+  }
+  /* Фото в левой колонке — сетка плиток вместо горизонтальной ленты */
+  html.is-web #photoPicker .photo-strip {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; overflow: visible; padding-bottom: 0;
+  }
+  html.is-web #photoPicker .photo-thumb,
+  html.is-web #photoPicker .photo-add-tile {
+    width: 100%; height: auto; aspect-ratio: 1;
+  }
+  /* Первое (главное) фото — крупное, на всю ширину колонки */
+  html.is-web #photoPicker .photo-thumb.main { grid-column: 1 / -1; aspect-ratio: 4 / 3; }
+  /* Фото ещё нет — плитка добавления крупная, на всю колонку */
+  html.is-web #photoPicker .photo-add-tile:first-child { grid-column: 1 / -1; aspect-ratio: 4 / 3; }
+
   /* Немного «воздуха» и глубины */
   html.is-web .app {
     background:
@@ -2838,7 +2878,8 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   /* Карточка товара (просмотр) — шире, фото крупнее */
   html.is-web #detailModal { width: min(640px, calc(100% - 48px)); }
   html.is-web .detail-photo { max-height: 360px; border-radius: 14px; }
-  html.is-web #itemModal { width: min(560px, calc(100% - 48px)); }
+  /* Редактирование товара — просторная модалка (фото слева, настройки справа) */
+  html.is-web #itemModal { width: min(920px, calc(100% - 48px)); }
 
   /* Задачи и FAQ — комфортная колонка, ховеры */
   html.is-web .task-list { max-width: 860px; margin-left: auto; margin-right: auto; }

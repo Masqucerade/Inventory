@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=63">
+  <link rel="stylesheet" href="css/app.css?v=64">
 </head>
 <body>
 
@@ -241,67 +241,129 @@
         <div class="photo-strip" id="photoStrip"></div>
       </div>
 
-      <div class="form-card">
-        <div class="form-group" id="categoryGroup">
-          <label class="form-label">Категория</label>
-          <select class="form-input form-select" id="fieldCategory">
-            <option value="">— Без категории —</option>
-          </select>
-        </div>
-        <div class="form-divider" id="categoryDivider"></div>
-        <div class="form-group">
-          <label class="form-label">Тип одежды</label>
-          <select class="form-input form-select" id="fieldGarment">
-            <option value="">— Не указан —</option>
-            <option value="top">Верх</option>
-            <option value="bottom">Низ</option>
-            <option value="shoes">Обувь</option>
-            <option value="outerwear">Верхняя одежда</option>
-          </select>
-        </div>
-        <div class="form-divider"></div>
-        <div class="form-group">
-          <label class="form-label">Наименование <span class="required">*</span></label>
-          <input type="text" id="fieldName" class="form-input" placeholder="Название товара" autocomplete="off">
-        </div>
-      </div>
+      <div class="form-col">
 
-      <div class="form-card">
-        <div class="form-group">
-          <label class="form-label">Размеры и количество</label>
-          <div id="sizesList" class="sizes-list"></div>
+        <div class="form-section-title">Основное</div>
+        <div class="form-card">
+          <div class="form-group">
+            <label class="form-label">Наименование <span class="required">*</span></label>
+            <input type="text" id="fieldName" class="form-input" placeholder="Название товара" autocomplete="off">
+          </div>
+          <div class="form-divider"></div>
+          <div class="form-row">
+            <div class="form-group" id="categoryGroup">
+              <label class="form-label">Категория</label>
+              <select class="form-input form-select" id="fieldCategory">
+                <option value="">— Без категории —</option>
+              </select>
+            </div>
+            <div class="form-divider vert" id="categoryDivider"></div>
+            <div class="form-group">
+              <label class="form-label">Тип одежды</label>
+              <select class="form-input form-select" id="fieldGarment">
+                <option value="">— Не указан —</option>
+                <option value="top">Верх</option>
+                <option value="bottom">Низ</option>
+                <option value="shoes">Обувь</option>
+                <option value="outerwear">Верхняя одежда</option>
+              </select>
+            </div>
+          </div>
         </div>
-        <div class="form-divider"></div>
-        <div class="form-group">
-          <button type="button" id="addSizeBtn" class="add-size-btn">+ Добавить размер</button>
-        </div>
-      </div>
 
-      <div class="form-card">
-        <div class="form-group cost-field">
-          <label class="form-label">Цена закупа (₽)</label>
-          <input type="number" id="fieldBuyPrice" class="form-input" placeholder="0" min="0" step="0.01" inputmode="decimal">
+        <div class="form-section-title">Размеры и количество</div>
+        <div class="form-card">
+          <div class="form-group">
+            <div id="sizesList" class="sizes-list"></div>
+          </div>
+          <div class="form-divider"></div>
+          <div class="form-group">
+            <button type="button" id="addSizeBtn" class="add-size-btn">+ Добавить размер</button>
+          </div>
         </div>
-        <div class="form-divider cost-field"></div>
-        <div class="form-group cost-field">
-          <label class="form-label">Доставка (₽)</label>
-          <input type="number" id="fieldDeliveryCost" class="form-input" placeholder="0" min="0" step="0.01" inputmode="decimal">
+
+        <div class="form-section-title">Цены</div>
+        <div class="form-card">
+          <div class="form-row">
+            <div class="form-group cost-field">
+              <label class="form-label">Закуп (₽)</label>
+              <input type="number" id="fieldBuyPrice" class="form-input" placeholder="0" min="0" step="0.01" inputmode="decimal">
+            </div>
+            <div class="form-divider vert cost-field"></div>
+            <div class="form-group cost-field">
+              <label class="form-label">Доставка (₽)</label>
+              <input type="number" id="fieldDeliveryCost" class="form-input" placeholder="0" min="0" step="0.01" inputmode="decimal">
+            </div>
+            <div class="form-divider vert cost-field"></div>
+            <div class="form-group">
+              <label class="form-label">Продажа / шт (₽)</label>
+              <input type="number" id="fieldPrice" class="form-input" placeholder="0" min="0" step="0.01" inputmode="decimal">
+            </div>
+          </div>
+          <div class="form-divider cost-field"></div>
+          <div class="form-group total-row cost-field">
+            <span class="form-label" style="margin:0">Маржа / шт</span>
+            <span class="total-amount" id="marginDisplay" style="color:var(--text2)">—</span>
+          </div>
+          <div class="form-divider"></div>
+          <div class="form-group total-row">
+            <span class="form-label" style="margin:0">Итого (продажа)</span>
+            <span class="total-amount" id="totalDisplay">0 ₽</span>
+          </div>
         </div>
-        <div class="form-divider cost-field"></div>
-        <div class="form-group">
-          <label class="form-label">Цена продажи / шт (₽)</label>
-          <input type="number" id="fieldPrice" class="form-input" placeholder="0" min="0" step="0.01" inputmode="decimal">
+
+        <div class="form-section-title">Владелец и статус</div>
+        <div class="form-card">
+          <div class="form-group">
+            <label class="form-label">Владелец</label>
+            <div class="owner-chips" id="ownerSelect"></div>
+          </div>
+          <div class="form-divider"></div>
+          <div class="form-group monarc-form-row">
+            <div>
+              <span class="form-label" style="margin:0">Monarc</span>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">Скрыть из общего списка</div>
+            </div>
+            <label class="monarc-toggle">
+              <input type="checkbox" id="fieldIsMonarc">
+              <span class="monarc-toggle-slider"></span>
+            </label>
+          </div>
         </div>
-        <div class="form-divider cost-field"></div>
-        <div class="form-group total-row cost-field">
-          <span class="form-label" style="margin:0">Маржа / шт</span>
-          <span class="total-amount" id="marginDisplay" style="color:var(--text2)">—</span>
+        <div class="form-card">
+          <div class="form-group">
+            <label class="form-label">Статус заказа</label>
+            <div class="status-chips" id="statusSelect"></div>
+          </div>
         </div>
-        <div class="form-divider"></div>
-        <div class="form-group total-row">
-          <span class="form-label" style="margin:0">Итого (продажа)</span>
-          <span class="total-amount" id="totalDisplay">0 ₽</span>
+
+        <div class="form-section-title">Сайт-витрина</div>
+        <div class="form-card">
+          <div class="form-group monarc-form-row">
+            <div>
+              <span class="form-label" style="margin:0">На сайте</span>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">Показывать товар на сайте-витрине</div>
+            </div>
+            <label class="monarc-toggle site-toggle">
+              <input type="checkbox" id="fieldShowOnSite">
+              <span class="monarc-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="form-group" id="siteDescGroup" style="display:none">
+            <label class="form-label">Описание для сайта</label>
+            <textarea id="fieldSiteDesc" class="form-input form-textarea" placeholder="Описание, которое увидят клиенты…" rows="3"></textarea>
+            <label class="form-label" style="margin-top:12px">Замеры и посадка</label>
+            <textarea id="fieldMeasurements" class="form-input form-textarea" placeholder="Например: длина 70 см, ширина плеч 56 см. Фитит на рост 175–185." rows="3"></textarea>
+          </div>
         </div>
+
+        <div class="form-section-title">Заметки</div>
+        <div class="form-card">
+          <div class="form-group">
+            <textarea id="fieldNotes" class="form-input form-textarea" placeholder="Дополнительная информация…" rows="3"></textarea>
+          </div>
+        </div>
+
       </div>
 
       <datalist id="sizeSuggestions">
@@ -311,57 +373,6 @@
         <option value="40"><option value="41"><option value="42"><option value="43">
         <option value="44"><option value="45"><option value="46"><option value="One size">
       </datalist>
-
-      <div class="form-card">
-        <div class="form-group">
-          <label class="form-label">Владелец</label>
-          <div class="owner-chips" id="ownerSelect"></div>
-        </div>
-        <div class="form-divider"></div>
-        <div class="form-group monarc-form-row">
-          <div>
-            <span class="form-label" style="margin:0">Monarc</span>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px">Скрыть из общего списка</div>
-          </div>
-          <label class="monarc-toggle">
-            <input type="checkbox" id="fieldIsMonarc">
-            <span class="monarc-toggle-slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="form-card">
-        <div class="form-group">
-          <label class="form-label">Статус заказа</label>
-          <div class="status-chips" id="statusSelect"></div>
-        </div>
-      </div>
-
-      <div class="form-card">
-        <div class="form-group monarc-form-row">
-          <div>
-            <span class="form-label" style="margin:0">На сайте</span>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px">Показывать товар на сайте-витрине</div>
-          </div>
-          <label class="monarc-toggle site-toggle">
-            <input type="checkbox" id="fieldShowOnSite">
-            <span class="monarc-toggle-slider"></span>
-          </label>
-        </div>
-        <div class="form-group" id="siteDescGroup" style="display:none">
-          <label class="form-label">Описание для сайта</label>
-          <textarea id="fieldSiteDesc" class="form-input form-textarea" placeholder="Описание, которое увидят клиенты…" rows="3"></textarea>
-          <label class="form-label" style="margin-top:12px">Замеры и посадка</label>
-          <textarea id="fieldMeasurements" class="form-input form-textarea" placeholder="Например: длина 70 см, ширина плеч 56 см. Фитит на рост 175–185." rows="3"></textarea>
-        </div>
-      </div>
-
-      <div class="form-card">
-        <div class="form-group">
-          <label class="form-label">Заметки</label>
-          <textarea id="fieldNotes" class="form-input form-textarea" placeholder="Дополнительная информация…" rows="3"></textarea>
-        </div>
-      </div>
 
     </form>
   </div>
