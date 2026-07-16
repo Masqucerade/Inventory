@@ -2082,7 +2082,7 @@ class App {
     });
 
     const payHistHtml = payments.length
-      ? `<div class="section-title">История</div>
+      ? `<div class="section-title">Операции</div>
          <div class="pay-list">${payments.map((p, idx) => `
            <div class="pay-entry" style="animation-delay:${Math.min(idx*20,180)}ms">
              <div class="pay-icon ${p.type}">${p.type === 'deposit' ? '+' : '−'}</div>
@@ -2181,8 +2181,7 @@ class App {
         </div>`
       : `<div class="plan-empty">Нет записей продаж</div>`;
 
-    const salesSectionHtml = `
-      <div class="section-title">Продажи</div>
+    const salesStatsHtml = `
       <div class="sales-summary">
         <div class="sales-stat-card">
           <div class="sales-stat-label">Выручка</div>
@@ -2196,8 +2195,7 @@ class App {
           <div class="sales-stat-label">Чистая прибыль</div>
           <div class="sales-stat-val ${profitPos ? 'pos' : 'neg'}">${profitPos ? '+' : '−'}<span data-count="${Math.abs(totalProfit)}" data-fmt="money">0 ₽</span></div>
         </div>
-      </div>
-      ${salesListHtml}`;
+      </div>`;
 
     /* Детальный список непогашенных долгов — свёрнут, раскрывается по тапу */
     const debtEntries = empPayments.filter(p => p.isExpense && !p.reimbursed);
@@ -2219,6 +2217,8 @@ class App {
     const mrz2 = `${binStr}&lt;&lt;${String(new Date().getFullYear())}&lt;RU&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;`;
 
     el.innerHTML = `
+      <div class="fin-hero">
+      <div class="fin-hero-main">
       <div class="bank-card">
         <div class="bank-guilloche" aria-hidden="true"></div>
         <div class="bank-holo" aria-hidden="true"></div>
@@ -2264,28 +2264,41 @@ class App {
           </div>
         ` : ''}
       </div>` : ''}
-      <div class="finance-actions">
-        <button class="fin-btn deposit" id="depositBtn">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>Депозит
-        </button>
-        <button class="fin-btn charge" id="chargeBtn">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>Списание
-        </button>
-        <button class="fin-btn sell" id="sellBtn">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-            <circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/>
-          </svg>Продать
-        </button>
       </div>
-      ${salesSectionHtml}
-      ${payHistHtml}
-      ${empSectionHtml}
-      ${plansSectionHtml}
+      <div class="fin-hero-side">
+        <div class="finance-actions">
+          <button class="fin-btn deposit" id="depositBtn">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>Депозит
+          </button>
+          <button class="fin-btn charge" id="chargeBtn">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>Списание
+          </button>
+          <button class="fin-btn sell" id="sellBtn">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+              <circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/>
+            </svg>Продать
+          </button>
+        </div>
+        <div class="section-title">Продажи</div>
+        ${salesStatsHtml}
+      </div>
+      </div>
+      <div class="fin-cols">
+        <div class="fin-col">
+          <div class="section-title">Записи продаж</div>
+          ${salesListHtml}
+          ${payHistHtml}
+        </div>
+        <div class="fin-col">
+          ${empSectionHtml}
+          ${plansSectionHtml}
+        </div>
+      </div>
     `;
 
     runCountUps(el);

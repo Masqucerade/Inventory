@@ -3199,11 +3199,37 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 #view-finance .fin-btn:hover { border-color: var(--text3); }
 #view-finance .fin-btn svg { opacity: .85; }
 
-#view-finance .debt-pay-btn { font-family: inherit; }
+#view-finance .debt-pay-btn { font-family: inherit; background: var(--text); color: var(--bg); }
 
-/* Широкий экран: колонка как в банковском приложении */
+/* Монохром для остальных элементов: аватары, точки, галочки планов */
+#view-finance .emp-bal-avatar { background: var(--fill) !important; color: var(--text); border: 1px solid var(--sep); }
+#view-finance .owner-dot { background: var(--text3) !important; }
+#view-finance .plan-item.plan-done .plan-check { color: var(--text); }
+#view-finance .plan-add-btn { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+
+/* Широкий экран: банковский дашборд — карта слева, действия и показатели справа,
+   ниже операции и продажи в две колонки */
 @media (min-width: 820px) {
-  html.is-web #financeContent { max-width: 720px; margin-left: auto; margin-right: auto; }
-  html.is-web .bank-card { max-height: 265px; padding: 20px 24px 14px; }
-  html.is-web .bank-card-amount { font-size: 46px; }
+  html.is-web #financeContent { max-width: 1160px; margin-left: auto; margin-right: auto; }
+
+  html.is-web .fin-hero { display: flex; gap: 20px; align-items: stretch; }
+  html.is-web .fin-hero-main { flex: 0 0 470px; min-width: 0; }
+  html.is-web .bank-card { max-height: 300px; padding: 24px 28px 16px; border-radius: 22px; }
+  html.is-web .bank-card-amount { font-size: 50px; }
+  html.is-web .bank-card-top { font-size: 11.5px; }
+  html.is-web .bank-mrz { font-size: 10.5px; }
+
+  html.is-web .fin-hero-side { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  html.is-web .fin-hero-side .finance-actions { margin-bottom: 0; }
+  html.is-web .fin-hero-side .fin-btn { padding: 18px 8px 16px; font-size: 13px; }
+  html.is-web .fin-hero-side .section-title { margin: 18px 0 8px 2px; }
+  html.is-web .fin-hero-side .sales-summary { flex: 1; margin-bottom: 0; }
+  html.is-web .fin-hero-side .sales-stat-card {
+    display: flex; flex-direction: column; justify-content: center; gap: 7px;
+    padding: 16px 16px 18px;
+  }
+  html.is-web .fin-hero-side .sales-stat-val { font-size: 26px; }
+
+  html.is-web .fin-cols { display: flex; gap: 24px; align-items: flex-start; }
+  html.is-web .fin-col { flex: 1; min-width: 0; }
 }
