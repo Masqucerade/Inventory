@@ -96,6 +96,9 @@ function renderHeaderNav() {
       </div>
     </div>`;
   }).join('');
+  // «Другое» — прочие товары без категории (в конце, как «Под заказ» у Gurbich)
+  if (ITEMS.some(i => !i.categoryId))
+    html += `<a class="hnav${activeCat === '__other__' ? ' active' : ''}" data-cat="__other__" href="#">Другое</a>`;
   nav.innerHTML = html;
 }
 
@@ -147,7 +150,8 @@ function updateCatalogChrome() {
   if (filtering) {
     const parts = [];
     if (activeGarment) parts.push((GARMENTS.find(g => g.id === activeGarment) || {}).name);
-    if (activeCat)     parts.push((CATS.find(c => c.id === activeCat) || {}).name);
+    if (activeCat === '__other__') parts.push('Другое');
+    else if (activeCat)            parts.push((CATS.find(c => c.id === activeCat) || {}).name);
     gh.hidden = false;
     gh.textContent = parts.filter(Boolean).join(' · ') || 'Товары';
   } else {
@@ -190,8 +194,10 @@ function cardHTML(i) {
 
 function renderGrid() {
   const el = document.getElementById('goodsGrid');
-  const ids = activeCat ? catSubtree(activeCat) : null;
-  let items = ids ? ITEMS.filter(i => ids.has(i.categoryId)) : ITEMS;
+  let items;
+  if (activeCat === '__other__') items = ITEMS.filter(i => !i.categoryId);            // «Другое» — без категории
+  else if (activeCat)            { const ids = catSubtree(activeCat); items = ITEMS.filter(i => ids.has(i.categoryId)); }
+  else                           items = ITEMS;
   if (activeGarment) items = items.filter(i => i.garment === activeGarment);
   if (!items.length) {
     el.innerHTML = '<div class="goods-empty">Пока пусто — загляните позже</div>';
