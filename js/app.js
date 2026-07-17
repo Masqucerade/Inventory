@@ -2795,7 +2795,8 @@ class App {
     items.forEach(i => {
       const qty = i.quantity || 0;
       byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + qty;
-      const k = i.ownerId || '__none__';
+      // Товары бренда Monarc без владельца — отдельной строкой «Monarc»
+      const k = i.ownerId || (i.isMonarc ? '__monarc__' : '__none__');
       if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0, share: 0 };
       byOwner[k].qty += qty;
       byOwner[k].val += (i.total || 0);
@@ -2814,9 +2815,11 @@ class App {
       }
     });
 
-    /* У владельца показываем его деньги (тело + % прибыли); «Без владельца» —
-       стоимость товаров компании. Пользователям без закупа — как раньше. */
-    const ownerDisp = (oid, v) => (oid !== '__none__' && !hideCosts) ? v.share : v.val;
+    /* У владельца показываем его деньги (тело + % прибыли); «Monarc» и
+       «Без владельца» — полная стоимость (это вещи компании).
+       Пользователям без закупа — как раньше. */
+    const ownerDisp = (oid, v) =>
+      (oid !== '__none__' && oid !== '__monarc__' && !hideCosts) ? v.share : v.val;
     const maxSt  = Math.max(...Object.values(byStatus), 1);
     const maxOwV = Math.max(...Object.entries(byOwner).map(([k, v]) => ownerDisp(k, v)), 1);
     const maxTyQ = Math.max(...Object.values(byType).map(v => v.qty), 1);
@@ -2836,8 +2839,8 @@ class App {
       .sort((a, b) => ownerDisp(b[0], b[1]) - ownerDisp(a[0], a[1]))
       .map(([oid, v]) => {
         const o = this.owners.find(o => o.id === oid);
-        const n = o ? o.name : 'Без владельца';
-        const c = o ? o.color : '#6b7280';
+        const n = o ? o.name : (oid === '__monarc__' ? 'Monarc' : 'Без владельца');
+        const c = o ? o.color : (oid === '__monarc__' ? '#7c6dfa' : '#6b7280');
         const pct  = o?.profitPercent || 0;
         const disp = ownerDisp(oid, v);
         return `<div class="owner-stat-row">
