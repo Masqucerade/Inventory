@@ -2342,68 +2342,103 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 /* =============================================
    LOGIN SCREEN
    ============================================= */
+/* ── Вход: пластиковая ID-карта в фирменном ч/б стиле ── */
 .login-screen {
   position: fixed; inset: 0; z-index: 2000;
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
-  background: var(--bg);
+  background: #060605;
   overflow: hidden;
 }
 .login-bg {
   position: absolute; inset: 0; pointer-events: none;
   background:
-    radial-gradient(60% 45% at 50% 0%, rgba(124,109,250,.28), transparent 70%),
-    radial-gradient(50% 40% at 100% 100%, rgba(124,109,250,.14), transparent 70%);
+    radial-gradient(70% 50% at 50% -10%, rgba(255,255,255,.06), transparent 70%),
+    radial-gradient(55% 45% at 100% 110%, rgba(255,255,255,.04), transparent 70%);
 }
 .login-card {
   position: relative; z-index: 1;
-  width: 100%; max-width: 360px;
+  width: 100%; max-width: 370px;
   display: flex; flex-direction: column; align-items: center;
-  padding: 36px 26px 30px;
-  background: var(--card);
-  border: 1px solid var(--card-b);
+  padding: 34px 28px 58px;
   border-radius: 22px;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 24px 60px rgba(0,0,0,.35);
+  background: linear-gradient(133deg, #f6f5f1 0%, #e9e8e3 48%, #f2f1ec 100%);
+  border: 1px solid rgba(255,255,255,.2);
+  box-shadow: 0 30px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.75);
   animation: loginIn .4s cubic-bezier(.2,.7,.3,1) both;
+  overflow: hidden;
+}
+/* Гильоши — тонкая гравировка, как на банковской карте */
+.login-card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background:
+    repeating-radial-gradient(circle at 88% -20%, transparent 0 6px, rgba(23,21,15,.05) 6px 7px),
+    repeating-radial-gradient(circle at -10% 115%, transparent 0 8px, rgba(23,21,15,.045) 8px 9px);
+}
+/* Машиночитаемая строка внизу карты */
+.login-card::after {
+  content: 'MASQUCERADE<<INC<<PANEL<<ACCESS<<<<<<<<<<<<<<<<<<';
+  position: absolute; left: 28px; right: 28px; bottom: 14px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(23,21,15,.4);
+  border-top: 1px dashed rgba(23,21,15,.25); padding-top: 7px;
+  white-space: nowrap; overflow: hidden; pointer-events: none;
 }
 @keyframes loginIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
 .login-logo {
-  width: 60px; height: 60px; border-radius: 18px;
+  position: relative;
+  width: 58px; height: 58px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 30px; font-weight: 800; color: #fff;
-  background: linear-gradient(135deg, #7c6dfa, #5b4fd6);
-  box-shadow: 0 10px 26px rgba(124,109,250,.4);
+  font-size: 28px; font-weight: 800; color: #f5f4f0;
+  background: #17150f;
+  box-shadow: 0 10px 24px rgba(23,21,15,.35);
   margin-bottom: 16px;
 }
 .login-brand {
-  font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: var(--text);
-  margin: 0; display: flex; align-items: baseline; gap: 5px;
+  position: relative;
+  font-size: 21px; font-weight: 800; letter-spacing: -0.4px; color: #17150f;
+  margin: 0; display: flex; align-items: baseline; gap: 6px;
 }
-.login-brand span { font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: .5px; }
-.login-sub { font-size: 13px; color: var(--text2); margin: 4px 0 24px; }
-.login-field { width: 100%; margin-bottom: 14px; }
+.login-brand span {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px; font-weight: 700; color: rgba(23,21,15,.5); letter-spacing: .18em;
+}
+.login-sub {
+  position: relative;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 9.5px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase;
+  color: rgba(23,21,15,.45); margin: 6px 0 26px;
+}
+.login-field { position: relative; width: 100%; margin-bottom: 14px; }
 .login-label {
-  display: block; font-size: 11px; font-weight: 600; letter-spacing: .5px;
-  text-transform: uppercase; color: var(--text3); margin-bottom: 7px; padding-left: 2px;
+  display: block; margin-bottom: 7px; padding-left: 2px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 9px; font-weight: 700; letter-spacing: .22em;
+  text-transform: uppercase; color: rgba(23,21,15,.5);
 }
 .login-input {
   width: 100%; box-sizing: border-box; padding: 13px 15px;
-  background: var(--muted); border: 1px solid var(--card-b);
-  border-radius: var(--r); color: var(--text);
+  background: rgba(255,255,255,.65);
+  border: 1px solid rgba(23,21,15,.22);
+  border-radius: 13px; color: #17150f;
   font-family: inherit; font-size: 15px; outline: none;
-  transition: border-color .15s, background .15s;
+  transition: border-color .15s, background .15s, box-shadow .15s;
 }
-.login-input:focus { border-color: var(--accent); background: transparent; }
-.login-input::placeholder { color: var(--text3); }
-.login-error { width: 100%; min-height: 18px; font-size: 13px; color: #f87171; text-align: center; margin: 4px 0 6px; }
+.login-input:focus {
+  border-color: #17150f; background: #fff;
+  box-shadow: 0 0 0 3px rgba(23,21,15,.08);
+}
+.login-input::placeholder { color: rgba(23,21,15,.35); }
+.login-error { position: relative; width: 100%; min-height: 18px; font-size: 13px; color: #c0392b; text-align: center; margin: 4px 0 6px; }
 .login-btn {
+  position: relative;
   width: 100%; padding: 15px; margin-top: 6px;
-  border: none; border-radius: var(--r);
-  background: linear-gradient(135deg, #7c6dfa, #5b4fd6); color: #fff;
-  font-family: inherit; font-size: 15px; font-weight: 700; letter-spacing: -0.2px;
+  border: none; border-radius: 13px;
+  background: #17150f; color: #f5f4f0;
+  font-family: inherit; font-size: 14px; font-weight: 700; letter-spacing: .04em;
   cursor: pointer; transition: opacity .15s, transform .1s;
-  box-shadow: 0 8px 22px rgba(124,109,250,.34);
+  box-shadow: 0 10px 26px rgba(23,21,15,.3);
 }
 .login-btn:active { transform: scale(.98); }
 .login-btn:disabled { opacity: .6; cursor: default; }
