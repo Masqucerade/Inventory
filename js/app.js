@@ -1001,6 +1001,16 @@ class App {
       document.getElementById('siteDescGroup').style.display = e.target.checked ? '' : 'none';
     });
 
+    /* Тип одежды сам подставляется из категории/названия (пока не выбран вручную) */
+    document.getElementById('fieldCategory').addEventListener('change', () => this._autoGarment());
+    let _agT;
+    document.getElementById('fieldName').addEventListener('input', () => {
+      clearTimeout(_agT); _agT = setTimeout(() => this._autoGarment(), 400);
+    });
+    document.getElementById('fieldGarment').addEventListener('change', () => {
+      this._garmentManual = true;   // выбрал руками — больше не трогаем
+    });
+
     /* Photo.
        Защита от iOS ghost-click: после тапа по чипам/селектам Safari может
        синтезировать click по координатам пальца — если туда попала фото-зона,
@@ -1755,6 +1765,7 @@ class App {
 
     /* Reset */
     ['fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements','fieldGarment'].forEach(k => document.getElementById(k).value = '');
+    this._garmentManual = false;   // автоподбор типа одежды снова разрешён
     document.getElementById('fieldIsMonarc').checked   = false;
     document.getElementById('fieldShowOnSite').checked = false;
     document.getElementById('siteDescGroup').style.display = 'none';
@@ -2019,6 +2030,34 @@ class App {
     }
   }
 
+  /* ── Тип одежды по смыслу: «худи» — всегда верх, «штаны» — низ ── */
+  static GARMENT_RULES = [
+    ['shoes', ['кроссовк', 'кед', 'обув', 'ботинк', 'туфл', 'сандал', 'сланц', 'тапк', 'лофер', 'дерби', 'мокасин', 'угг',
+               'sneaker', 'shoe', 'boot', 'loafer', 'slide', 'runner']],
+    ['outerwear', ['куртк', 'пуховик', 'пальто', 'плащ', 'ветровк', 'бомбер', 'парка', 'анорак', 'тренч', 'шуб', 'дублёнк', 'дубленк', 'жилет',
+                   'jacket', 'coat', 'puffer', 'parka', 'windbreaker', 'bomber', 'trench', 'vest']],
+    ['bottom', ['штан', 'брюк', 'джинс', 'шорт', 'юбк', 'леггинс', 'тайтс', 'бридж',
+                'pants', 'jeans', 'denim', 'shorts', 'trousers', 'sweatpants', 'skirt', 'joggers']],
+    ['top', ['худи', 'зип', 'свитшот', 'футболк', 'лонгслив', 'лонг слив', 'рубашк', 'поло', 'майк', 'свитер', 'джемпер', 'кофт', 'водолазк', 'гольф', 'топ ',
+             'hoodie', 'zip', 'sweatshirt', 'tee', 't-shirt', 'tshirt', 'shirt', 'polo', 'longsleeve', 'long sleeve', 'sweater', 'knit', 'crewneck', 'top']],
+  ];
+  static guessGarment(...texts) {
+    const s = ' ' + texts.filter(Boolean).join(' ').toLowerCase() + ' ';
+    for (const [g, keys] of App.GARMENT_RULES)
+      if (keys.some(k => s.includes(k))) return g;
+    return '';
+  }
+
+  /* Автопроставление в форме: только пока тип пуст и не выбирался вручную */
+  _autoGarment() {
+    const sel = document.getElementById('fieldGarment');
+    if (!sel || sel.value || this._garmentManual) return;
+    const catSel  = document.getElementById('fieldCategory');
+    const catName = catSel?.options[catSel.selectedIndex]?.text || '';
+    const guess   = App.guessGarment(catName, document.getElementById('fieldName')?.value);
+    if (guess) sel.value = guess;
+  }
+
   async saveItem() {
     if (this._saving) return;
     const name = document.getElementById('fieldName').value.trim();
@@ -2047,7 +2086,11 @@ class App {
       thumbs:       this._photos.map(p => p.thumb),
       photo:        this._photos[0]?.full || null,
       categoryId:  document.getElementById('fieldCategory').value || null,
-      garment:     document.getElementById('fieldGarment').value || null,
+      // Тип одежды: не выбран — определяем по категории и названию
+      garment:     document.getElementById('fieldGarment').value ||
+                   App.guessGarment(
+                     document.getElementById('fieldCategory').selectedOptions[0]?.text,
+                     name) || null,
       _updatedBy:  null,
     };
 
