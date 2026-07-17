@@ -2796,10 +2796,16 @@ class App {
       const qty = i.quantity || 0;
       byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + qty;
       const k = i.ownerId || '__none__';
-      if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0 };
+      if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0, share: 0 };
       byOwner[k].qty += qty;
       byOwner[k].val += (i.total || 0);
       byOwner[k].cnt++;
+      // Деньги владельца: тело (закуп + доставка) + его % от чистой прибыли
+      if (i.ownerId) {
+        const pct  = this.owners.find(o => o.id === i.ownerId)?.profitPercent || 0;
+        const cost = (i.buyPrice || 0) + (i.deliveryCost || 0);
+        byOwner[k].share += qty * (cost + ((i.price || 0) - cost) * pct / 100);
+      }
       const catName = this.categories.find(c => c.id === i.categoryId)?.name;
       if (catName) {
         if (!byType[catName]) byType[catName] = { qty: 0, val: 0 };
@@ -2808,8 +2814,11 @@ class App {
       }
     });
 
+    /* У владельца показываем его деньги (тело + % прибыли); «Без владельца» —
+       стоимость товаров компании. Пользователям без закупа — как раньше. */
+    const ownerDisp = (oid, v) => (oid !== '__none__' && !hideCosts) ? v.share : v.val;
     const maxSt  = Math.max(...Object.values(byStatus), 1);
-    const maxOwV = Math.max(...Object.values(byOwner).map(v => v.val), 1);
+    const maxOwV = Math.max(...Object.entries(byOwner).map(([k, v]) => ownerDisp(k, v)), 1);
     const maxTyQ = Math.max(...Object.values(byType).map(v => v.qty), 1);
 
     const noData = '<span style="font-size:14px;color:var(--hint)">Нет данных</span>';
@@ -2824,22 +2833,23 @@ class App {
     }).join('') || noData;
 
     const ownerRows = Object.entries(byOwner)
-      .sort((a, b) => b[1].val - a[1].val)
+      .sort((a, b) => ownerDisp(b[0], b[1]) - ownerDisp(a[0], a[1]))
       .map(([oid, v]) => {
         const o = this.owners.find(o => o.id === oid);
         const n = o ? o.name : 'Без владельца';
         const c = o ? o.color : '#6b7280';
-        const pct = o?.profitPercent || 0;
+        const pct  = o?.profitPercent || 0;
+        const disp = ownerDisp(oid, v);
         return `<div class="owner-stat-row">
           <div class="owner-stat-avatar" style="background:${c}">${n[0].toUpperCase()}</div>
           <div class="owner-stat-info">
             <div class="owner-stat-name">${this.esc(n)}${pct ? ` <em style="font-style:normal;font-size:11px;color:var(--text3)">· ${pct}%</em>` : ''}</div>
             <div class="bar-track" style="margin-top:5px">
-              <div class="bar-fill" data-w="${Math.round(v.val/maxOwV*100)}" style="width:0;background:${c}"></div>
+              <div class="bar-fill" data-w="${Math.round(disp/maxOwV*100)}" style="width:0;background:${c}"></div>
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:14px;font-weight:700;color:var(--text)">${fmtMoney(v.val)}</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${fmtMoney(Math.round(disp))}</div>
             <div style="font-size:11px;color:var(--hint)">${v.qty} шт · ${v.cnt} поз</div>
           </div>
         </div>`;
