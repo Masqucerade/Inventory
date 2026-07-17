@@ -2801,11 +2801,16 @@ class App {
       byOwner[k].qty += qty;
       byOwner[k].val += (i.total || 0);
       byOwner[k].cnt++;
-      // Деньги владельца: тело (закуп + доставка) + его % от чистой прибыли
+      // Деньги владельца: тело (закуп + доставка) + его % от чистой прибыли.
+      // Вещи бренда Monarc — целиком владельцу, без дележа.
       if (i.ownerId) {
-        const pct  = this.owners.find(o => o.id === i.ownerId)?.profitPercent || 0;
-        const cost = (i.buyPrice || 0) + (i.deliveryCost || 0);
-        byOwner[k].share += qty * (cost + ((i.price || 0) - cost) * pct / 100);
+        if (i.isMonarc) {
+          byOwner[k].share += (i.total || 0);
+        } else {
+          const pct  = this.owners.find(o => o.id === i.ownerId)?.profitPercent || 0;
+          const cost = (i.buyPrice || 0) + (i.deliveryCost || 0);
+          byOwner[k].share += qty * (cost + ((i.price || 0) - cost) * pct / 100);
+        }
       }
       const catName = this.categories.find(c => c.id === i.categoryId)?.name;
       if (catName) {
