@@ -2857,7 +2857,8 @@ class App {
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:14px;font-weight:700;color:var(--text)">${fmtMoney(Math.round(disp))}</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${fmtMoney(Math.round(disp))}${o && !hideCosts && Math.round(disp) !== Math.round(v.val)
+              ? ` <span style="font-weight:500;font-size:12px;color:var(--text3)">/ ${fmtMoney(v.val)}</span>` : ''}</div>
             <div style="font-size:11px;color:var(--hint)">${v.qty} шт · ${v.cnt} поз</div>
           </div>
         </div>`;
