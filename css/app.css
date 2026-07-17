@@ -3684,23 +3684,43 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   text-transform: uppercase; color: var(--text3); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; max-width: 55%;
 }
-/* Плитки мини-витрины — заполняют окно на всю ширину; лишние уходят за край */
-.sb-tiles { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(120px, 1fr); gap: 8px; overflow: hidden; }
-@media (max-width: 600px) { .sb-tiles { grid-auto-columns: minmax(92px, 1fr) ; } }
-.sb-tile { min-width: 0; }
-.sb-tile-img {
-  position: relative; aspect-ratio: 3 / 4; border-radius: 9px; overflow: hidden;
-  background: var(--fill2); border: 1px solid var(--sep2);
+/* Мини-версия главной: сплит Monarc | Type Clothes с медальоном на шве */
+.sb-split {
+  position: relative; display: flex;
+  border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--sep2);
+  min-height: clamp(140px, 22vh, 200px);
 }
-.sb-tile-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.sb-tile-cap {
-  margin-top: 6px; font-size: 8.5px; font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--text2);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.sb-half {
+  flex: 1 1 50%; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 7px; padding: 18px 12px; text-align: center;
 }
-.sb-tile-price { margin-top: 1px; font-size: 9px; font-weight: 600; color: var(--text); }
-.sb-tile-empty .sb-tile-img { background: repeating-linear-gradient(135deg, var(--fill2) 0 8px, transparent 8px 16px); border-style: dashed; }
-.sb-tile-empty .sb-tile-cap { width: 60%; height: 7px; border-radius: 4px; background: var(--fill2); }
+.sb-kick {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 8px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase;
+}
+.sb-cta { font-size: 9px; letter-spacing: .1em; opacity: .65; }
+.sb-half-m { background: radial-gradient(120% 90% at 50% 0%, #17130c 0%, #0b0a09 70%); color: #d9c69a; }
+.sb-half-m .sb-kick { color: rgba(212,180,131,.65); }
+.sb-half-m b {
+  font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 500;
+  font-size: clamp(22px, 3.2vw, 34px); letter-spacing: .03em; color: #efd9ae;
+}
+.sb-half-t { background: linear-gradient(180deg, #f4f2ed, #e9e7e1); color: #17150f; }
+.sb-half-t .sb-kick { color: rgba(23,21,15,.45); }
+.sb-half-t b {
+  font-weight: 800; text-transform: uppercase;
+  font-size: clamp(15px, 2.2vw, 24px); letter-spacing: .14em;
+}
+.sb-seal {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(90deg, #0b0a09 50%, #f2f0eb 50%);
+  border: 1px solid rgba(150,135,105,.5);
+  font-family: Georgia, serif; font-style: italic; font-size: 17px; color: #d4b483;
+}
 .sb-tile-empty .sb-tile-price { width: 35%; height: 7px; margin-top: 4px; border-radius: 4px; background: var(--fill2); }
 
 .sb-marquee {

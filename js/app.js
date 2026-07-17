@@ -4507,16 +4507,21 @@ class App {
     const views  = onSite.reduce((s, i) => s + (i.views || 0), 0);
     const plur = (n, f) => { const m = n % 100, d = n % 10; if (m > 10 && m < 20) return f[2]; if (d > 1 && d < 5) return f[1]; if (d === 1) return f[0]; return f[2]; };
 
-    /* ── Hero: живое окно браузера с мини-витриной ── */
-    const cover = it => it && (it.thumbs?.[0] || it.photos?.[0] || it.photo);
-    const tiles = onSite.filter(cover).slice(0, 8);
-    while (tiles.length < 8) tiles.push(null);   // пустые слоты — штрихованные заглушки
-    const tilesHtml = tiles.map(it => it
-      ? `<div class="sb-tile"><div class="sb-tile-img"><img src="${cover(it)}" alt=""></div>
-           <div class="sb-tile-cap">${this.esc((it.name || '').toUpperCase())}</div>
-           <div class="sb-tile-price">${it.price ? fmtMoney(it.price) : '—'}</div></div>`
-      : `<div class="sb-tile sb-tile-empty"><div class="sb-tile-img"></div><div class="sb-tile-cap"></div><div class="sb-tile-price"></div></div>`
-    ).join('');
+    /* ── Hero: окно браузера с мини-версией главной (сплит Monarc | Type) ── */
+    const tilesHtml = `
+      <div class="sb-split">
+        <div class="sb-half sb-half-m">
+          <span class="sb-kick">Оригинал</span>
+          <b>Monarc</b>
+          <span class="sb-cta">Смотреть коллекцию →</span>
+        </div>
+        <div class="sb-half sb-half-t">
+          <span class="sb-kick">Люкс-качество</span>
+          <b>Type&nbsp;Clothes</b>
+          <span class="sb-cta">Смотреть каталог →</span>
+        </div>
+        <i class="sb-seal">M</i>
+      </div>`;
 
     const mq = blocks.find(b => b.enabled && (b.type === 'marquee' || b.type === 'promo') && b.text);
     const mqText = (mq?.text || 'MASQUCERADE — 1 OF 1 — ТОЛЬКО ОРИГИНАЛ — 2026').replace(/\s*\n\s*/g, ' ').trim();
@@ -4540,7 +4545,7 @@ class App {
               <span class="sb-brand">Masqucerade<i>&nbsp;INC.</i></span>
               <span class="sb-nav">Мужское · Женское · Аксессуары</span>
             </div>
-            <div class="sb-tiles">${tilesHtml}</div>
+            ${tilesHtml}
             <div class="sb-marquee"><span>${this.esc(mqLine)}</span></div>
           </div>
           <div class="sb-status">
