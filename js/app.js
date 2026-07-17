@@ -2858,6 +2858,11 @@ class App {
     const [tasks, notes, quick, owners] = await Promise.all([
       this.db.getTasks(), this.db.getProjectNotes(), this.db.getQuickItems(), this.db.getOwners(),
     ]);
+    // Legacy: раньше задачи назначались на владельцев вещей — учитываем совпадение по имени
+    const myLegacyOwnerId = owners.find(o =>
+      (o.name || '').toLowerCase() === (this.currentUser?.name || '').toLowerCase())?.id || null;
+    const isMineTask = t => t.assigneeId &&
+      (t.assigneeId === this.currentUser?.id || t.assigneeId === myLegacyOwnerId);
 
     const total  = tasks.length;
     const done   = tasks.filter(t => t.done).length;
@@ -2914,8 +2919,7 @@ class App {
       const name  = this.currentUser?.name || '';
       const h     = new Date().getHours();
       const greet = h >= 5 && h < 12 ? 'Доброе утро' : h >= 12 && h < 17 ? 'Добрый день' : h >= 17 && h < 23 ? 'Добрый вечер' : 'Доброй ночи';
-      const myOwnerId = owners.find(o => (o.name || '').toLowerCase() === name.toLowerCase())?.id || null;
-      const mine = myOwnerId ? tasks.filter(t => !t.done && t.assigneeId === myOwnerId).length : 0;
+      const mine = tasks.filter(t => !t.done && isMineTask(t)).length;
 
       if (hero) hero.innerHTML = `
         ${phoneHtml}
@@ -2981,7 +2985,9 @@ class App {
   async renderProjectTasks() {
     const el     = document.getElementById('projectContent');
     if (!el) return;
-    const [tasks, owners] = await Promise.all([this.db.getTasks(), this.db.getOwners()]);
+    const [tasks, team, owners] = await Promise.all([
+      this.db.getTasks(), this.db.getTeam(), this.db.getOwners(),
+    ]);
 
     if (!tasks.length) {
       el.innerHTML = `<div class="faq-empty">
@@ -2996,13 +3002,17 @@ class App {
     const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
     const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
 
-    const ownerName = id => owners.find(o => o.id === id)?.name || '';
+    /* Исполнитель — сотрудник (user); старые задачи могли быть назначены
+       на владельца вещей — имя ищем и там (legacy) */
+    const ownerName = id =>
+      team.find(u => u.id === id)?.name || owners.find(o => o.id === id)?.name || '';
 
     /* «Мои» задачи сотрудника — наверх и с меткой */
     const isRoot    = this.currentUser?.role === 'root';
     const myName    = (this.currentUser?.name || '').toLowerCase();
-    const myOwnerId = !isRoot ? (owners.find(o => (o.name || '').toLowerCase() === myName)?.id || null) : null;
-    const isMine    = t => myOwnerId && t.assigneeId === myOwnerId;
+    const myLegacy  = owners.find(o => (o.name || '').toLowerCase() === myName)?.id || null;
+    const isMine    = t => !!t.assigneeId &&
+      (t.assigneeId === this.currentUser?.id || t.assigneeId === myLegacy);
 
     const kindOf   = t => t.kind || 'duty';
     const personal = tasks.filter(t => t.personal && !t.done);
@@ -3010,7 +3020,7 @@ class App {
     const byKind   = k => tasks.filter(t => !t.personal && !t.done && kindOf(t) === k);
     const doneBy   = k => tasks.filter(t => !t.personal &&  t.done && kindOf(t) === k);
     const lists = { urgent: byKind('urgent'), duty: byKind('duty'), goal: byKind('goal') };
-    if (myOwnerId) Object.values(lists).forEach(l => l.sort((a, b) => isMine(b) - isMine(a)));
+    if (!isRoot) Object.values(lists).forEach(l => l.sort((a, b) => isMine(b) - isMine(a)));
 
     const svgLock = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
 
@@ -3037,19 +3047,21 @@ class App {
       </div>`;
     }).join('');
 
-    /* Мини-дашборд участников: каждому можно сразу выдать задачу */
-    const isRootUser = this.currentUser?.role === 'root';
-    const teamDash = owners.length ? `<div class="team-dash">
-      ${owners.map(o => {
-        const my  = tasks.filter(t => !t.done && t.assigneeId === o.id);
+    /* Мини-дашборд сотрудников: каждому можно сразу выдать задачу */
+    const staff = team.filter(u => u.role !== 'root');
+    const teamDash = staff.length ? `<div class="team-dash">
+      ${staff.map(u => {
+        // Legacy: задачи, назначенные на владельца с тем же именем, тоже его
+        const legacy = owners.find(o => (o.name || '').toLowerCase() === (u.name || '').toLowerCase())?.id || null;
+        const my  = tasks.filter(t => !t.done && (t.assigneeId === u.id || (legacy && t.assigneeId === legacy)));
         const urg = my.filter(t => (t.kind || 'duty') === 'urgent').length;
         return `<div class="td-card">
-          <i class="td-av">${this.esc((o.name || '?').trim()[0].toUpperCase())}</i>
+          <i class="td-av">${this.esc((u.name || '?').trim()[0].toUpperCase())}</i>
           <div class="td-info">
-            <b>${this.esc(o.name)}</b>
+            <b>${this.esc(u.name)}</b>
             <span>${my.length ? `${urg ? `срочных: ${urg} · ` : ''}активных: ${my.length}` : 'задач нет'}</span>
           </div>
-          ${isRootUser ? `<button class="td-add" data-owner-id="${o.id}" title="Выдать задачу">＋</button>` : ''}
+          ${isRoot ? `<button class="td-add" data-owner-id="${u.id}" title="Выдать задачу">＋</button>` : ''}
         </div>`;
       }).join('')}
     </div>` : '';
@@ -3143,11 +3155,18 @@ class App {
     this._setTaskKind(task?.kind || 'duty');
     this._setTaskPersonal(!!task?.personal);
     this._setTaskPhoto(task?.photo || null);
-    const sel    = document.getElementById('taskAssignee');
-    const owners = await this.db.getOwners();
-    sel.innerHTML = `<option value="">— Не назначен —</option>` +
-      owners.map(o => `<option value="${o.id}"${task?.assigneeId === o.id ? ' selected' : ''}>${this.esc(o.name)}</option>`).join('');
-    if (!task && presetAssigneeId) sel.value = presetAssigneeId;   // «+» из дашборда участника
+    /* Ответственный — сотрудник (пользователь панели), не владелец вещей */
+    const sel  = document.getElementById('taskAssignee');
+    const team = await this.db.getTeam();
+    let opts = `<option value="">— Не назначен —</option>` +
+      team.map(u => `<option value="${u.id}"${task?.assigneeId === u.id ? ' selected' : ''}>${this.esc(u.name)}</option>`).join('');
+    /* Legacy: задача назначена на владельца вещей — показываем его, чтобы не потерять */
+    if (task?.assigneeId && !team.some(u => u.id === task.assigneeId)) {
+      const legacyName = (await this.db.getOwners()).find(o => o.id === task.assigneeId)?.name;
+      if (legacyName) opts += `<option value="${task.assigneeId}" selected>${this.esc(legacyName)}</option>`;
+    }
+    sel.innerHTML = opts;
+    if (!task && presetAssigneeId) sel.value = presetAssigneeId;   // «+» из дашборда сотрудника
 
     const isRoot = this.currentUser?.role === 'root';
     document.getElementById('taskVisGroup').style.display = (isRoot && !this._taskPersonal) ? '' : 'none';

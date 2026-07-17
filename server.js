@@ -450,6 +450,11 @@ app.get('/api/me', (req, res) => {
   res.json({ id: u.id, name: u.name, login: u.login, role: u.role, access: u.access || null, hideCosts: !!u.hideCosts });
 });
 
+// Сотрудники (только id/имя/роль) — доступно всем авторизованным; для задач проекта
+app.get('/api/team', (req, res) => {
+  res.json((load().users || []).map(u => ({ id: u.id, name: u.name || u.login, role: u.role })));
+});
+
 // Пользователь меняет свой собственный пароль
 app.post('/api/me/password', (req, res) => {
   const password = String(req.body.password || '');

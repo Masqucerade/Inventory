@@ -65,6 +65,11 @@ class InventoryDB {
     try { const r = await fetch('/api/users'); return r.ok ? r.json() : []; }
     catch { return []; }
   }
+  /* Сотрудники (id/имя/роль) — доступно всем авторизованным, для задач проекта */
+  async getTeam() {
+    try { const r = await fetch('/api/team'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
   async addUser(u) {
     const r = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(u) });
     const d = await r.json().catch(() => ({}));
