@@ -2858,6 +2858,7 @@ class App {
     const saleOwn  = s => s.ownerId    !== undefined ? s.ownerId    : (itemById[s.itemId]?.ownerId    ?? null);
     const group = (keyFn, nameFn, pctFn = null) => {
       const m = {};
+      const isOwnerGroup = !!pctFn;
       sales.forEach(s => {
         const k = keyFn(s) || '__none__';
         if (!m[k]) {
@@ -2867,8 +2868,11 @@ class App {
         m[k].cnt     += Math.max(1, parseInt(s.qty) || 1);
         m[k].revenue += s.salePrice || 0;
         m[k].profit  += s.netProfit || 0;
-        // Доля владельца — его % от чистой прибыли
-        if (m[k].pct) m[k].share += (s.netProfit || 0) * m[k].pct / 100;
+        // Владельцу вещи: возврат вложений (закуп + доставка) сразу
+        // + его % от чистой прибыли
+        if (isOwnerGroup && k !== '__none__')
+          m[k].share += (s.buyPrice || 0) + (s.deliveryCost || 0) +
+                        (s.netProfit || 0) * m[k].pct / 100;
       });
       return Object.values(m).sort((a, b) => b.revenue - a.revenue);
     };
@@ -2882,7 +2886,7 @@ class App {
       return list.map(v => `<div class="bar-row">
         <span class="bar-label">${this.esc(v.name)}${v.pct ? ` <em style="font-style:normal;color:var(--text3);font-size:11px">· ${v.pct}%</em>` : ''}</span>
         <div class="bar-track"><div class="bar-fill" data-w="${Math.round(v.revenue/maxR*100)}" style="width:0;background:var(--accent2)"></div></div>
-        <span class="bar-count">${v.cnt} шт · ${fmtMoney(v.revenue)}${v.profit ? ` · +${fmtMoney(v.profit)}` : ''}${v.share ? ` · доля ${fmtMoney(Math.round(v.share))}` : ''}</span>
+        <span class="bar-count">${v.cnt} шт · ${fmtMoney(v.revenue)}${v.profit ? ` · +${fmtMoney(v.profit)}` : ''}${v.share ? ` · владельцу ${fmtMoney(Math.round(v.share))}` : ''}</span>
       </div>`).join('');
     };
     // Сводная доля всех участников — видно, сколько причитается команде
@@ -2926,7 +2930,7 @@ class App {
         <div class="section-title">Продажи · по владельцам</div>
         <div class="stats-section">${salesRows(salesByOwn)}
           ${totalShare ? `<div class="bar-row" style="border-top:1px solid var(--sep2);padding-top:10px;margin-top:6px">
-            <span class="bar-label" style="color:var(--text2)">Доля участников итого</span>
+            <span class="bar-label" style="color:var(--text2)">Владельцам итого (вложения + %)</span>
             <div class="bar-track" style="visibility:hidden"></div>
             <span class="bar-count" style="font-weight:700;color:var(--text)">${fmtMoney(Math.round(totalShare))}</span>
           </div>` : ''}
