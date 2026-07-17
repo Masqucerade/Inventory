@@ -724,3 +724,103 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
     width: min(1020px, 100%); max-height: min(760px, 92dvh);
   }
 }
+
+/* ─── Карточка-ссылка и «Продано» ─── */
+.good-card { display: block; color: inherit; text-decoration: none; }
+.good-card.sold .good-photo img { filter: grayscale(1); opacity: .82; }
+.good-card.sold .good-price { color: var(--text3); }
+.good-tag.sold { background: transparent; }
+body.theme-type .good-tag.sold { background: #e7e5e0; color: #9b968a; }
+
+/* ─── Панель фильтров: сортировка и цена ─── */
+.sort-row { margin-top: 10px; align-items: center; }
+.price-range { display: inline-flex; align-items: center; gap: 7px; margin-left: 6px; }
+.price-range i { font-style: normal; color: var(--text3); }
+.price-range input {
+  width: 96px; padding: 7px 12px; border-radius: 99px;
+  border: 1px solid var(--line2); background: transparent; color: var(--text);
+  font-family: var(--font-b); font-size: 12.5px; outline: none;
+  transition: border-color .2s;
+  -moz-appearance: textfield;
+}
+.price-range input::-webkit-outer-spin-button,
+.price-range input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.price-range input:focus { border-color: var(--text); }
+.price-range input::placeholder { color: var(--text3); }
+
+/* ─── Страница товара /product/:id ─── */
+.product-wrap {
+  position: relative; z-index: 2;
+  max-width: 1180px; margin: 0 auto;
+  padding: clamp(26px, 5vh, 50px) clamp(18px, 4vw, 44px) 70px;
+}
+.product-grid {
+  display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: clamp(28px, 4vw, 56px); align-items: start;
+}
+.product-gallery { position: sticky; top: calc(var(--header-h, 56px) + 22px); }
+.p-photo-main {
+  position: relative; overflow: hidden; cursor: zoom-in;
+  border-radius: var(--radius); border: 1px solid var(--line);
+  background: var(--surface); aspect-ratio: 4 / 5;
+  display: flex; align-items: center; justify-content: center;
+}
+.p-photo-main img { width: 100%; height: 100%; object-fit: cover; }
+.p-photo-main .no-photo { color: var(--text3); font-family: var(--font-d); font-style: italic; font-size: 17px; }
+.p-photo-main.is-sold img { filter: grayscale(1); opacity: .85; }
+.sold-overlay {
+  position: absolute; left: 14px; bottom: 14px; z-index: 1;
+  padding: 7px 16px; border-radius: 99px;
+  background: rgba(10,9,8,.78); color: #f5f3ee;
+  font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+  backdrop-filter: blur(6px);
+}
+.p-thumbs { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.p-thumb {
+  width: 62px; height: 62px; border-radius: 10px; overflow: hidden; padding: 0;
+  border: 1.5px solid var(--line); background: var(--surface); cursor: pointer;
+  opacity: .65; transition: opacity .2s, border-color .2s;
+}
+.p-thumb img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.p-thumb.active { opacity: 1; border-color: var(--gold-hi); }
+.product-info { min-width: 0; }
+.p-name {
+  font-family: var(--font-d); font-weight: 500; line-height: 1.12;
+  font-size: clamp(28px, 4vw, 42px); letter-spacing: .02em; margin: 8px 0 10px;
+}
+.p-sold-tag {
+  display: inline-block; margin: 4px 0 6px; padding: 7px 16px; border-radius: 99px;
+  border: 1px solid var(--line2); color: var(--text2);
+  font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+}
+.p-sold-note { margin-top: 16px; color: var(--text2); font-size: 14px; line-height: 1.6; }
+.p-note { margin-top: 12px; color: var(--text3); font-size: 11.5px; letter-spacing: .08em; }
+.tg-btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line2); }
+.tg-btn.ghost:hover { border-color: var(--text); }
+.related-sec { margin-top: clamp(50px, 8vh, 90px); }
+.related-sec h2 {
+  font-family: var(--font-d); font-weight: 500;
+  font-size: clamp(24px, 3.6vw, 34px); letter-spacing: .03em; margin-bottom: 22px;
+  padding-top: 36px; border-top: 1px solid var(--line);
+}
+
+/* ─── Полноэкранный просмотр фото ─── */
+.photo-zoom {
+  position: fixed; inset: 0; z-index: 90; cursor: zoom-out;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(5,4,3,.92); backdrop-filter: blur(10px);
+  padding: 4vh 4vw; animation: zoom-in .2s ease;
+}
+.photo-zoom[hidden] { display: none; }
+.photo-zoom img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+@keyframes zoom-in { from { opacity: 0; } }
+
+@media (max-width: 760px) {
+  .product-grid { grid-template-columns: 1fr; gap: 22px; }
+  .product-gallery { position: static; }
+  .sort-row { flex-wrap: wrap; }
+  .price-range { margin-left: 0; }
+}
+@media (min-width: 1560px) {
+  .product-wrap { max-width: 1320px; }
+}

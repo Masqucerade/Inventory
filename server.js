@@ -15,6 +15,7 @@ const sendHtml = (res, file) =>
 // HTML витрины читаем один раз и подставляем <!--META--> на каждый запрос.
 const SITE_INDEX   = fs.readFileSync(path.join(__dirname, 'site/index.html'),   'utf8');
 const SITE_CATALOG = fs.readFileSync(path.join(__dirname, 'site/catalog.html'), 'utf8');
+const SITE_PRODUCT = fs.readFileSync(path.join(__dirname, 'site/product.html'), 'utf8');
 const OG_FALLBACK  = '/site/og-cover.png';
 
 const escAttr = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
@@ -57,21 +58,26 @@ app.get(['/monarc', '/type'], (req, res) => {
     : 'Люкс-качество на каждый день — повседневная одежда в безупречном исполнении.';
   let image = o + OG_FALLBACK, url = `${o}/${section}`, type = 'website';
 
-  // Прямая ссылка на товар /type?item=<id> → превью конкретной вещи с её фото.
-  const id = req.query.item;
-  if (id) {
-    const it = (load().items || []).find(i => i.id === id && i.showOnSite && i.orderStatus !== 'done');
-    if (it) {
-      const photos = (it.photos && it.photos.length) ? it.photos : (it.photo ? [it.photo] : []);
-      const price  = it.price != null ? new Intl.NumberFormat('ru-RU').format(it.price) + ' ₽' : '';
-      title = `${it.name} — Masqucerade INC.`;
-      description = it.description || [price, secTitle].filter(Boolean).join(' · ');
-      if (photos[0]) image = o + photos[0];
-      url  = `${o}/${section}?item=${encodeURIComponent(id)}`;
-      type = 'product';
-    }
-  }
+  // Старые прямые ссылки /type?item=<id> → постоянная страница товара
+  if (req.query.item) return res.redirect(301, `/product/${encodeURIComponent(req.query.item)}`);
+
   res.set('Cache-Control', 'no-cache').send(SITE_CATALOG.replace('<!--META-->', headTags({ title, description, url, image, type })));
+});
+
+// Страница товара — постоянный адрес, og-превью с фото вещи
+app.get('/product/:id', (req, res) => {
+  const o  = originOf(req);
+  const it = (load().items || []).find(i => i.id === req.params.id && i.showOnSite);
+  if (!it) return res.redirect(302, '/');
+  const photos = (it.photos && it.photos.length) ? it.photos : (it.photo ? [it.photo] : []);
+  const price  = it.price != null ? new Intl.NumberFormat('ru-RU').format(it.price) + ' ₽' : '';
+  res.set('Cache-Control', 'no-cache').send(SITE_PRODUCT.replace('<!--META-->', headTags({
+    title:       `${it.name} — Masqucerade INC.`,
+    description: it.description || [price, it.isMonarc ? 'Monarc' : 'Type Clothes'].filter(Boolean).join(' · '),
+    url:   `${o}/product/${encodeURIComponent(it.id)}`,
+    image: photos[0] ? o + photos[0] : o + OG_FALLBACK,
+    type:  'product',
+  })));
 });
 
 app.get('/brands', (req, res) => res.redirect(301, '/monarc'));
@@ -81,8 +87,7 @@ app.get('/sitemap.xml', (req, res) => {
   const o = originOf(req);
   const urls = [`${o}/`, `${o}/monarc`, `${o}/type`];
   for (const it of (load().items || [])) {
-    if (it.showOnSite && it.orderStatus !== 'done')
-      urls.push(`${o}/${it.isMonarc ? 'monarc' : 'type'}?item=${encodeURIComponent(it.id)}`);
+    if (it.showOnSite) urls.push(`${o}/product/${encodeURIComponent(it.id)}`);
   }
   res.type('application/xml').send(
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
@@ -295,29 +300,52 @@ app.post('/api/login', (req, res) => {
 /* ─── ПУБЛИЧНЫЙ API ВИТРИНЫ (без авторизации, только чтение) ───
    Наружу уходят только товары/топики с галочкой showOnSite и только
    публичные поля — никаких закупов, владельцев и служебных данных. */
+// Товар «продан» — всё распродано или объявление завершено; такие уходят в «Архив» витрины
+const isSoldOut = (i) => i.orderStatus === 'done' || (parseInt(i.quantity) || 0) <= 0;
+
+function publicItem(i) {
+  const photos = Array.isArray(i.photos) && i.photos.length ? i.photos : (i.photo ? [i.photo] : []);
+  const thumbs = Array.isArray(i.thumbs) && i.thumbs.length ? i.thumbs : photos;
+  return {
+    id:           i.id,
+    name:         i.name,
+    price:        i.price ?? null,
+    inStock:      i.orderStatus === 'in_stock',
+    sold:         isSoldOut(i),
+    photos,
+    thumbs,
+    sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0).map(s => ({ size: s.size, qty: s.qty })) : null,
+    description:  i.description || '',
+    measurements: i.measurements || '',
+    categoryId:   i.categoryId || null,
+    garment:      i.garment || null,
+    quantity:     i.quantity ?? null,
+    createdAt:    i.createdAt || null,
+    section:      i.isMonarc ? 'monarc' : 'type',
+  };
+}
+
 app.get('/api/public/items', (req, res) => {
   res.set('Cache-Control', 'no-cache');
-  let items = (load().items || []).filter(i => i.showOnSite && i.orderStatus !== 'done');
+  // Проданные тоже отдаём (sold: true) — витрина показывает их в «Архиве»
+  let items = (load().items || []).filter(i => i.showOnSite);
   if (['brands', 'monarc'].includes(req.query.section)) items = items.filter(i => i.isMonarc);
   else if (req.query.section === 'type')                items = items.filter(i => !i.isMonarc);
-  res.json(items.map(i => {
-    const photos = Array.isArray(i.photos) && i.photos.length ? i.photos : (i.photo ? [i.photo] : []);
-    const thumbs = Array.isArray(i.thumbs) && i.thumbs.length ? i.thumbs : photos;
-    return {
-      id:           i.id,
-      name:         i.name,
-      price:        i.price ?? null,
-      inStock:      i.orderStatus === 'in_stock',
-      photos,
-      thumbs,
-      sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0).map(s => ({ size: s.size, qty: s.qty })) : null,
-      description:  i.description || '',
-      measurements: i.measurements || '',
-      categoryId:   i.categoryId || null,
-      garment:      i.garment || null,
-      quantity:     i.quantity ?? null,
-    };
-  }));
+  res.json(items.map(publicItem));
+});
+
+// Один товар для страницы /product/:id + похожие (та же категория, в наличии)
+app.get('/api/public/items/:id', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  const db = load();
+  const it = (db.items || []).find(i => i.id === req.params.id && i.showOnSite);
+  if (!it) return res.status(404).json({ error: 'Not found' });
+  const pool = (db.items || []).filter(i =>
+    i.showOnSite && i.id !== it.id && !isSoldOut(i) && !!i.isMonarc === !!it.isMonarc);
+  // Сначала — та же категория; если там пусто, показываем другие вещи раздела
+  let related = it.categoryId ? pool.filter(i => i.categoryId === it.categoryId) : [];
+  if (!related.length) related = pool;
+  res.json({ item: publicItem(it), related: related.slice(0, 8).map(publicItem) });
 });
 
 app.get('/api/public/categories', (req, res) => {

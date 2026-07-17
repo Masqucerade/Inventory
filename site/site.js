@@ -16,7 +16,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
 const fmtPrice = (p) => p == null || p === '' ? '' :
   new Intl.NumberFormat('ru-RU').format(p) + ' ₽';
 
-let ITEMS = [], CATS = [], activeCat = null, activeGarment = null;
+let ITEMS = [], ARCHIVE = [], CATS = [], activeCat = null, activeGarment = null;
+let activeSort = 'new', priceMin = null, priceMax = null;
 
 // Фиксированные типы одежды
 const GARMENTS = [
@@ -47,14 +48,16 @@ async function boot() {
       fetch(`/api/public/collections?section=${SECTION}`).then(r => r.json()),
       fetch(`/api/public/blocks?section=${SECTION}`).then(r => r.json()),
     ]);
-    ITEMS = items; CATS = cats;
+    // Проданное уходит в «Архив» — в основном каталоге только живые товары
+    ITEMS   = items.filter(i => !i.sold);
+    ARCHIVE = items.filter(i => i.sold);
+    CATS = cats;
     renderStream(blocks, collections);
     renderHeaderNav();
     renderFilters();
     renderGrid();
     updateCatalogChrome();
     renderFaq(faq);
-    openFromUrl();          // если зашли по прямой ссылке на товар — открыть его
   } catch (e) {
     document.getElementById('goodsGrid').innerHTML =
       '<div class="goods-empty">Не удалось загрузить каталог — попробуйте обновить страницу</div>';
@@ -144,6 +147,9 @@ function renderHeaderNav() {
   }).join('');
   // «Другое» — вместо «Под заказ» у Gurbich (остальные товары)
   html += `<a class="hnav${activeCat === '__other__' ? ' active' : ''}" data-cat="__other__" href="#">Другое</a>`;
+  // «Архив» — проданные вещи (как у Gurbich)
+  if (ARCHIVE.length)
+    html += `<a class="hnav${activeCat === '__archive__' ? ' active' : ''}" data-cat="__archive__" href="#">Архив</a>`;
   nav.innerHTML = html;
   bindMegaHover(nav);
 }
@@ -213,21 +219,51 @@ document.addEventListener('click', (e) => {
     document.querySelectorAll('.hnav-group.open').forEach(g => g.classList.remove('open'));
 });
 
-// Старые фильтры (тип одежды) — под кнопкой «Фильтры», уточняют внутри раздела
+// Фильтры под кнопкой «Фильтры»: тип одежды, сортировка и диапазон цены
 let _filtersOpen = false;
+const filtersActive = () =>
+  !!activeGarment || activeSort !== 'new' || priceMin != null || priceMax != null;
+
 function renderFilters() {
   const el  = document.getElementById('catChips');
   const btn = document.getElementById('filtersBtn');
   const usedG = new Set(ITEMS.map(i => i.garment).filter(Boolean));
   const gShown = GARMENTS.filter(g => usedG.has(g.id));
-  if (btn) { btn.hidden = !gShown.length; btn.classList.toggle('on', !!activeGarment); }
+  if (btn) { btn.hidden = !ITEMS.length; btn.classList.toggle('on', filtersActive()); }
   if (!el) return;
-  if (!gShown.length) { el.hidden = true; el.innerHTML = ''; _filtersOpen = false; return; }
-  el.innerHTML = `<div class="cat-row garment-row">` +
-    `<button class="cat-chip${!activeGarment ? ' active' : ''}" data-garment="">Все</button>` +
-    gShown.map(g => `<button class="cat-chip${activeGarment === g.id ? ' active' : ''}" data-garment="${esc(g.id)}">${esc(g.name)}</button>`).join('') +
-    `</div>`;
+  if (!ITEMS.length) { el.hidden = true; el.innerHTML = ''; _filtersOpen = false; return; }
+
+  const garmentRow = gShown.length
+    ? `<div class="cat-row garment-row">` +
+      `<button class="cat-chip${!activeGarment ? ' active' : ''}" data-garment="">Все</button>` +
+      gShown.map(g => `<button class="cat-chip${activeGarment === g.id ? ' active' : ''}" data-garment="${esc(g.id)}">${esc(g.name)}</button>`).join('') +
+      `</div>`
+    : '';
+  const SORTS = [['new', 'Сначала новые'], ['asc', 'Дешевле'], ['desc', 'Дороже']];
+  const sortRow = `<div class="cat-row sort-row">` +
+    SORTS.map(([v, t]) => `<button class="cat-chip${activeSort === v ? ' active' : ''}" data-sort="${v}">${t}</button>`).join('') +
+    `<span class="price-range">
+      <input type="number" id="priceMin" inputmode="numeric" min="0" placeholder="Цена от" value="${priceMin ?? ''}">
+      <i>—</i>
+      <input type="number" id="priceMax" inputmode="numeric" min="0" placeholder="до ₽" value="${priceMax ?? ''}">
+    </span></div>`;
+
+  el.innerHTML = garmentRow + sortRow;
   el.hidden = !_filtersOpen;
+
+  // Поля цены: применяем с небольшой задержкой, не перерисовывая панель
+  let t;
+  const applyPrice = () => {
+    const mn = document.getElementById('priceMin').value;
+    const mx = document.getElementById('priceMax').value;
+    priceMin = mn === '' ? null : Math.max(0, +mn);
+    priceMax = mx === '' ? null : Math.max(0, +mx);
+    if (btn) btn.classList.toggle('on', filtersActive());
+    renderGrid();
+    updateCatalogChrome();
+  };
+  ['priceMin', 'priceMax'].forEach(id =>
+    document.getElementById(id).addEventListener('input', () => { clearTimeout(t); t = setTimeout(applyPrice, 350); }));
 }
 
 const _filtersBtn = document.getElementById('filtersBtn');
@@ -241,8 +277,10 @@ if (_filtersBtn) _filtersBtn.addEventListener('click', () => {
 const _catChips = document.getElementById('catChips');
 if (_catChips) _catChips.addEventListener('click', (e) => {
   const chip = e.target.closest('.cat-chip');
-  if (!chip || chip.dataset.garment === undefined) return;
-  activeGarment = chip.dataset.garment || null;   // уточняет внутри активного раздела
+  if (!chip) return;
+  if (chip.dataset.sort !== undefined)         activeSort = chip.dataset.sort;
+  else if (chip.dataset.garment !== undefined) activeGarment = chip.dataset.garment || null;   // уточняет внутри раздела
+  else return;
   renderFilters();
   renderGrid();
   updateCatalogChrome();
@@ -252,14 +290,15 @@ if (_catChips) _catChips.addEventListener('click', (e) => {
 // При активном фильтре показываем только товары категории, пряча промо-поток
 let _streamHasContent = false;
 function updateCatalogChrome() {
-  const filtering = !!activeCat || !!activeGarment;
+  const filtering = !!activeCat || !!activeGarment || priceMin != null || priceMax != null;
   // inline-стиль, т.к. #siteBlocks:not(:empty){display:flex} перебивает [hidden]
   document.getElementById('siteBlocks').style.display = filtering ? 'none' : '';
   const gh = document.getElementById('gridHeading');
   if (filtering) {
     const parts = [];
     if (activeGarment) parts.push((GARMENTS.find(g => g.id === activeGarment) || {}).name);
-    if (activeCat === '__other__') parts.push('Другое');
+    if (activeCat === '__archive__') parts.push('Архив');
+    else if (activeCat === '__other__') parts.push('Другое');
     else if (activeCat && activeCat.startsWith('__sec-')) {
       const s = HDR_SECTIONS.find(x => `__sec-${x.id}__` === activeCat);
       parts.push(s ? s.label : 'Товары');
@@ -287,9 +326,13 @@ function sizesLabel(sizes) {
 
 function cardHTML(i) {
   // Полное фото (≤900px) — чёткое даже на retina; браузер лениво подгружает.
+  // Карточка — обычная ссылка на страницу товара /product/:id.
   const cover = (i.photos && i.photos[0]) || (i.thumbs && i.thumbs[0]) || null;
+  const tag = i.sold
+    ? '<span class="good-tag sold">Продано</span>'
+    : `<span class="good-tag ${i.inStock ? 'in-stock' : 'preorder'}">${i.inStock ? 'В наличии' : 'Под заказ'}</span>`;
   return `
-    <article class="good-card" data-id="${esc(i.id)}">
+    <a class="good-card${i.sold ? ' sold' : ''}" href="/product/${encodeURIComponent(i.id)}">
       <div class="good-photo">
         ${cover ? `<img src="${esc(cover)}" alt="${esc(i.name)}" loading="lazy" draggable="false">`
                 : '<span class="no-photo">Masqucerade</span>'}
@@ -300,15 +343,16 @@ function cardHTML(i) {
           <span class="good-price">${fmtPrice(i.price)}</span>
           <span class="good-sizes">${esc(sizesLabel(i.sizes))}</span>
         </div>
-        <span class="good-tag ${i.inStock ? 'in-stock' : 'preorder'}">${i.inStock ? 'В наличии' : 'Под заказ'}</span>
+        ${tag}
       </div>
-    </article>`;
+    </a>`;
 }
 
 function renderGrid() {
   const el = document.getElementById('goodsGrid');
   let items;
-  if (activeCat === '__other__') {
+  if (activeCat === '__archive__') items = ARCHIVE;                                    // проданные вещи
+  else if (activeCat === '__other__') {
     // «Другое» — товары вне разделов Мужское/Женское/Аксессуары
     const inSec = new Set();
     HDR_SECTIONS.map(sectionCat).filter(Boolean).forEach(c => catSubtree(c.id).forEach(id => inSec.add(id)));
@@ -318,6 +362,15 @@ function renderGrid() {
   else if (activeCat) { const ids = catSubtree(activeCat); items = ITEMS.filter(i => ids.has(i.categoryId)); }
   else items = ITEMS;
   if (activeGarment) items = items.filter(i => i.garment === activeGarment);
+
+  // Диапазон цены и сортировка (из панели «Фильтры»)
+  if (priceMin != null) items = items.filter(i => i.price != null && i.price >= priceMin);
+  if (priceMax != null) items = items.filter(i => i.price != null && i.price <= priceMax);
+  items = [...items];
+  if (activeSort === 'asc')       items.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+  else if (activeSort === 'desc') items.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
+  else items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
   if (!items.length) {
     el.innerHTML = '<div class="goods-empty">Пока пусто — загляните позже</div>';
     return;
@@ -484,96 +537,16 @@ function renderStream(blocks, collections) {
   setTimeout(markCarousels, 400);   // подстраховка: дождаться загрузки фото/шрифтов
 }
 
-/* Клик по карточке товара в потоке (подборки) — та же модалка */
+/* Карточки — обычные ссылки на /product/:id; здесь остаётся только карусель */
 document.getElementById('siteBlocks').addEventListener('click', (e) => {
   // Стрелка-шеврон — прокрутить карусель дальше
   const next = e.target.closest('.carousel-next');
   if (next) {
+    e.preventDefault();
     const grid = next.closest('.collection-carousel')?.querySelector('.collection-grid');
     if (grid) { grid.scrollLeft += Math.round(grid.clientWidth * 0.85); setTimeout(markCarousels, 60); }   // scroll-snap мягко доводит до карточки
-    return;
-  }
-  const card = e.target.closest('.good-card');
-  if (!card) return;
-  const item = ITEMS.find(i => i.id === card.dataset.id);
-  if (item) openModal(item);
-});
-
-/* ─── Модалка товара ─── */
-const modal = document.getElementById('itemModal');
-
-document.getElementById('goodsGrid').addEventListener('click', (e) => {
-  const card = e.target.closest('.good-card');
-  if (!card) return;
-  const item = ITEMS.find(i => i.id === card.dataset.id);
-  if (item) openModal(item);
-});
-
-function openModal(i, push = true) {
-  const cat    = CATS.find(c => c.id === i.categoryId);
-  const photos = i.photos || [];
-  document.getElementById('mPhoto').innerHTML = photos.length
-    ? `<img id="mPhotoMain" src="${esc(photos[0])}" alt="${esc(i.name)}" draggable="false">` +
-      (photos.length > 1
-        ? `<div class="m-thumbs">${photos.map((p, idx) =>
-            `<button class="m-thumb${idx === 0 ? ' active' : ''}" data-src="${esc(p)}"><img src="${esc(p)}" alt="" draggable="false"></button>`
-          ).join('')}</div>`
-        : '')
-    : '<span class="no-photo">Masqucerade</span>';
-  document.getElementById('mCat').textContent   = cat ? cat.name : TITLES[SECTION].title;
-  document.getElementById('mName').textContent  = i.name;
-  document.getElementById('mPrice').textContent = fmtPrice(i.price);
-  document.getElementById('mSizes').innerHTML   = (i.sizes || [])
-    .filter(s => s.size).map(s => `<span class="m-size">${esc(s.size)}</span>`).join('');
-  document.getElementById('mDesc').textContent  = i.description || '';
-
-  /* Замеры и посадка — раскрывающийся блок */
-  const fitEl = document.getElementById('mFit');
-  if (i.measurements) {
-    fitEl.hidden = false;
-    fitEl.classList.remove('open');
-    document.getElementById('mFitBody').textContent = i.measurements;
-  } else {
-    fitEl.hidden = true;
-  }
-  const msg = encodeURIComponent(`Здравствуйте! Интересует «${i.name}» с вашего сайта.`);
-  document.getElementById('mTgBtn').href = `https://t.me/${TG_USERNAME}?text=${msg}`;
-  modal.hidden = false;
-  document.body.style.overflow = 'hidden';
-
-  // Прямая ссылка на товар в адресной строке — можно копировать и слать клиенту.
-  if (push) history.pushState({ item: i.id }, '', `${location.pathname}?item=${encodeURIComponent(i.id)}`);
-}
-
-function closeModal(push = true) {
-  modal.hidden = true;
-  document.body.style.overflow = '';
-  if (push && new URLSearchParams(location.search).get('item'))
-    history.pushState({}, '', location.pathname);
-}
-
-/* Открыть товар по прямой ссылке /type?item=<id> при заходе и по кнопкам назад/вперёд */
-function openFromUrl(push = false) {
-  const id = new URLSearchParams(location.search).get('item');
-  const it = id && ITEMS.find(i => i.id === id);
-  if (it) openModal(it, push); else closeModal(false);
-}
-window.addEventListener('popstate', () => openFromUrl(false));
-modal.addEventListener('click', (e) => {
-  if (e.target.closest('[data-close]')) { closeModal(); return; }
-  /* Переключение фото по миниатюрам */
-  const th = e.target.closest('.m-thumb');
-  if (th) {
-    document.getElementById('mPhotoMain').src = th.dataset.src;
-    document.querySelectorAll('.m-thumb').forEach(t => t.classList.toggle('active', t === th));
-    return;
-  }
-  /* Аккордеон «Замеры и посадка» */
-  if (e.target.closest('#mFitHead')) {
-    document.getElementById('mFit').classList.toggle('open');
   }
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
 
 /* ─── FAQ ─── */
 function faqBody(f) {
