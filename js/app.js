@@ -2796,17 +2796,10 @@ class App {
       const qty = i.quantity || 0;
       byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + qty;
       const k = i.ownerId || '__none__';
-      if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0, share: 0 };
+      if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0 };
       byOwner[k].qty += qty;
       byOwner[k].val += (i.total || 0);
       byOwner[k].cnt++;
-      // Причитается владельцу при продаже всего по выставленным ценам:
-      // возврат вложений (закуп + доставка) + его % от прибыли за штуку
-      if (i.ownerId) {
-        const pct  = this.owners.find(o => o.id === i.ownerId)?.profitPercent || 0;
-        const cost = (i.buyPrice || 0) + (i.deliveryCost || 0);
-        byOwner[k].share += qty * (cost + ((i.price || 0) - cost) * pct / 100);
-      }
       const catName = this.categories.find(c => c.id === i.categoryId)?.name;
       if (catName) {
         if (!byType[catName]) byType[catName] = { qty: 0, val: 0 };
@@ -2848,7 +2841,6 @@ class App {
           <div style="text-align:right;flex-shrink:0">
             <div style="font-size:14px;font-weight:700;color:var(--text)">${fmtMoney(v.val)}</div>
             <div style="font-size:11px;color:var(--hint)">${v.qty} шт · ${v.cnt} поз</div>
-            ${o && v.share && !hideCosts ? `<div style="font-size:11px;color:var(--text2);margin-top:1px">владельцу ~${fmtMoney(Math.round(v.share))}</div>` : ''}
           </div>
         </div>`;
       }).join('') || noData;
@@ -2896,7 +2888,7 @@ class App {
       return list.map(v => `<div class="bar-row">
         <span class="bar-label">${this.esc(v.name)}${v.pct ? ` <em style="font-style:normal;color:var(--text3);font-size:11px">· ${v.pct}%</em>` : ''}</span>
         <div class="bar-track"><div class="bar-fill" data-w="${Math.round(v.revenue/maxR*100)}" style="width:0;background:var(--accent2)"></div></div>
-        <span class="bar-count">${v.cnt} шт · ${fmtMoney(v.revenue)}${v.profit ? ` · +${fmtMoney(v.profit)}` : ''}${v.share ? ` · владельцу ${fmtMoney(Math.round(v.share))}` : ''}</span>
+        <span class="bar-count">${v.cnt} шт · ${fmtMoney(v.revenue)}${v.profit ? ` · +${fmtMoney(v.profit)}` : ''}${v.share ? ` · доля ${fmtMoney(Math.round(v.share))}` : ''}</span>
       </div>`).join('');
     };
     // Сводная доля всех участников — видно, сколько причитается команде
@@ -2940,7 +2932,7 @@ class App {
         <div class="section-title">Продажи · по владельцам</div>
         <div class="stats-section">${salesRows(salesByOwn)}
           ${totalShare ? `<div class="bar-row" style="border-top:1px solid var(--sep2);padding-top:10px;margin-top:6px">
-            <span class="bar-label" style="color:var(--text2)">Владельцам итого (вложения + %)</span>
+            <span class="bar-label" style="color:var(--text2)">Доля участников итого</span>
             <div class="bar-track" style="visibility:hidden"></div>
             <span class="bar-count" style="font-weight:700;color:var(--text)">${fmtMoney(Math.round(totalShare))}</span>
           </div>` : ''}
