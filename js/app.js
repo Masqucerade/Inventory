@@ -2790,15 +2790,23 @@ class App {
     const totalVal = items.reduce((s, i) => s + (i.total    || 0), 0);
     const avgPrice = totalQty ? totalVal / totalQty : 0;
 
+    const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
     const byStatus = {}, byOwner = {}, byType = {};
     items.forEach(i => {
       const qty = i.quantity || 0;
       byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + qty;
       const k = i.ownerId || '__none__';
-      if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0 };
+      if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0, share: 0 };
       byOwner[k].qty += qty;
       byOwner[k].val += (i.total || 0);
       byOwner[k].cnt++;
+      // Причитается владельцу при продаже всего по выставленным ценам:
+      // возврат вложений (закуп + доставка) + его % от прибыли за штуку
+      if (i.ownerId) {
+        const pct  = this.owners.find(o => o.id === i.ownerId)?.profitPercent || 0;
+        const cost = (i.buyPrice || 0) + (i.deliveryCost || 0);
+        byOwner[k].share += qty * (cost + ((i.price || 0) - cost) * pct / 100);
+      }
       const catName = this.categories.find(c => c.id === i.categoryId)?.name;
       if (catName) {
         if (!byType[catName]) byType[catName] = { qty: 0, val: 0 };
@@ -2828,10 +2836,11 @@ class App {
         const o = this.owners.find(o => o.id === oid);
         const n = o ? o.name : 'Без владельца';
         const c = o ? o.color : '#6b7280';
+        const pct = o?.profitPercent || 0;
         return `<div class="owner-stat-row">
           <div class="owner-stat-avatar" style="background:${c}">${n[0].toUpperCase()}</div>
           <div class="owner-stat-info">
-            <div class="owner-stat-name">${this.esc(n)}</div>
+            <div class="owner-stat-name">${this.esc(n)}${pct ? ` <em style="font-style:normal;font-size:11px;color:var(--text3)">· ${pct}%</em>` : ''}</div>
             <div class="bar-track" style="margin-top:5px">
               <div class="bar-fill" data-w="${Math.round(v.val/maxOwV*100)}" style="width:0;background:${c}"></div>
             </div>
@@ -2839,6 +2848,7 @@ class App {
           <div style="text-align:right;flex-shrink:0">
             <div style="font-size:14px;font-weight:700;color:var(--text)">${fmtMoney(v.val)}</div>
             <div style="font-size:11px;color:var(--hint)">${v.qty} шт · ${v.cnt} поз</div>
+            ${o && v.share && !hideCosts ? `<div style="font-size:11px;color:var(--text2);margin-top:1px">владельцу ~${fmtMoney(Math.round(v.share))}</div>` : ''}
           </div>
         </div>`;
       }).join('') || noData;
