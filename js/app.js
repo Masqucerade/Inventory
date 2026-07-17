@@ -323,10 +323,10 @@ class App {
           <div class="menu-tile-icon" style="background:var(--fill2);color:var(--text2)">${svgDownload}</div>
           <span>Скачать<br>JSON</span>
         </button>
-        <button class="menu-tile" id="mBtnRestore">
+        ${isRoot ? `<button class="menu-tile" id="mBtnRestore">
           <div class="menu-tile-icon" style="background:rgba(251,146,60,.12);color:#fb923c">${svgUpload}</div>
           <span>Восстановить<br>из файла</span>
-        </button>
+        </button>` : ''}
       </div>
 
       <div class="menu-theme-row">
@@ -412,7 +412,7 @@ class App {
       this.doManualSave();
     });
 
-    document.getElementById('mBtnRestore').addEventListener('click', () => {
+    document.getElementById('mBtnRestore')?.addEventListener('click', () => {
       this.closeMenu();
       document.getElementById('restoreFileInput').click();
     });
@@ -792,6 +792,7 @@ class App {
         await this.backup.restoreFromFile(file);
         await this.db.logAction('restore', `Восстановлено из файла: ${file.name}`);
         await this.loadData();
+        this.renderView(this.currentView);   // показать восстановленные данные сразу
         this.toast('Данные восстановлены ✓');
       } catch (err) { this.toast('Ошибка: ' + err.message); }
       e.target.value = '';
@@ -2124,17 +2125,22 @@ class App {
       _updatedBy:  null,
     };
 
-    const saved = await this.db.saveItem(item);
-    await this.db.logAction(
-      isNew ? 'item_add' : 'item_edit',
-      isNew ? `Добавлен товар: «${name}»` : `Изменён товар: «${name}»`,
-      { id: saved.id, name, quantity: totQty, price: item.price }
-    );
-    await this.loadData();
-    this.closeModal('itemModal');
-    this.renderInventoryList();
-    this.toast(isNew ? 'Товар добавлен ✓' : 'Товар обновлён ✓');
-    this._saving = false;
+    try {
+      const saved = await this.db.saveItem(item);
+      await this.db.logAction(
+        isNew ? 'item_add' : 'item_edit',
+        isNew ? `Добавлен товар: «${name}»` : `Изменён товар: «${name}»`,
+        { id: saved.id, name, quantity: totQty, price: item.price }
+      );
+      await this.loadData();
+      this.closeModal('itemModal');
+      this.renderInventoryList();
+      this.toast(isNew ? 'Товар добавлен ✓' : 'Товар обновлён ✓');
+    } catch (e) {
+      this.toast('Ошибка сохранения — проверьте соединение');
+    } finally {
+      this._saving = false;   // иначе после ошибки кнопка «Сохранить» умирает
+    }
   }
 
   /* ──────────────────────────────────────────
@@ -2667,27 +2673,35 @@ class App {
   async savePayment() {
     const amount = parseFloat(document.getElementById('paymentAmount').value);
     if (!amount || amount <= 0) { this.toast('Укажите сумму'); return; }
+    if (this._savingPay) return;   // дабл-клик = дубль записи
+    this._savingPay = true;
     const desc = document.getElementById('paymentDesc').value.trim();
     const isExpense = this._currentPayType === 'expense';
     const sign = (this._currentPayType === 'deposit' || this._currentPayType === 'credit' || isExpense) ? '+' : '−';
 
-    if (this._currentEmpOwnerId) {
-      const owner = this.owners.find(o => o.id === this._currentEmpOwnerId);
-      await this.db.addEmployeePayment({
-        ownerId:   this._currentEmpOwnerId,
-        ownerName: owner?.name || '',
-        type:      isExpense ? 'credit' : this._currentPayType,
-        isExpense: isExpense || undefined,
-        amount,    desc,
-      });
-      this.closeModal('paymentModal');
-      await this.renderEmpModal(this._currentEmpOwnerId);
-    } else {
-      await this.db.addPayment({ type: this._currentPayType, amount, desc });
-      this.closeModal('paymentModal');
-      this.renderFinance();
+    try {
+      if (this._currentEmpOwnerId) {
+        const owner = this.owners.find(o => o.id === this._currentEmpOwnerId);
+        await this.db.addEmployeePayment({
+          ownerId:   this._currentEmpOwnerId,
+          ownerName: owner?.name || '',
+          type:      isExpense ? 'credit' : this._currentPayType,
+          isExpense: isExpense || undefined,
+          amount,    desc,
+        });
+        this.closeModal('paymentModal');
+        await this.renderEmpModal(this._currentEmpOwnerId);
+      } else {
+        await this.db.addPayment({ type: this._currentPayType, amount, desc });
+        this.closeModal('paymentModal');
+        this.renderFinance();
+      }
+      this.toast(`${sign}${fmtMoney(amount)} ✓`);
+    } catch (e) {
+      this.toast('Ошибка — проверьте соединение');
+    } finally {
+      this._savingPay = false;
     }
-    this.toast(`${sign}${fmtMoney(amount)} ✓`);
   }
 
   /* ──────────────────────────────────────────
@@ -3745,13 +3759,23 @@ class App {
     } catch { inStock = parseInt(opt?.dataset.qty) || 0; }
     if (inStock <= 0) { this.toast(`Нет в наличии${size ? ` · размер ${size}` : ''}`); return; }
 
-    await this.db.addSale({ itemId, itemName, size, salePrice, buyPrice, deliveryCost: delivery, note });
-    await this.db.logAction('sale', `Продажа: «${itemName}»${size ? ` (${size})` : ''}`, { salePrice, buyPrice, deliveryCost: delivery });
-    this.closeModal('saleModal');
-    await this.loadData();          // обновить остатки в кэше
-    this.renderInventoryList();     // отразить списание в списке товаров
-    this.renderFinance();
-    this.toast(`Продажа записана · +${fmtMoney(salePrice - buyPrice - delivery)} ₽`);
+    // Защита от двойного нажатия — иначе продажа запишется дважды
+    // и остаток спишется два раза
+    if (this._savingSale) return;
+    this._savingSale = true;
+    try {
+      await this.db.addSale({ itemId, itemName, size, salePrice, buyPrice, deliveryCost: delivery, note });
+      await this.db.logAction('sale', `Продажа: «${itemName}»${size ? ` (${size})` : ''}`, { salePrice, buyPrice, deliveryCost: delivery });
+      this.closeModal('saleModal');
+      await this.loadData();          // обновить остатки в кэше
+      this.renderInventoryList();     // отразить списание в списке товаров
+      this.renderFinance();
+      this.toast(`Продажа записана · +${fmtMoney(salePrice - buyPrice - delivery)} ₽`);
+    } catch (e) {
+      this.toast('Ошибка записи продажи — проверьте соединение');
+    } finally {
+      this._savingSale = false;
+    }
   }
 
   /* ──────────────────────────────────────────
@@ -4815,11 +4839,9 @@ class App {
      BACKUP
      ────────────────────────────────────────── */
   async doManualSave() {
-    const btn = document.getElementById('saveBtn');
-    btn.style.opacity = '0.45';
+    // Кнопки #saveBtn больше нет в разметке — бэкап запускается из меню
     const ok = await this.backup.manualSave();   // no arg needed
     if (ok) await this.db.logAction('backup', 'Создан бэкап вручную');
-    btn.style.opacity = '';
     this.toast(ok ? '💾 Бэкап сохранён' : '❌ Ошибка бэкапа');
   }
 
@@ -4891,10 +4913,12 @@ class App {
     const statusName= id => STATUSES.find(s => s.id === id)?.label || id || '—';
     const fmtVal    = (field, val) => {
       if (val == null || val === '') return '—';
-      if (field === 'ownerId')    return ownerName(val);
-      if (field === 'categoryId') return catName(val);
-      if (field === 'status' || field === 'orderStatus') return statusName(val);
-      return String(val);
+      let out;
+      if (field === 'ownerId')         out = ownerName(val);
+      else if (field === 'categoryId') out = catName(val);
+      else if (field === 'status' || field === 'orderStatus') out = statusName(val);
+      else out = String(val);
+      return this.esc(out);   // значения приходят из пользовательского ввода
     };
     const entries = [...hist].reverse().slice(0, 10);
     return `

@@ -103,6 +103,10 @@ app.get('/robots.txt', (req, res) => {
 // db.json (фото, пароли, финансы) не должен отдаваться статикой
 app.use('/data', (req, res) => res.status(404).end());
 
+// Служебные файлы проекта тоже не отдаём (express.static раздаёт весь __dirname)
+app.use(['/server.js', '/package.json', '/package-lock.json', '/nixpacks.toml', '/railway.json'],
+  (req, res) => res.status(404).end());
+
 // HTML не кэшируем (css/js версионируются через ?v=), чтобы разметка и скрипты
 // всегда были одной версии — иначе на старом index.html новый app.js падает.
 app.use(express.static(path.join(__dirname), {
@@ -570,7 +574,8 @@ app.get('/api/items', (req, res) => {
       (Array.isArray(i.sizes) && i.sizes.some(s => (s.size || '').toLowerCase().includes(q)))
     );
   }
-  rows.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  // slice(): без фильтров rows — это сам db.items, sort мутировал бы базу
+  rows = rows.slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   res.json(rows.map(i => stripCosts(i, req.user)));
 });
 
@@ -721,7 +726,9 @@ function logToTelegram(entry) {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
     timeZone: 'Europe/Moscow',
   });
-  const text = `${icon} <b>${entry.desc}</b>\n<i>${date}</i>`;
+  // desc содержит пользовательский ввод (названия товаров) — экранируем,
+  // иначе «<» в названии ломает parse_mode HTML и сообщение молча не уходит
+  const text = `${icon} <b>${escAttr(entry.desc)}</b>\n<i>${date}</i>`;
 
   // Главный чат (как раньше)
   if (process.env.TG_LOG_CHAT) tgSend(token, process.env.TG_LOG_CHAT, text);
@@ -946,7 +953,7 @@ app.patch('/api/plans/:id', (req, res) => {
   const idx = (db.plans || []).findIndex(p => p.id === req.params.id);
   if (idx < 0) return res.status(404).json({ error: 'Not found' });
   const prev = db.plans[idx];
-  db.plans[idx] = { ...prev, ...req.body };
+  db.plans[idx] = { ...prev, ...req.body, id: prev.id };
   save(db);
   if (req.body.done === true && !prev.done && prev.amount) {
     logToTelegram({
@@ -1158,6 +1165,8 @@ app.patch('/api/quickaccess/:id', (req, res) => {
   const db  = load();
   const idx = (db.quickaccess || []).findIndex(q => q.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
+  // Скрытую от пользователя запись нельзя менять (как в GET)
+  if (!visibleTo(db.quickaccess[idx], req.user)) return res.status(404).json({ error: 'not found' });
   db.quickaccess[idx] = { ...db.quickaccess[idx], ...req.body, id: req.params.id };
   save(db);
   res.json(db.quickaccess[idx]);
@@ -1165,7 +1174,9 @@ app.patch('/api/quickaccess/:id', (req, res) => {
 
 app.delete('/api/quickaccess/:id', (req, res) => {
   const db = load();
-  db.quickaccess = (db.quickaccess || []).filter(q => q.id !== req.params.id);
+  const q  = (db.quickaccess || []).find(x => x.id === req.params.id);
+  if (q && !visibleTo(q, req.user)) return res.status(404).json({ error: 'not found' });
+  db.quickaccess = (db.quickaccess || []).filter(x => x.id !== req.params.id);
   save(db);
   res.json({ ok: true });
 });
@@ -1218,6 +1229,8 @@ app.patch('/api/faq/:id', (req, res) => {
   const db  = load();
   const idx = (db.faq || []).findIndex(f => f.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
+  // Скрытый от пользователя топик нельзя менять (как в GET)
+  if (!visibleTo(db.faq[idx], req.user)) return res.status(404).json({ error: 'not found' });
   db.faq[idx] = { ...db.faq[idx], ...req.body, id: req.params.id };
   save(db);
   res.json(db.faq[idx]);
@@ -1225,7 +1238,9 @@ app.patch('/api/faq/:id', (req, res) => {
 
 app.delete('/api/faq/:id', (req, res) => {
   const db = load();
-  db.faq = (db.faq || []).filter(f => f.id !== req.params.id);
+  const f  = (db.faq || []).find(x => x.id === req.params.id);
+  if (f && !visibleTo(f, req.user)) return res.status(404).json({ error: 'not found' });
+  db.faq = (db.faq || []).filter(x => x.id !== req.params.id);
   save(db);
   res.json({ ok: true });
 });
@@ -1279,10 +1294,20 @@ app.delete('/api/guides/:id', (req, res) => {
 /* ─── EXPORT / IMPORT ─── */
 app.get('/api/export', (req, res) => {
   const db = load();
-  res.json({ version: 2, exportedAt: new Date().toISOString(), items: db.items || [], owners: db.owners || [] });
+  // hideCosts-пользователю закупочные поля не отдаём и здесь — иначе весь
+  // «скрытый» закуп утекает одной кнопкой «Скачать JSON»
+  res.json({
+    version: 2, exportedAt: new Date().toISOString(),
+    items:  (db.items || []).map(i => stripCosts(i, req.user)),
+    owners: db.owners || [],
+  });
 });
 
 app.post('/api/import', (req, res) => {
+  // Восстановление заменяет всю базу товаров — только root.
+  // (Заодно защита от потери закупа: hideCosts-экспорт не содержит buyPrice,
+  // и его обратный импорт стёр бы закупочные цены у всех товаров.)
+  if (!requireRoot(req, res)) return;
   const db  = load();
   db.items  = (req.body.items || []).map(externalizePhotos);
   db.owners = req.body.owners || [];

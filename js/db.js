@@ -428,10 +428,14 @@ class InventoryDB {
   }
 
   async importAll(data) {
-    await fetch('/api/import', {
+    const r = await fetch('/api/import', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(data),
     });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || 'Не удалось восстановить данные');
+    }
   }
 }
