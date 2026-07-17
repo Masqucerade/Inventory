@@ -183,7 +183,7 @@ class App {
     document.querySelectorAll('.nav-btn').forEach(b =>
       b.classList.toggle('hidden', !this.hasAccess(b.dataset.view)));
     if (!this.hasAccess(this.currentView)) {
-      const first = ['inventory','stats','finance','project','site','settings'].find(v => this.hasAccess(v));
+      const first = ['inventory','stats','finance','project','site','terminal','settings'].find(v => this.hasAccess(v));
       if (first) this.renderView(first);
     }
   }
@@ -539,7 +539,7 @@ class App {
   _renderAccessChips(access) {
     const el = document.getElementById('userAccessChips');
     if (!el) return;
-    const LABELS = { inventory: '📦 Товары', stats: '📊 Статистика', finance: '💳 Счёт', project: '📁 Проект', site: '🌐 Сайт', faq: '📖 Гайды' };
+    const LABELS = { inventory: '📦 Товары', stats: '📊 Статистика', finance: '💳 Счёт', project: '📁 Task', site: '🌐 Сайт', faq: '📖 FAQ' };
     const on = s => !Array.isArray(access) || access.includes(s);
     el.innerHTML = Object.entries(LABELS).map(([s, label]) =>
       `<button type="button" class="vis-chip${on(s) ? ' active' : ''}" data-acc="${s}">${label}</button>`
@@ -1272,8 +1272,52 @@ class App {
       case 'finance':   this.renderFinance();       break;
       case 'project':   this.renderProject();       break;
       case 'site':      this.renderSiteView();      break;
+      case 'terminal':  this.renderTerminal();      break;
       case 'settings':  this.renderGuides();         break;
     }
+  }
+
+  /* ──────────────────────────────────────────
+     TERMINAL — журнал всех действий в проекте
+     ────────────────────────────────────────── */
+  async renderTerminal() {
+    const el = document.getElementById('terminalContent');
+    if (!el) return;
+    const logs = (await this.db.getLogs(300)).slice().reverse();   // старые сверху, как в терминале
+    const me   = (this.currentUser?.name || this.currentUser?.login || 'user').toLowerCase();
+
+    const fmtT = (ts) => {
+      if (!ts) return '--.-- --:--';
+      const d = new Date(ts);
+      const p = n => String(n).padStart(2, '0');
+      return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    };
+
+    el.innerHTML = `
+      <div class="term-window">
+        <div class="term-bar">
+          <i></i><i></i><i></i>
+          <span>masqucerade — журнал действий · ${logs.length}</span>
+        </div>
+        <div class="term-body" id="termBody">
+          <div class="term-line term-boot">MASQUCERADE INC. · PANEL LOG · ${new Date().getFullYear()}</div>
+          ${logs.length ? logs.map(l => `
+            <div class="term-line">
+              <span class="term-time">[${fmtT(l.ts)}]</span>
+              <span class="term-user">${this.esc((l.user || 'system').toLowerCase())}$</span>
+              <span class="term-text">${this.esc(l.desc || l.type || '')}</span>
+            </div>`).join('')
+          : '<div class="term-line term-boot">— журнал пуст —</div>'}
+          <div class="term-line">
+            <span class="term-user">${this.esc(me)}$</span>
+            <i class="term-caret"></i>
+          </div>
+        </div>
+      </div>`;
+
+    // Как в настоящем терминале — курсор внизу, скроллим к последней записи
+    const body = document.getElementById('termBody');
+    if (body) body.scrollTop = body.scrollHeight;
   }
 
   /* ──────────────────────────────────────────

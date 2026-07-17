@@ -172,7 +172,7 @@ class InventoryDB {
 
   async getLogs(limit = 80) {
     try {
-      const r = await fetch('/api/logs');
+      const r = await fetch(`/api/logs?limit=${limit}`);
       const logs = await r.json();
       return logs.slice(0, limit);
     } catch { return []; }

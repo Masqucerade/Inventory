@@ -743,13 +743,16 @@ function logToTelegram(entry) {
 
 /* ─── LOGS ─── */
 app.get('/api/logs', (req, res) => {
-  const logs = (load().logs || []).slice().reverse().slice(0, 80);
+  const limit = Math.min(300, Math.max(1, parseInt(req.query.limit) || 80));
+  const logs = (load().logs || []).slice().reverse().slice(0, limit);
   res.json(logs);
 });
 
 app.post('/api/logs', (req, res) => {
   const db    = load();
   const entry = { id: uid(), ...req.body, ts: new Date().toISOString() };
+  // Кто сделал — для журнала (Terminal)
+  entry.user = req.user?.name || req.user?.login || null;
   if (!db.logs) db.logs = [];
   db.logs.push(entry);
   if (db.logs.length > 300) db.logs = db.logs.slice(-300);
