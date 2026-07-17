@@ -1412,20 +1412,6 @@ class App {
     const ownerMap = Object.fromEntries(this.owners.map(o => [o.id, o]));
     let html = '';
 
-    /* Сводка по текущей выборке — плитки в духе «Счёта» (видны на ПК) */
-    const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
-    const dashQty   = activeItems.reduce((s, i) => s + (i.quantity || 0), 0);
-    const dashVal   = activeItems.reduce((s, i) => s + (i.total || 0), 0);
-    const dashStock = activeItems.filter(i => i.orderStatus === 'in_stock').reduce((s, i) => s + (i.quantity || 0), 0);
-    const dashViews = activeItems.reduce((s, i) => s + (i.views || 0), 0);
-    html += `<div class="inv-dash">
-      <div class="inv-dash-card"><span>Позиции</span><b>${activeItems.length}</b></div>
-      <div class="inv-dash-card"><span>Штук</span><b>${dashQty}</b></div>
-      <div class="inv-dash-card"><span>В наличии</span><b>${dashStock}</b></div>
-      ${hideCosts ? '' : `<div class="inv-dash-card"><span>Стоимость</span><b>${fmtMoney(dashVal)}</b></div>`}
-      <div class="inv-dash-card"><span>Просмотры на сайте</span><b>${dashViews}</b></div>
-    </div>`;
-
     if (activeItems.length) {
       html += `<div class="items-list">${activeItems.map((item, idx) => this._itemCardHtml(item, idx, ownerMap)).join('')}</div>`;
     }
@@ -2903,6 +2889,14 @@ class App {
         <div class="stat-card">
           <div class="stat-value" data-count="${totalQty}">0</div>
           <div class="stat-label">Штук всего</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" data-count="${items.filter(i => i.orderStatus === 'in_stock').reduce((s, i) => s + (i.quantity || 0), 0)}">0</div>
+          <div class="stat-label">В наличии, шт</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" data-count="${items.reduce((s, i) => s + (i.views || 0), 0)}">0</div>
+          <div class="stat-label">Просмотры на сайте</div>
         </div>
         <div class="stat-card wide">
           <div class="stat-value" data-count="${avgPrice}" data-fmt="money">0 ₽</div>
