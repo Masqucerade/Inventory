@@ -2871,19 +2871,31 @@ class App {
     const pct    = total ? done / total : 0;
     const urgent = tasks.filter(t => !t.done && (t.kind || 'duty') === 'urgent').length;
 
-    /* Кнопочный телефон с ЖК-экраном — живая сводка проекта */
+    /* Смартфон-моделька в стиле «.solutions ID» — живая сводка проекта */
     const goals = tasks.filter(t => !t.done && (t.kind || 'duty') === 'goal').length;
+    const nowHM = new Date().toTimeString().slice(0, 5);
     const phoneHtml = `
       <div class="ph-phone" aria-hidden="true">
-        <div class="phone-body">
-          <div class="phone-ear"></div>
-          <div class="phone-screen">
-            <div class="ps-brand">MSQ·INC</div>
-            <div class="ps-line">СРОЧНО&nbsp;${urgent}</div>
-            <div class="ps-line">ЦЕЛИ&nbsp;${goals}</div>
-            <div class="ps-line">ГОТОВО&nbsp;${done}<i class="ps-cursor"></i></div>
+        <div class="iphone">
+          <div class="iphone-screen">
+            <div class="ip-status">
+              <span class="ip-time">${nowHM}</span>
+              <i class="ip-island"></i>
+              <span class="ip-sig"><i></i><i></i><i></i></span>
+            </div>
+            <div class="ip-title">MASQUCERADE&nbsp;ID</div>
+            <div class="ip-profile">
+              <i class="ip-ava"></i>
+              <span class="ip-prof-info">
+                <b>${isRoot ? 'MONARC' : this.esc((this.currentUser?.name || 'TEAM').toUpperCase())}</b>
+                <span>ROLE: ${isRoot ? 'ROOT' : 'TEAM'}</span>
+              </span>
+            </div>
+            <div class="ip-row"><b>Срочные</b><span>${urgent} ${plural(urgent)}</span></div>
+            <div class="ip-row"><b>Цели и планы</b><span>${goals} в работе</span></div>
+            <div class="ip-row"><b>Готово</b><span>${done} из ${total}</span></div>
+            <div class="ip-tabbar"><i class="on"></i><i></i><i></i><i></i><i></i></div>
           </div>
-          <div class="phone-keys">${'<i></i>'.repeat(12)}</div>
         </div>
       </div>`;
 
