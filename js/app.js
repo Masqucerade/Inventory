@@ -2868,33 +2868,28 @@ class App {
 
     const plural = (n) => { const m = n % 100, d = n % 10; if (m > 10 && m < 20) return 'задач'; if (d > 1 && d < 5) return 'задачи'; if (d === 1) return 'задача'; return 'задач'; };
 
+    const pct    = total ? done / total : 0;
+    const urgent = tasks.filter(t => !t.done && (t.kind || 'duty') === 'urgent').length;
+
     if (isRoot) {
-      /* ── Root: сводка с прогресс-кольцом ── */
-      const C   = 2 * Math.PI * 24;                       // длина окружности кольца
-      const pct = total ? done / total : 0;
+      /* ── Root: строгая сводка + участники с их активными задачами ── */
+      const people = owners.map(o => {
+        const n = tasks.filter(t => !t.done && t.assigneeId === o.id).length;
+        return `<span class="ph-person${n ? '' : ' idle'}" title="${this.esc(o.name)}">
+          <i>${this.esc((o.name || '?').trim()[0].toUpperCase())}</i>${this.esc(o.name)}<b>${n || ''}</b>
+        </span>`;
+      }).join('');
       if (hero) hero.innerHTML = `
-        <div class="proj-hero-inner">
-          <div class="proj-hero-row">
-            <div class="proj-ring">
-              <svg width="62" height="62" viewBox="0 0 62 62">
-                <circle cx="31" cy="31" r="24" class="proj-ring-track"/>
-                <circle cx="31" cy="31" r="24" class="proj-ring-bar"
-                  stroke-dasharray="${C.toFixed(1)}"
-                  stroke-dashoffset="${(C * (1 - pct)).toFixed(1)}"/>
-              </svg>
-              <span class="proj-ring-num">${Math.round(pct * 100)}%</span>
-            </div>
-            <div class="proj-hero-info">
-              <div class="proj-hero-label">Сейчас в работе</div>
-              <div class="proj-hero-pct">${active}<span> ${plural(active)}</span></div>
-              <div class="proj-hero-done">${done} из ${total} выполнено</div>
-            </div>
-          </div>
-          <div class="proj-hero-chips">
-            <span class="proj-chip note">📝 <b>${notes.length}</b> ${notes.length === 1 ? 'заметка' : 'заметок'}</span>
-            <span class="proj-chip access">🔑 <b>${quick.length}</b> ${quick.length === 1 ? 'доступ' : 'доступов'}</span>
-          </div>
-        </div>`;
+        <div class="ph-main">
+          <div class="ph-label">Проект · Masqucerade</div>
+          <div class="ph-num">${active}<span>${plural(active)} в работе</span></div>
+          <div class="ph-sub">${done} из ${total} выполнено${urgent ? ` · срочных: ${urgent}` : ''}</div>
+          <div class="ph-bar"><i style="width:${Math.round(pct * 100)}%"></i></div>
+        </div>
+        ${owners.length ? `<div class="ph-people">
+          <div class="ph-people-label">Команда</div>
+          ${people}
+        </div>` : ''}`;
     } else {
       /* ── Сотрудник: личное приветствие, только активные ── */
       const name  = this.currentUser?.name || '';
@@ -2904,11 +2899,13 @@ class App {
       const mine = myOwnerId ? tasks.filter(t => !t.done && t.assigneeId === myOwnerId).length : 0;
 
       if (hero) hero.innerHTML = `
-        <div class="emp-hero">
-          <div class="emp-hero-greet">${greet}, ${this.esc(name)}</div>
-          <div class="emp-hero-sub">${active
-            ? `Сейчас <b>${active}</b> ${plural(active)} в работе${mine ? ` · <b>${mine}</b> для тебя` : ''}`
+        <div class="ph-main">
+          <div class="ph-label">Проект · Masqucerade</div>
+          <div class="ph-num" style="font-size:26px">${greet}, ${this.esc(name)}</div>
+          <div class="ph-sub">${active
+            ? `Сейчас ${active} ${plural(active)} в работе${mine ? ` · ${mine} для тебя` : ''}`
             : 'Активных задач нет'}</div>
+          <div class="ph-bar"><i style="width:${Math.round(pct * 100)}%"></i></div>
         </div>`;
     }
 
@@ -2989,10 +2986,13 @@ class App {
     const myOwnerId = !isRoot ? (owners.find(o => (o.name || '').toLowerCase() === myName)?.id || null) : null;
     const isMine    = t => myOwnerId && t.assigneeId === myOwnerId;
 
+    const kindOf   = t => t.kind || 'duty';
     const personal = tasks.filter(t => t.personal && !t.done);
-    const todo     = tasks.filter(t => !t.personal && !t.done);
-    const done     = tasks.filter(t =>  t.done);
-    if (myOwnerId) todo.sort((a, b) => isMine(b) - isMine(a));
+    const doneP    = tasks.filter(t => t.personal && t.done);
+    const byKind   = k => tasks.filter(t => !t.personal && !t.done && kindOf(t) === k);
+    const doneBy   = k => tasks.filter(t => !t.personal &&  t.done && kindOf(t) === k);
+    const lists = { urgent: byKind('urgent'), duty: byKind('duty'), goal: byKind('goal') };
+    if (myOwnerId) Object.values(lists).forEach(l => l.sort((a, b) => isMine(b) - isMine(a)));
 
     const svgLock = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
 
@@ -3010,7 +3010,7 @@ class App {
           <span class="task-text">${this.esc(title)}</span>
           ${desc ? `<span class="task-desc">${this.esc(desc)}</span>` : ''}
           ${t.photo ? `<img class="task-photo-thumb" src="${t.photo}" alt="фото задачи">` : ''}
-          <span class="task-meta-row">${t.personal ? `<span class="task-personal-badge">${svgLock} Личная</span>` : ''}${mine ? `<span class="task-mine-badge">Для тебя</span>` : ''}${assignee && !mine ? `<span class="task-assignee">${this.esc(assignee)}</span>` : ''}${t.createdAt ? `<span class="task-date">${this.fmtDate(t.createdAt)}</span>` : ''}${this._visBadge(t)}</span>
+          <span class="task-meta-row">${t.personal ? `<span class="task-personal-badge">${svgLock} Личная</span>` : ''}${mine ? `<span class="task-mine-badge">Для тебя</span>` : ''}${assignee && !mine ? `<span class="task-assignee"><i>${this.esc(assignee.trim()[0].toUpperCase())}</i>${this.esc(assignee)}</span>` : ''}${t.createdAt ? `<span class="task-date">${this.fmtDate(t.createdAt)}</span>` : ''}${this._visBadge(t)}</span>
         </div>
         <div class="task-btns">
           <button class="task-edit" data-task-id="${t.id}" title="Изменить">${svgEdit}</button>
@@ -3019,16 +3019,31 @@ class App {
       </div>`;
     }).join('');
 
-    el.innerHTML = `<div class="task-list">
-      ${personal.length ? `
-        <div class="task-section-head personal">${svgLock}<span>Личное</span><em>видно только вам</em></div>
-        ${renderList(personal)}
-        ${todo.length ? '<div class="task-section-head team"><span>Команда</span></div>' : ''}
-      ` : ''}
-      ${renderList(todo)}
-      ${done.length && (todo.length || personal.length) ? `<div class="task-divider"><span>Выполнено · ${done.length}</span></div>` : ''}
-      ${renderList(done)}
-    </div>`;
+    /* Колонка типа: mono-заголовок, активные, ниже — выполненные приглушённо */
+    const column = (kind, title) => {
+      const act = lists[kind], fin = doneBy(kind);
+      return `<div class="proj-col${act.length || fin.length ? '' : ' empty'}">
+        <div class="ptask-head ${kind}"><i></i><span>${title}</span><em>${act.length || ''}</em></div>
+        <div class="task-list">
+          ${act.length ? renderList(act) : '<div class="ptask-empty">Пока пусто</div>'}
+          ${fin.length ? `<div class="task-divider"><span>Выполнено · ${fin.length}</span></div>${renderList(fin)}` : ''}
+        </div>
+      </div>`;
+    };
+
+    el.innerHTML = `
+      ${personal.length || doneP.length ? `<div class="proj-personal">
+        <div class="ptask-head personal"><i></i><span>Личное</span><em>${personal.length || ''}</em></div>
+        <div class="task-list">
+          ${renderList(personal)}
+          ${doneP.length ? `<div class="task-divider"><span>Выполнено · ${doneP.length}</span></div>${renderList(doneP)}` : ''}
+        </div>
+      </div>` : ''}
+      <div class="proj-cols">
+        ${column('urgent', 'Срочные')}
+        ${column('duty', 'Обязанности')}
+        ${column('goal', 'Цели и планы')}
+      </div>`;
 
     el.querySelectorAll('.task-check').forEach(btn =>
       btn.addEventListener('click', async () => {
@@ -3073,6 +3088,7 @@ class App {
     // back-compat: старые задачи хранили всё в .text
     document.getElementById('taskTitle').value       = task?.title || task?.text || '';
     document.getElementById('taskDescription').value = task?.description || '';
+    this._setTaskKind(task?.kind || 'duty');
     this._setTaskPersonal(!!task?.personal);
     this._setTaskPhoto(task?.photo || null);
     const sel    = document.getElementById('taskAssignee');
@@ -3086,6 +3102,20 @@ class App {
 
     this.openModal('taskModal');
     setTimeout(() => document.getElementById('taskTitle').focus(), 350);
+  }
+
+  _setTaskKind(kind) {
+    this._taskKind = kind;
+    const seg = document.getElementById('taskKindSeg');
+    if (!seg) return;
+    seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.kind === kind));
+    if (!seg._bound) {
+      seg._bound = true;
+      seg.addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-kind]');
+        if (b) this._setTaskKind(b.dataset.kind);
+      });
+    }
   }
 
   _setTaskPersonal(on) {
@@ -3122,7 +3152,7 @@ class App {
     const assigneeId  = document.getElementById('taskAssignee').value || null;
     if (!title) { this.toast('Введите название задачи'); return; }
     // text дублируем названием — для обратной совместимости
-    const payload = { title, text: title, description, assigneeId, photo: this._taskPhoto || null, personal: !!this._taskPersonal };
+    const payload = { title, text: title, description, assigneeId, kind: this._taskKind || 'duty', photo: this._taskPhoto || null, personal: !!this._taskPersonal };
     if (this.currentUser?.role === 'root') payload.visibility = this._readVis('taskVisChips');
     if (this._editingTaskId) {
       await this.db.patchTask(this._editingTaskId, payload);

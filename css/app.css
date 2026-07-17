@@ -3264,3 +3264,142 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   html.is-web .fin-col .emp-bal-list::-webkit-scrollbar-thumb { background: var(--sep); border-radius: 3px; }
   html.is-web .fin-col .emp-bal-list { flex-shrink: 0; max-height: 230px; overflow-y: auto; }
 }
+
+/* =============================================
+   PROJECT 2.0 — строгий ч/б стиль (в духе «Счёта»)
+   ============================================= */
+#view-project { --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'Roboto Mono', monospace; }
+
+/* ── Hero: сводка + команда ── */
+#view-project .proj-hero {
+  padding: 0; margin-bottom: 12px; border-radius: 18px;
+  background: var(--card); border: 1px solid var(--card-b);
+  display: flex; align-items: stretch; overflow: hidden;
+}
+#view-project .proj-hero:empty { display: none; }
+.ph-main { flex: 1 1 auto; min-width: 0; padding: 16px 18px 15px; }
+.ph-label {
+  font-family: var(--mono); font-size: 9.5px; font-weight: 700;
+  letter-spacing: .24em; text-transform: uppercase; color: var(--text3);
+}
+.ph-num { margin-top: 9px; font-size: 34px; font-weight: 800; letter-spacing: -1.2px; line-height: 1; color: var(--text); }
+.ph-num span { font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: var(--text2); margin-left: 8px; }
+.ph-sub { margin-top: 6px; font-size: 12.5px; color: var(--text3); }
+.ph-bar { margin-top: 13px; height: 4px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
+.ph-bar i {
+  display: block; height: 100%; border-radius: 2px; background: var(--text);
+  transition: width .7s cubic-bezier(.22, 1, .36, 1);
+}
+.ph-people {
+  flex: 0 1 auto; max-width: 46%; padding: 16px 18px;
+  border-left: 1px solid var(--sep2);
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start; justify-content: center;
+}
+.ph-people-label {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: .24em; text-transform: uppercase; color: var(--text3);
+}
+.ph-person { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; color: var(--text); }
+.ph-person i {
+  width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
+  background: var(--fill); border: 1px solid var(--sep);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 700; font-style: normal; color: var(--text);
+}
+.ph-person b { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--text2); }
+.ph-person.idle { opacity: .45; }
+@media (max-width: 600px) {
+  #view-project .proj-hero { flex-direction: column; }
+  .ph-people { max-width: none; border-left: none; border-top: 1px solid var(--sep2); flex-direction: row; flex-wrap: wrap; gap: 6px 14px; }
+  .ph-people-label { width: 100%; }
+}
+
+/* ── Вкладки: сегмент-контрол как в iOS, ч/б ── */
+#view-project .proj-tabs { background: var(--fill2); border: 1px solid var(--sep2); }
+#view-project .proj-tabs .proj-tabs-glider {
+  background: var(--text) !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,.25);
+}
+#view-project .proj-tab { color: var(--text2); }
+#view-project .proj-tab.active { color: var(--bg); }
+#view-project .proj-tab .proj-tab-count { background: var(--fill); color: var(--text3); }
+#view-project .proj-tab.active .proj-tab-count { background: transparent; color: inherit; opacity: .75; }
+
+/* ── Заголовки секций задач ── */
+.ptask-head {
+  display: flex; align-items: center; gap: 8px; margin: 14px 2px 8px;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: .2em; text-transform: uppercase; color: var(--text3);
+}
+.ptask-head i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; box-sizing: border-box; }
+.ptask-head.urgent i { background: var(--text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 16%, transparent); }
+.ptask-head.duty i { background: var(--text3); }
+.ptask-head.goal i { background: transparent; border: 1.5px solid var(--text3); }
+.ptask-head.personal i { background: transparent; border: 1.5px dashed var(--text3); }
+.ptask-head em { font-style: normal; font-size: 10px; color: var(--text3); opacity: .8; }
+.ptask-empty {
+  padding: 20px 14px; text-align: center; font-size: 12.5px; color: var(--text3);
+  background: var(--card); border: 1px dashed var(--sep); border-radius: 14px;
+}
+.proj-personal { margin-bottom: 4px; }
+
+/* ── Карточки задач: ч/б, круглый чекбокс ── */
+#view-project .task-check { border-radius: 50%; border: 1.5px solid var(--sep); background: transparent; }
+#view-project .task-item.done .task-check { background: var(--text); border-color: var(--text); color: var(--bg); }
+#view-project .task-item.task-mine,
+#view-project #projectContent .task-item.task-mine { border-color: color-mix(in srgb, var(--text) 32%, transparent); }
+#view-project .task-mine-badge { background: var(--text); color: var(--bg); }
+#view-project .task-assignee { display: inline-flex; align-items: center; gap: 5px; }
+#view-project .task-assignee i {
+  width: 16px; height: 16px; border-radius: 5px; font-style: normal;
+  background: var(--fill); border: 1px solid var(--sep);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: var(--text2);
+}
+#view-project .task-personal-badge {
+  color: var(--text2); background: var(--fill);
+  border: 1px solid var(--sep); box-shadow: none;
+}
+#view-project .task-section-head.personal { color: var(--text2); }
+
+/* ── Сегмент «Тип задачи» в модалке ── */
+.task-kind-seg { display: flex; gap: 6px; }
+.task-kind-seg button {
+  flex: 1; padding: 9px 8px; border-radius: 9px; cursor: pointer;
+  background: var(--fill2); border: 1px solid transparent; color: var(--text2);
+  font-family: inherit; font-size: 12.5px; font-weight: 500; transition: all .15s;
+}
+.task-kind-seg button.on { background: var(--text); border-color: var(--text); color: var(--bg); font-weight: 600; }
+
+/* ── Широкий экран: во весь экран, задачи в три колонки ── */
+@media (min-width: 820px) {
+  html.is-web .proj-hero,
+  html.is-web .proj-tabs,
+  html.is-web #projectContent { max-width: 1500px; }
+  html.is-web #view-project .task-list { max-width: none; margin-left: 0; margin-right: 0; }
+  html.is-web .proj-cols { display: flex; gap: 22px; align-items: flex-start; }
+  html.is-web .proj-col { flex: 1; min-width: 0; }
+  html.is-web .ph-num { font-size: 40px; }
+  html.is-web .ph-people { padding: 16px 24px; }
+  html.is-web .note-grid { columns: 3; }
+  html.is-web .quick-list { max-width: none; }
+  html.is-web #view-project .quick-list {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px;
+  }
+}
+/* На телефоне пустые колонки не показываем */
+@media (max-width: 819px) {
+  .proj-col.empty { display: none; }
+}
+
+/* PROJECT 2.0: дожать ч/б — полоски и бейджи задач без цвета */
+#view-project #projectContent .task-item {
+  background: var(--card); border: 1px solid var(--card-b); box-shadow: none;
+}
+#view-project #projectContent .task-item::before { background: var(--sep); }
+#view-project #projectContent .task-item.task-mine::before { background: var(--text); }
+#view-project #projectContent .task-item.task-personal::before { background: var(--text3); }
+#view-project #projectContent .task-item.done::before { background: var(--sep2); }
+#view-project .task-assignee { color: var(--text2); background: var(--fill); }
+#view-project #projectContent .task-desc { color: var(--text2); }
+#view-project .task-date { color: var(--text3); }
