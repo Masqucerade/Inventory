@@ -3684,7 +3684,9 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   text-transform: uppercase; color: var(--text3); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; max-width: 55%;
 }
-.sb-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 560px; }
+/* Плитки мини-витрины — заполняют окно на всю ширину; лишние уходят за край */
+.sb-tiles { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(120px, 1fr); gap: 8px; overflow: hidden; }
+@media (max-width: 600px) { .sb-tiles { grid-auto-columns: minmax(92px, 1fr) ; } }
 .sb-tile { min-width: 0; }
 .sb-tile-img {
   position: relative; aspect-ratio: 3 / 4; border-radius: 9px; overflow: hidden;

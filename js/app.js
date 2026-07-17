@@ -4509,8 +4509,8 @@ class App {
 
     /* ── Hero: живое окно браузера с мини-витриной ── */
     const cover = it => it && (it.thumbs?.[0] || it.photos?.[0] || it.photo);
-    const tiles = onSite.filter(cover).slice(0, 3);
-    while (tiles.length < 3) tiles.push(null);
+    const tiles = onSite.filter(cover).slice(0, 8);
+    while (tiles.length < 8) tiles.push(null);   // пустые слоты — штрихованные заглушки
     const tilesHtml = tiles.map(it => it
       ? `<div class="sb-tile"><div class="sb-tile-img"><img src="${cover(it)}" alt=""></div>
            <div class="sb-tile-cap">${this.esc((it.name || '').toUpperCase())}</div>
