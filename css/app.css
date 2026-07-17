@@ -3520,3 +3520,27 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   #view-project .proj-hero { flex-direction: row; align-items: center; }
 }
 #view-project .proj-hero { align-items: center; }
+
+/* ── Товары: сводка-дашборд над списком (ПК) ── */
+.inv-dash { display: none; }
+@media (min-width: 820px) {
+  html.is-web .inv-dash {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px; margin-bottom: 14px;
+  }
+  html.is-web .inv-dash-card {
+    background: var(--card); border: 1px solid var(--card-b);
+    border-radius: 14px; padding: 12px 14px 13px;
+  }
+  html.is-web .inv-dash-card span {
+    display: block; font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 9px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--text3);
+  }
+  html.is-web .inv-dash-card b {
+    display: block; margin-top: 6px;
+    font-size: 20px; font-weight: 800; letter-spacing: -.5px; color: var(--text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+}

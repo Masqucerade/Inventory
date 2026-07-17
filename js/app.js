@@ -1402,6 +1402,20 @@ class App {
     const ownerMap = Object.fromEntries(this.owners.map(o => [o.id, o]));
     let html = '';
 
+    /* Сводка по текущей выборке — плитки в духе «Счёта» (видны на ПК) */
+    const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
+    const dashQty   = activeItems.reduce((s, i) => s + (i.quantity || 0), 0);
+    const dashVal   = activeItems.reduce((s, i) => s + (i.total || 0), 0);
+    const dashStock = activeItems.filter(i => i.orderStatus === 'in_stock').reduce((s, i) => s + (i.quantity || 0), 0);
+    const dashViews = activeItems.reduce((s, i) => s + (i.views || 0), 0);
+    html += `<div class="inv-dash">
+      <div class="inv-dash-card"><span>Позиции</span><b>${activeItems.length}</b></div>
+      <div class="inv-dash-card"><span>Штук</span><b>${dashQty}</b></div>
+      <div class="inv-dash-card"><span>В наличии</span><b>${dashStock}</b></div>
+      ${hideCosts ? '' : `<div class="inv-dash-card"><span>Стоимость</span><b>${fmtMoney(dashVal)}</b></div>`}
+      <div class="inv-dash-card"><span>Просмотры на сайте</span><b>${dashViews}</b></div>
+    </div>`;
+
     if (activeItems.length) {
       html += `<div class="items-list">${activeItems.map((item, idx) => this._itemCardHtml(item, idx, ownerMap)).join('')}</div>`;
     }
@@ -1581,6 +1595,7 @@ class App {
                ${this.esc(owner.name)}</span>`
           : '—')],
       ['Создан', this.fmtDate(item.createdAt)],
+      ...(item.showOnSite ? [['Просмотры на сайте', `${item.views || 0}`]] : []),
     ].map(([k,v]) =>
       `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`
     ).join('');
@@ -2725,7 +2740,7 @@ class App {
      ────────────────────────────────────────── */
   async renderStats() {
     const el    = document.getElementById('statsContent');
-    const items = await this.db.getItems();
+    const [items, sales] = await Promise.all([this.db.getItems(), this.db.getSales()]);
 
     if (!items.length) {
       el.innerHTML = `
@@ -2804,6 +2819,34 @@ class App {
       </div>`
     ).join('');
 
+    /* ── Продажи в разрезах: категория и владелец (снимок из продажи, иначе — по товару) ── */
+    const itemById = Object.fromEntries(items.map(i => [i.id, i]));
+    const saleCat  = s => s.categoryId !== undefined ? s.categoryId : (itemById[s.itemId]?.categoryId ?? null);
+    const saleOwn  = s => s.ownerId    !== undefined ? s.ownerId    : (itemById[s.itemId]?.ownerId    ?? null);
+    const group = (keyFn, nameFn) => {
+      const m = {};
+      sales.forEach(s => {
+        const k = keyFn(s) || '__none__';
+        if (!m[k]) m[k] = { name: nameFn(k), cnt: 0, revenue: 0, profit: 0 };
+        m[k].cnt     += Math.max(1, parseInt(s.qty) || 1);
+        m[k].revenue += s.salePrice || 0;
+        m[k].profit  += s.netProfit || 0;
+      });
+      return Object.values(m).sort((a, b) => b.revenue - a.revenue);
+    };
+    const salesByCat = group(saleCat, k =>
+      k === '__none__' ? 'Без категории' : (this.categories.find(c => c.id === k)?.name || 'Удалённая категория'));
+    const salesByOwn = group(saleOwn, k =>
+      k === '__none__' ? 'Без владельца' : (this.owners.find(o => o.id === k)?.name || '—'));
+    const salesRows = list => {
+      const maxR = Math.max(...list.map(v => v.revenue), 1);
+      return list.map(v => `<div class="bar-row">
+        <span class="bar-label">${this.esc(v.name)}</span>
+        <div class="bar-track"><div class="bar-fill" data-w="${Math.round(v.revenue/maxR*100)}" style="width:0;background:var(--accent2)"></div></div>
+        <span class="bar-count">${v.cnt} шт · ${fmtMoney(v.revenue)}${v.profit ? ` · +${fmtMoney(v.profit)}` : ''}</span>
+      </div>`).join('');
+    };
+
     el.innerHTML = `
       <div class="stats-hero">
         <div class="stat-label">Общая стоимость склада</div>
@@ -2828,6 +2871,11 @@ class App {
       <div class="section-title">По владельцам</div>
       <div class="stats-section">${ownerRows}</div>
       ${typeSorted.length ? `<div class="section-title">По категориям</div><div class="stats-section">${typeRows}</div>` : ''}
+      ${sales.length ? `
+        <div class="section-title">Продажи · по категориям</div>
+        <div class="stats-section">${salesRows(salesByCat)}</div>
+        <div class="section-title">Продажи · по владельцам</div>
+        <div class="stats-section">${salesRows(salesByOwn)}</div>` : ''}
     `;
 
     runCountUps(el);

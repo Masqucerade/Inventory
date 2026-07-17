@@ -340,6 +340,9 @@ app.get('/api/public/items/:id', (req, res) => {
   const db = load();
   const it = (db.items || []).find(i => i.id === req.params.id && i.showOnSite);
   if (!it) return res.status(404).json({ error: 'Not found' });
+  // Счётчик просмотров страницы товара (виден в панели)
+  it.views = (it.views || 0) + 1;
+  save(db);
   const pool = (db.items || []).filter(i =>
     i.showOnSite && i.id !== it.id && !isSoldOut(i) && !!i.isMonarc === !!it.isMonarc);
   // Сначала — та же категория; если там пусто, показываем другие вещи раздела
@@ -981,6 +984,17 @@ app.post('/api/sales', (req, res) => {
   const sale = { id: uid(), soldAt: new Date().toISOString(), ...req.body };
   sale.qty       = Math.max(1, parseInt(sale.qty) || 1);
   sale.netProfit = (sale.salePrice || 0) - (sale.buyPrice || 0) - (sale.deliveryCost || 0);
+  // Снимок категории и владельца на момент продажи — для статистики
+  if (sale.itemId) {
+    const item = (db.items || []).find(i => i.id === sale.itemId);
+    if (item) {
+      if (sale.categoryId === undefined) sale.categoryId = item.categoryId || null;
+      if (sale.ownerId === undefined) {
+        const sz = (item.sizes || []).find(s => (s.size || '') === (sale.size || ''));
+        sale.ownerId = (sz && sz.ownerId) || item.ownerId || null;
+      }
+    }
+  }
   if (sale.itemId) adjustStock(db, sale.itemId, sale.size, -sale.qty);
   if (!db.sales) db.sales = [];
   db.sales.unshift(sale);
