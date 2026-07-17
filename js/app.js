@@ -2679,7 +2679,7 @@ class App {
         <div class="owner-avatar" style="background:${o.color}">${o.name[0].toUpperCase()}</div>
         <div class="owner-info">
           <div class="owner-name">${this.esc(o.name)}</div>
-          <div class="owner-sub">${cntMap[o.id] || 0} шт · ${fmtMoney(valMap[o.id] || 0)}</div>
+          <div class="owner-sub">${cntMap[o.id] || 0} шт · ${fmtMoney(valMap[o.id] || 0)}${o.profitPercent ? ` · ${o.profitPercent}% с продажи` : ''}</div>
         </div>
         <div class="owner-card-actions">
           <button class="btn-icon-sm edit-owner" data-id="${o.id}">✏️</button>
@@ -2703,6 +2703,7 @@ class App {
     this._selColor      = DEFAULT_COLOR;
 
     document.getElementById('ownerName').value                     = '';
+    document.getElementById('ownerPercent').value                  = '';
     document.getElementById('ownerAvatarPreview').textContent      = 'А';
     document.getElementById('ownerAvatarPreview').style.background = DEFAULT_COLOR;
     document.getElementById('ownerModalTitle').textContent         = id ? 'Изменить сотрудника' : 'Новый сотрудник';
@@ -2715,6 +2716,7 @@ class App {
       const owner = this.owners.find(o => o.id === id);
       if (owner) {
         document.getElementById('ownerName').value                     = owner.name;
+        document.getElementById('ownerPercent').value                  = owner.profitPercent ?? '';
         document.getElementById('ownerAvatarPreview').textContent      = owner.name[0].toUpperCase();
         this._selColor = owner.color || DEFAULT_COLOR;
         document.getElementById('ownerAvatarPreview').style.background = this._selColor;
@@ -2730,10 +2732,12 @@ class App {
     const name = document.getElementById('ownerName').value.trim();
     if (!name) { this.toast('Введите имя сотрудника'); return; }
     const isNew = !this.editingOwnerId;
+    const pct   = Math.min(100, Math.max(0, parseFloat(document.getElementById('ownerPercent').value) || 0));
     const owner = {
       ...(isNew ? {} : { id: this.editingOwnerId }),
       name,
       color: this._selColor,
+      profitPercent: pct,
     };
     const saved = await this.db.saveOwner(owner);
     await this.db.logAction(
@@ -2852,29 +2856,37 @@ class App {
     const itemById = Object.fromEntries(items.map(i => [i.id, i]));
     const saleCat  = s => s.categoryId !== undefined ? s.categoryId : (itemById[s.itemId]?.categoryId ?? null);
     const saleOwn  = s => s.ownerId    !== undefined ? s.ownerId    : (itemById[s.itemId]?.ownerId    ?? null);
-    const group = (keyFn, nameFn) => {
+    const group = (keyFn, nameFn, pctFn = null) => {
       const m = {};
       sales.forEach(s => {
         const k = keyFn(s) || '__none__';
-        if (!m[k]) m[k] = { name: nameFn(k), cnt: 0, revenue: 0, profit: 0 };
+        if (!m[k]) {
+          const pct = pctFn ? pctFn(k) : 0;
+          m[k] = { name: nameFn(k), pct, cnt: 0, revenue: 0, profit: 0, share: 0 };
+        }
         m[k].cnt     += Math.max(1, parseInt(s.qty) || 1);
         m[k].revenue += s.salePrice || 0;
         m[k].profit  += s.netProfit || 0;
+        // Доля владельца — его % от чистой прибыли
+        if (m[k].pct) m[k].share += (s.netProfit || 0) * m[k].pct / 100;
       });
       return Object.values(m).sort((a, b) => b.revenue - a.revenue);
     };
     const salesByCat = group(saleCat, k =>
       k === '__none__' ? 'Без категории' : (this.categories.find(c => c.id === k)?.name || 'Удалённая категория'));
-    const salesByOwn = group(saleOwn, k =>
-      k === '__none__' ? 'Без владельца' : (this.owners.find(o => o.id === k)?.name || '—'));
+    const salesByOwn = group(saleOwn,
+      k => k === '__none__' ? 'Без владельца' : (this.owners.find(o => o.id === k)?.name || '—'),
+      k => this.owners.find(o => o.id === k)?.profitPercent || 0);
     const salesRows = list => {
       const maxR = Math.max(...list.map(v => v.revenue), 1);
       return list.map(v => `<div class="bar-row">
-        <span class="bar-label">${this.esc(v.name)}</span>
+        <span class="bar-label">${this.esc(v.name)}${v.pct ? ` <em style="font-style:normal;color:var(--text3);font-size:11px">· ${v.pct}%</em>` : ''}</span>
         <div class="bar-track"><div class="bar-fill" data-w="${Math.round(v.revenue/maxR*100)}" style="width:0;background:var(--accent2)"></div></div>
-        <span class="bar-count">${v.cnt} шт · ${fmtMoney(v.revenue)}${v.profit ? ` · +${fmtMoney(v.profit)}` : ''}</span>
+        <span class="bar-count">${v.cnt} шт · ${fmtMoney(v.revenue)}${v.profit ? ` · +${fmtMoney(v.profit)}` : ''}${v.share ? ` · доля ${fmtMoney(Math.round(v.share))}` : ''}</span>
       </div>`).join('');
     };
+    // Сводная доля всех участников — видно, сколько причитается команде
+    const totalShare = salesByOwn.reduce((s, v) => s + (v.share || 0), 0);
 
     el.innerHTML = `
       <div class="stats-hero">
@@ -2912,7 +2924,13 @@ class App {
         <div class="section-title">Продажи · по категориям</div>
         <div class="stats-section">${salesRows(salesByCat)}</div>
         <div class="section-title">Продажи · по владельцам</div>
-        <div class="stats-section">${salesRows(salesByOwn)}</div>` : ''}
+        <div class="stats-section">${salesRows(salesByOwn)}
+          ${totalShare ? `<div class="bar-row" style="border-top:1px solid var(--sep2);padding-top:10px;margin-top:6px">
+            <span class="bar-label" style="color:var(--text2)">Доля участников итого</span>
+            <div class="bar-track" style="visibility:hidden"></div>
+            <span class="bar-count" style="font-weight:700;color:var(--text)">${fmtMoney(Math.round(totalShare))}</span>
+          </div>` : ''}
+        </div>` : ''}
     `;
 
     runCountUps(el);
