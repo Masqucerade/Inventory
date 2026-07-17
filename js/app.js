@@ -2871,27 +2871,34 @@ class App {
     const pct    = total ? done / total : 0;
     const urgent = tasks.filter(t => !t.done && (t.kind || 'duty') === 'urgent').length;
 
+    /* Кнопочный телефон с ЖК-экраном — живая сводка проекта */
+    const goals = tasks.filter(t => !t.done && (t.kind || 'duty') === 'goal').length;
+    const phoneHtml = `
+      <div class="ph-phone" aria-hidden="true">
+        <div class="phone-body">
+          <div class="phone-ear"></div>
+          <div class="phone-screen">
+            <div class="ps-brand">MSQ·INC</div>
+            <div class="ps-line">СРОЧНО&nbsp;${urgent}</div>
+            <div class="ps-line">ЦЕЛИ&nbsp;${goals}</div>
+            <div class="ps-line">ГОТОВО&nbsp;${done}<i class="ps-cursor"></i></div>
+          </div>
+          <div class="phone-keys">${'<i></i>'.repeat(12)}</div>
+        </div>
+      </div>`;
+
     if (isRoot) {
-      /* ── Root: строгая сводка + участники с их активными задачами ── */
-      const people = owners.map(o => {
-        const n = tasks.filter(t => !t.done && t.assigneeId === o.id).length;
-        return `<span class="ph-person${n ? '' : ' idle'}" title="${this.esc(o.name)}">
-          <i>${this.esc((o.name || '?').trim()[0].toUpperCase())}</i>${this.esc(o.name)}<b>${n || ''}</b>
-        </span>`;
-      }).join('');
+      /* ── Root: строгая сводка (без счётчиков «в работе») ── */
       if (hero) hero.innerHTML = `
+        ${phoneHtml}
         <div class="ph-main">
           <div class="ph-label">Проект · Masqucerade</div>
-          <div class="ph-num">${active}<span>${plural(active)} в работе</span></div>
-          <div class="ph-sub">${done} из ${total} выполнено${urgent ? ` · срочных: ${urgent}` : ''}</div>
+          <div class="ph-num" style="font-size:26px">Панель управления</div>
+          <div class="ph-sub">${urgent ? `Срочных: ${urgent} · ` : ''}целей: ${goals} · выполнено ${done} из ${total}</div>
           <div class="ph-bar"><i style="width:${Math.round(pct * 100)}%"></i></div>
-        </div>
-        ${owners.length ? `<div class="ph-people">
-          <div class="ph-people-label">Команда</div>
-          ${people}
-        </div>` : ''}`;
+        </div>`;
     } else {
-      /* ── Сотрудник: личное приветствие, только активные ── */
+      /* ── Сотрудник: личное приветствие ── */
       const name  = this.currentUser?.name || '';
       const h     = new Date().getHours();
       const greet = h >= 5 && h < 12 ? 'Доброе утро' : h >= 12 && h < 17 ? 'Добрый день' : h >= 17 && h < 23 ? 'Добрый вечер' : 'Доброй ночи';
@@ -2899,12 +2906,11 @@ class App {
       const mine = myOwnerId ? tasks.filter(t => !t.done && t.assigneeId === myOwnerId).length : 0;
 
       if (hero) hero.innerHTML = `
+        ${phoneHtml}
         <div class="ph-main">
           <div class="ph-label">Проект · Masqucerade</div>
           <div class="ph-num" style="font-size:26px">${greet}, ${this.esc(name)}</div>
-          <div class="ph-sub">${active
-            ? `Сейчас ${active} ${plural(active)} в работе${mine ? ` · ${mine} для тебя` : ''}`
-            : 'Активных задач нет'}</div>
+          <div class="ph-sub">${mine ? `Для тебя: ${mine} ${plural(mine)}` : 'Для тебя задач нет'}</div>
           <div class="ph-bar"><i style="width:${Math.round(pct * 100)}%"></i></div>
         </div>`;
     }
@@ -3019,31 +3025,65 @@ class App {
       </div>`;
     }).join('');
 
-    /* Колонка типа: mono-заголовок, активные, ниже — выполненные приглушённо */
+    /* Мини-дашборд участников: каждому можно сразу выдать задачу */
+    const isRootUser = this.currentUser?.role === 'root';
+    const teamDash = owners.length ? `<div class="team-dash">
+      ${owners.map(o => {
+        const my  = tasks.filter(t => !t.done && t.assigneeId === o.id);
+        const urg = my.filter(t => (t.kind || 'duty') === 'urgent').length;
+        return `<div class="td-card">
+          <i class="td-av">${this.esc((o.name || '?').trim()[0].toUpperCase())}</i>
+          <div class="td-info">
+            <b>${this.esc(o.name)}</b>
+            <span>${my.length ? `${urg ? `срочных: ${urg} · ` : ''}активных: ${my.length}` : 'задач нет'}</span>
+          </div>
+          ${isRootUser ? `<button class="td-add" data-owner-id="${o.id}" title="Выдать задачу">＋</button>` : ''}
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+    /* Колонка типа: только активные — выполненные спрятаны за кнопкой внизу */
     const column = (kind, title) => {
-      const act = lists[kind], fin = doneBy(kind);
-      return `<div class="proj-col${act.length || fin.length ? '' : ' empty'}">
+      const act = lists[kind];
+      return `<div class="proj-col${act.length ? '' : ' empty'}">
         <div class="ptask-head ${kind}"><i></i><span>${title}</span><em>${act.length || ''}</em></div>
         <div class="task-list">
           ${act.length ? renderList(act) : '<div class="ptask-empty">Пока пусто</div>'}
-          ${fin.length ? `<div class="task-divider"><span>Выполнено · ${fin.length}</span></div>${renderList(fin)}` : ''}
         </div>
       </div>`;
     };
 
+    const doneAll = [...doneBy('urgent'), ...doneBy('duty'), ...doneBy('goal'), ...doneP];
+
     el.innerHTML = `
-      ${personal.length || doneP.length ? `<div class="proj-personal">
-        <div class="ptask-head personal"><i></i><span>Личное</span><em>${personal.length || ''}</em></div>
-        <div class="task-list">
-          ${renderList(personal)}
-          ${doneP.length ? `<div class="task-divider"><span>Выполнено · ${doneP.length}</span></div>${renderList(doneP)}` : ''}
-        </div>
+      ${teamDash}
+      ${personal.length ? `<div class="proj-personal">
+        <div class="ptask-head personal"><i></i><span>Личное</span><em>${personal.length}</em></div>
+        <div class="task-list">${renderList(personal)}</div>
       </div>` : ''}
       <div class="proj-cols">
         ${column('urgent', 'Срочные')}
         ${column('duty', 'Обязанности')}
         ${column('goal', 'Цели и планы')}
-      </div>`;
+      </div>
+      ${doneAll.length ? `<div class="done-wrap" id="doneWrap">
+        <button class="done-toggle" id="doneToggle">
+          Выполненные · ${doneAll.length}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="task-list hidden" id="doneList">${renderList(doneAll)}</div>
+      </div>` : ''}`;
+
+    /* Выполненные — раскрываются по кнопке */
+    document.getElementById('doneToggle')?.addEventListener('click', () => {
+      const w = document.getElementById('doneWrap');
+      const open = w.classList.toggle('open');
+      document.getElementById('doneList').classList.toggle('hidden', !open);
+    });
+
+    /* «+» у участника — новая задача сразу на него */
+    el.querySelectorAll('.td-add').forEach(btn =>
+      btn.addEventListener('click', () => this.openTaskModal(null, btn.dataset.ownerId)));
 
     el.querySelectorAll('.task-check').forEach(btn =>
       btn.addEventListener('click', async () => {
@@ -3081,7 +3121,7 @@ class App {
     document.body.appendChild(ov);
   }
 
-  async openTaskModal(task = null) {
+  async openTaskModal(task = null, presetAssigneeId = null) {
     this._editingTaskId = task?.id || null;
     document.getElementById('taskModalTitle').textContent    = task ? 'Редактировать задачу' : 'Новая задача';
     document.getElementById('taskModalSave').textContent     = task ? 'Сохранить' : 'Добавить';
@@ -3095,6 +3135,7 @@ class App {
     const owners = await this.db.getOwners();
     sel.innerHTML = `<option value="">— Не назначен —</option>` +
       owners.map(o => `<option value="${o.id}"${task?.assigneeId === o.id ? ' selected' : ''}>${this.esc(o.name)}</option>`).join('');
+    if (!task && presetAssigneeId) sel.value = presetAssigneeId;   // «+» из дашборда участника
 
     const isRoot = this.currentUser?.role === 'root';
     document.getElementById('taskVisGroup').style.display = (isRoot && !this._taskPersonal) ? '' : 'none';
