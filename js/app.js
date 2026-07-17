@@ -3062,13 +3062,27 @@ class App {
     const isMine    = t => !!t.assigneeId &&
       (t.assigneeId === this.currentUser?.id || t.assigneeId === myLegacy);
 
+    /* Задачи подвязаны к людям: выбранный в дашборде человек фильтрует колонки.
+       «Общие» — задачи без исполнителя (общие цели и планы). */
+    const legacyIdOf = u => owners.find(o =>
+      (o.name || '').toLowerCase() === (u.name || '').toLowerCase())?.id || null;
+    const staff = [...team].sort((a, b) => (a.role === 'root') - (b.role === 'root'));
+    if (this._projPerson === undefined ||
+        (this._projPerson !== '__common__' && !team.some(u => u.id === this._projPerson)))
+      this._projPerson = isRoot ? '__common__' : (this.currentUser?.id || '__common__');
+    const selPerson  = this._projPerson;
+    const selLegacy  = selPerson !== '__common__'
+      ? legacyIdOf(team.find(u => u.id === selPerson) || {}) : null;
+    const belongsSel = t => selPerson === '__common__'
+      ? !t.assigneeId
+      : (t.assigneeId === selPerson || (selLegacy && t.assigneeId === selLegacy));
+
     const kindOf   = t => t.kind || 'duty';
     const personal = tasks.filter(t => t.personal && !t.done);
     const doneP    = tasks.filter(t => t.personal && t.done);
-    const byKind   = k => tasks.filter(t => !t.personal && !t.done && kindOf(t) === k);
-    const doneBy   = k => tasks.filter(t => !t.personal &&  t.done && kindOf(t) === k);
+    const byKind   = k => tasks.filter(t => !t.personal && !t.done && kindOf(t) === k && belongsSel(t));
+    const doneBy   = k => tasks.filter(t => !t.personal &&  t.done && kindOf(t) === k && belongsSel(t));
     const lists = { urgent: byKind('urgent'), duty: byKind('duty'), goal: byKind('goal') };
-    if (!isRoot) Object.values(lists).forEach(l => l.sort((a, b) => isMine(b) - isMine(a)));
 
     const svgLock = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
 
@@ -3095,24 +3109,28 @@ class App {
       </div>`;
     }).join('');
 
-    /* Мини-дашборд сотрудников: каждому можно сразу выдать задачу */
-    const staff = team.filter(u => u.role !== 'root');
-    const teamDash = staff.length ? `<div class="team-dash">
+    /* Мини-дашборд: «Общие» + сотрудники; клик выбирает, чьи задачи показывать */
+    const dashCard = (pid, avatar, name, my) => {
+      const urg = my.filter(t => (t.kind || 'duty') === 'urgent').length;
+      return `<div class="td-card${selPerson === pid ? ' sel' : ''}" data-person="${pid}">
+        <i class="td-av">${avatar}</i>
+        <div class="td-info">
+          <b>${this.esc(name)}</b>
+          <span>${my.length ? `${urg ? `срочных: ${urg} · ` : ''}активных: ${my.length}` : 'задач нет'}</span>
+        </div>
+        ${isRoot ? `<button class="td-add" data-owner-id="${pid === '__common__' ? '' : pid}" title="Выдать задачу">＋</button>` : ''}
+      </div>`;
+    };
+    const commonTasks = tasks.filter(t => !t.personal && !t.done && !t.assigneeId);
+    const teamDash = `<div class="team-dash">
+      ${dashCard('__common__', '✦', 'Общие', commonTasks)}
       ${staff.map(u => {
-        // Legacy: задачи, назначенные на владельца с тем же именем, тоже его
-        const legacy = owners.find(o => (o.name || '').toLowerCase() === (u.name || '').toLowerCase())?.id || null;
-        const my  = tasks.filter(t => !t.done && (t.assigneeId === u.id || (legacy && t.assigneeId === legacy)));
-        const urg = my.filter(t => (t.kind || 'duty') === 'urgent').length;
-        return `<div class="td-card">
-          <i class="td-av">${this.esc((u.name || '?').trim()[0].toUpperCase())}</i>
-          <div class="td-info">
-            <b>${this.esc(u.name)}</b>
-            <span>${my.length ? `${urg ? `срочных: ${urg} · ` : ''}активных: ${my.length}` : 'задач нет'}</span>
-          </div>
-          ${isRoot ? `<button class="td-add" data-owner-id="${u.id}" title="Выдать задачу">＋</button>` : ''}
-        </div>`;
+        const legacy = legacyIdOf(u);
+        const my = tasks.filter(t => !t.personal && !t.done &&
+          (t.assigneeId === u.id || (legacy && t.assigneeId === legacy)));
+        return dashCard(u.id, this.esc((u.name || '?').trim()[0].toUpperCase()), u.name, my);
       }).join('')}
-    </div>` : '';
+    </div>`;
 
     /* Колонка типа: только активные — выполненные спрятаны за кнопкой внизу */
     const column = (kind, title) => {
@@ -3153,9 +3171,20 @@ class App {
       document.getElementById('doneList').classList.toggle('hidden', !open);
     });
 
-    /* «+» у участника — новая задача сразу на него */
+    /* «+» у участника — новая задача сразу на него (у «Общих» — без исполнителя) */
     el.querySelectorAll('.td-add').forEach(btn =>
-      btn.addEventListener('click', () => this.openTaskModal(null, btn.dataset.ownerId)));
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openTaskModal(null, btn.dataset.ownerId || null);
+      }));
+
+    /* Клик по карточке — показать задачи этого человека */
+    el.querySelectorAll('.td-card').forEach(card =>
+      card.addEventListener('click', () => {
+        if (this._projPerson === card.dataset.person) return;
+        this._projPerson = card.dataset.person;
+        this.renderProjectTasks();
+      }));
 
     el.querySelectorAll('.task-check').forEach(btn =>
       btn.addEventListener('click', async () => {

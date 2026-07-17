@@ -3544,3 +3544,9 @@ html.is-web #guideModal { height: min(760px, 86vh); }
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 }
+
+/* Дашборд команды: карточки-переключатели («чьи задачи показать») */
+.td-card { cursor: pointer; transition: border-color .15s, background .15s; }
+.td-card:hover { border-color: var(--sep); }
+.td-card.sel { background: var(--fill); border-color: color-mix(in srgb, var(--text) 38%, transparent); }
+.td-card.sel .td-av { background: var(--text); color: var(--bg); border-color: var(--text); }
