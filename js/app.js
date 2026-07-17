@@ -4475,13 +4475,19 @@ class App {
   _refreshCollections() { return this.currentView === 'site' ? this.renderSiteView() : this.renderCollectionsList(); }
 
   /* ──────────────────────────────────────────
-     ВКЛАДКА «САЙТ» — наглядное управление витриной
+     ВКЛАДКА «САЙТ» — витрина как в окне браузера
+     Hero-превью + скользящие вкладки Витрина / Товары / FAQ
      ────────────────────────────────────────── */
   async renderSiteView() {
     const el = document.getElementById('siteContent');
-    const [blocks, cols] = await Promise.all([this.db.getBlocks(), this.db.getCollections()]);
+    if (!this._siteSubTab) this._siteSubTab = 'showcase';
+
+    const [blocks, cols, faq] = await Promise.all([
+      this.db.getBlocks(), this.db.getCollections(), this.db.getFaqItems(),
+    ]);
     this._blocks = blocks;
     this._collections = cols;
+    this._faqCache = faq;
 
     // Единый порядок: блоки и подборки в одной последовательности, чтобы их
     // можно было чередовать. Старые независимые нумерации могли пересекаться —
@@ -4497,34 +4503,161 @@ class App {
     }
     this._stream = stream;
 
+    const onSite = (this.items || []).filter(i => i.showOnSite);
+    const views  = onSite.reduce((s, i) => s + (i.views || 0), 0);
+    const plur = (n, f) => { const m = n % 100, d = n % 10; if (m > 10 && m < 20) return f[2]; if (d > 1 && d < 5) return f[1]; if (d === 1) return f[0]; return f[2]; };
+
+    /* ── Hero: живое окно браузера с мини-витриной ── */
+    const cover = it => it && (it.thumbs?.[0] || it.photos?.[0] || it.photo);
+    const tiles = onSite.filter(cover).slice(0, 3);
+    while (tiles.length < 3) tiles.push(null);
+    const tilesHtml = tiles.map(it => it
+      ? `<div class="sb-tile"><div class="sb-tile-img"><img src="${cover(it)}" alt=""></div>
+           <div class="sb-tile-cap">${this.esc((it.name || '').toUpperCase())}</div>
+           <div class="sb-tile-price">${it.price ? fmtMoney(it.price) : '—'}</div></div>`
+      : `<div class="sb-tile sb-tile-empty"><div class="sb-tile-img"></div><div class="sb-tile-cap"></div><div class="sb-tile-price"></div></div>`
+    ).join('');
+
+    const mq = blocks.find(b => b.enabled && (b.type === 'marquee' || b.type === 'promo') && b.text);
+    const mqText = (mq?.text || 'MASQUCERADE — 1 OF 1 — ТОЛЬКО ОРИГИНАЛ — 2026').replace(/\s*\n\s*/g, ' ').trim();
+    const mqLine = `${mqText} ✦ `.repeat(4);
+    const host = (location.host || 'masqucerade.inc').replace(/^www\./, '');
+
+    const lockSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
+    const extSvg  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>`;
+    const eyeSvg  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
+
+    const hero = `
+      <div class="site-hero">
+        <div class="site-browser">
+          <div class="sb-bar">
+            <span class="sb-dots"><i></i><i></i><i></i></span>
+            <span class="sb-addr">${lockSvg}<span>${this.esc(host)}</span></span>
+            <a class="sb-open" href="/" target="_blank" rel="noopener">Открыть${extSvg}</a>
+          </div>
+          <div class="sb-view">
+            <div class="sb-brandline">
+              <span class="sb-brand">Masqucerade<i>&nbsp;INC.</i></span>
+              <span class="sb-nav">Мужское · Женское · Аксессуары</span>
+            </div>
+            <div class="sb-tiles">${tilesHtml}</div>
+            <div class="sb-marquee"><span>${this.esc(mqLine)}</span></div>
+          </div>
+          <div class="sb-status">
+            <span class="sb-stat"><b>${onSite.length}</b> ${plur(onSite.length, ['товар', 'товара', 'товаров'])}</span>
+            <span class="sb-stat"><b>${blocks.length}</b> ${plur(blocks.length, ['блок', 'блока', 'блоков'])}</span>
+            <span class="sb-stat"><b>${cols.length}</b> ${plur(cols.length, ['подборка', 'подборки', 'подборок'])}</span>
+            <span class="sb-stat sb-stat-views">${eyeSvg}<b>${fmtNum(views)}</b></span>
+          </div>
+        </div>
+      </div>`;
+
+    /* ── Скользящие вкладки ── */
+    const tabBtn = (sub, label, n) =>
+      `<button class="proj-tab${this._siteSubTab === sub ? ' active' : ''}" data-sub="${sub}">${label}<span class="proj-tab-count">${n || ''}</span></button>`;
+    const tabs = `
+      <div class="proj-tabs site-tabs" id="siteTabs">
+        <div class="proj-tabs-glider"></div>
+        ${tabBtn('showcase', 'Витрина', stream.length)}
+        ${tabBtn('items', 'Товары', onSite.length)}
+        ${tabBtn('faq', 'FAQ', faq.length)}
+      </div>`;
+
+    el.innerHTML = hero + tabs + `<div id="sitePane"></div>`;
+
+    document.querySelectorAll('#siteTabs .proj-tab').forEach(btn => {
+      btn.onclick = () => {
+        if (this._siteSubTab === btn.dataset.sub) return;
+        this._siteSubTab = btn.dataset.sub;
+        document.querySelectorAll('#siteTabs .proj-tab').forEach(b => b.classList.toggle('active', b === btn));
+        this._moveSiteGlider();
+        this._renderSitePane(true);
+      };
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => this._moveSiteGlider()));
+    setTimeout(() => this._moveSiteGlider(), 120);
+    if (!this._siteGliderResizeBound) {
+      this._siteGliderResizeBound = true;
+      window.addEventListener('resize', () => { if (this.currentView === 'site') this._moveSiteGlider(); });
+    }
+    this._renderSitePane();
+  }
+
+  _moveSiteGlider() {
+    const bar = document.getElementById('siteTabs');
+    const act = bar?.querySelector('.proj-tab.active');
+    const gl  = bar?.querySelector('.proj-tabs-glider');
+    if (!bar || !act || !gl) return;
+    bar.dataset.tab    = this._siteSubTab;
+    gl.style.width     = act.offsetWidth + 'px';
+    gl.style.transform = `translateX(${act.offsetLeft - 4}px)`;
+  }
+
+  _renderSitePane(animate = false) {
+    const pane = document.getElementById('sitePane');
+    if (!pane) return;
+    if (this._siteSubTab === 'items')    this._renderSiteItems(pane);
+    else if (this._siteSubTab === 'faq') this._renderSiteFaq(pane);
+    else                                 this._renderSiteShowcase(pane);
+    if (animate) { pane.classList.remove('pane-in'); void pane.offsetWidth; pane.classList.add('pane-in'); }
+  }
+
+  /* ── Вкладка «Витрина»: блоки + подборки ── */
+  _renderSiteShowcase(pane) {
+    const stream = this._stream || [];
     const rows = stream.map((x, i) => x.kind === 'block'
       ? this._blockRowHtml(x.ref, i, stream.length)
       : this._colRowHtml(x.ref, i, stream.length)).join('');
-
-    el.innerHTML = `
-      <p class="site-mgmt-intro">Всё, что видно на витрине (Monarc и Type). Порядок — стрелками, клик по строке — редактировать. Блоки и подборки можно чередовать.</p>
-      <div class="site-mgmt-card">
-        <div class="site-mgmt-head">
-          <div><div class="site-mgmt-title">Блоки и подборки</div><div class="site-mgmt-hint">Баннеры, текст, промо и подборки товаров</div></div>
-          <div class="site-mgmt-addrow">
-            <button class="site-mgmt-add block-add">＋ Блок</button>
-            <button class="site-mgmt-add col-add">＋ Подборку</button>
-          </div>
+    pane.innerHTML = `
+      <div class="site-sec-head">
+        <div><div class="site-sec-title">Блоки и подборки</div><div class="site-sec-hint">Баннеры, промо и подборки — можно чередовать, порядок стрелками</div></div>
+        <div class="site-sec-actions">
+          <button class="site-mini-add block-add">＋ Блок</button>
+          <button class="site-mini-add col-add">＋ Подборку</button>
         </div>
-        <div class="settings-section">${stream.length ? rows : '<div class="site-mgmt-empty"><span>🧱</span>Пока пусто — добавьте блок или подборку</div>'}</div>
       </div>
+      <div class="settings-section">${stream.length ? rows : '<div class="site-mgmt-empty"><span>🧱</span>Пока пусто — добавьте блок или подборку</div>'}</div>`;
+  }
 
-      <div class="site-mgmt-card">
-        <div class="site-mgmt-head">
-          <div><div class="site-mgmt-title">FAQ на витрине</div><div class="site-mgmt-hint">Вопросы-ответы, которые видны на сайте-витрине</div></div>
-          <div class="site-mgmt-addrow">
-            <button class="site-mgmt-add faq-topic-add">＋ Топик</button>
-          </div>
-        </div>
-        <div class="settings-section" id="faqManageList"></div>
+  /* ── Вкладка «Товары»: что сейчас на витрине ── */
+  _renderSiteItems(pane) {
+    const onSite = (this.items || []).filter(i => i.showOnSite)
+      .sort((a, b) => (b.views || 0) - (a.views || 0));
+    if (!onSite.length) {
+      pane.innerHTML = `<div class="site-empty-card">
+        <div class="site-empty-emoji">🛍️</div>
+        <div class="site-empty-title">На витрине пока нет товаров</div>
+        <div class="site-empty-sub">Откройте карточку товара и включите тумблер «На сайте» — он появится в каталоге витрины.</div>
       </div>`;
+      return;
+    }
+    const eyeSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    pane.innerHTML = `<div class="site-items-grid">${onSite.map(it => {
+      const cov  = it.thumbs?.[0] || it.photos?.[0] || it.photo;
+      const sold = it.orderStatus === 'done' || (it.quantity || 0) <= 0;
+      return `<button class="site-item-card${sold ? ' sold' : ''}" data-site-item="${it.id}">
+        <div class="site-item-thumb">
+          ${cov ? `<img src="${cov}" loading="lazy" alt="">` : `<span class="site-item-ph">🖼</span>`}
+          <span class="site-item-views">${eyeSvg}${fmtNum(it.views || 0)}</span>
+          ${sold ? `<span class="site-item-sold">Продано</span>` : ''}
+        </div>
+        <div class="site-item-name">${this.esc(it.name || '—')}</div>
+        <div class="site-item-price">${it.price ? fmtMoney(it.price) : '—'}</div>
+      </button>`;
+    }).join('')}</div>`;
+  }
 
-    document.querySelector('.faq-topic-add')?.addEventListener('click', () => this.openFaqModal());
+  /* ── Вкладка «FAQ» ── */
+  _renderSiteFaq(pane) {
+    pane.innerHTML = `
+      <div class="site-sec-head">
+        <div><div class="site-sec-title">FAQ на витрине</div><div class="site-sec-hint">Вопросы-ответы для сайта и внутренние скрипты</div></div>
+        <div class="site-sec-actions">
+          <button class="site-mini-add faq-topic-add">＋ Топик</button>
+        </div>
+      </div>
+      <div id="faqManageList"></div>`;
+    pane.querySelector('.faq-topic-add')?.addEventListener('click', () => this.openFaqModal());
     this.renderFaqManageInto(document.getElementById('faqManageList'));
   }
 
@@ -4599,6 +4732,9 @@ class App {
   async _onSiteClick(e) {
     if (e.target.closest('.block-add')) { this.openBlockModal(); return; }
     if (e.target.closest('.col-add'))   { this.openCollectionModal(); return; }
+
+    const siteItem = e.target.closest('.site-item-card');
+    if (siteItem) { this.openItemModal(siteItem.dataset.siteItem); return; }
 
     const mv = e.target.closest('.stream-move');
     if (mv) { const row = mv.closest('[data-kind]'); if (row) this.moveStreamItem(row, mv.dataset.dir); return; }
