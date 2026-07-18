@@ -3634,24 +3634,52 @@ class App {
 
     const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
     const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+    const svgMore = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>`;
 
     const list = notes.slice().reverse();
-    el.innerHTML = `<div class="note-grid">${list.map((n, idx) => `
-      <div class="note-card" style="--nc:${n.color || '#7c6dfa'};animation-delay:${Math.min(idx * 35, 240)}ms" data-note-id="${n.id}">
-        <div class="note-text">${this.esc(n.text)}</div>
-        <div class="note-foot">
-          <span class="note-date">${this.fmtDate(n.createdAt)}</span>
-          <span class="note-btns">
-            <button class="note-edit" data-note-id="${n.id}" title="Изменить">${svgEdit}</button>
-            <button class="note-del"  data-note-id="${n.id}" title="Удалить">${svgDel}</button>
-          </span>
+    el.innerHTML = `<div class="quick-list note-list">${list.map(n => {
+      const color = n.color || '#7c6dfa';
+      const text  = String(n.text ?? '');
+      // У старых заметок нет заголовка — берём первую строку текста
+      const hasTitle  = !!(n.title || '').trim();
+      const firstLine = text.split('\n')[0].trim();
+      const title = hasTitle ? n.title.trim()
+        : (firstLine.length > 48 ? firstLine.slice(0, 48) + '…' : firstLine) || 'Заметка';
+      const body  = hasTitle ? text : text.split('\n').slice(1).join('\n').trim();
+      const long  = body.length > 260 || body.split('\n').length > 5;
+      return `
+      <div class="quick-item note-item" data-note-id="${n.id}">
+        <div class="quick-head">
+          <div class="quick-type-icon" style="background:color-mix(in srgb, ${color} 24%, transparent)">📝</div>
+          <span class="note-title">${this.esc(title)}</span>
+          <div class="quick-actions">
+            <button class="quick-edit note-edit" title="Изменить">${svgEdit}</button>
+            <button class="quick-del note-del" title="Удалить">${svgDel}</button>
+          </div>
+          <button class="quick-more" type="button" title="Действия">${svgMore}</button>
         </div>
-      </div>`).join('')}
+        ${body ? `<div class="quick-body"><div class="quick-text${long ? ' clamped' : ''}">${this.esc(body)}</div>${long ? `<button class="quick-expand" type="button">Развернуть</button>` : ''}</div>` : ''}
+        <span class="note-date">${this.fmtDate(n.createdAt)}</span>
+      </div>`;
+    }).join('')}
     </div>`;
 
+    el.querySelectorAll('.quick-more').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.quick-item');
+        const open = !card.classList.contains('acts-open');
+        el.querySelectorAll('.quick-item.acts-open').forEach(c => c.classList.remove('acts-open'));
+        card.classList.toggle('acts-open', open);
+      }));
+    el.querySelectorAll('.quick-expand').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const txt  = btn.closest('.quick-body').querySelector('.quick-text');
+        const open = !txt.classList.toggle('clamped');
+        btn.textContent = open ? 'Свернуть' : 'Развернуть';
+      }));
     el.querySelectorAll('.note-edit').forEach(btn =>
       btn.addEventListener('click', () => {
-        const n = notes.find(x => x.id === btn.dataset.noteId);
+        const n = notes.find(x => x.id === btn.closest('.note-item').dataset.noteId);
         if (n) this.openNoteModal(n);
       })
     );
@@ -3659,7 +3687,7 @@ class App {
       btn.addEventListener('click', async () => {
         const ok = await this.confirm('Удалить заметку?');
         if (!ok) return;
-        await this.db.deleteProjectNote(btn.dataset.noteId);
+        await this.db.deleteProjectNote(btn.closest('.note-item').dataset.noteId);
         this.renderProject();
       })
     );
@@ -3670,6 +3698,7 @@ class App {
     this._noteColor     = note?.color || '#7c6dfa';
     document.getElementById('noteModalTitle').textContent = note ? 'Редактировать' : 'Новая заметка';
     document.getElementById('noteModalSave').textContent  = note ? 'Сохранить' : 'Добавить';
+    document.getElementById('noteTitle').value            = note?.title || '';
     document.getElementById('noteText').value             = note?.text || '';
 
     const COLORS = ['#7c6dfa', '#38bdf8', '#4ade80', '#fbbf24', '#f87171', '#f472b6'];
@@ -3682,13 +3711,14 @@ class App {
   }
 
   async saveNoteItem() {
-    const text = document.getElementById('noteText').value.trim();
-    if (!text) { this.toast('Введите текст заметки'); return; }
+    const title = document.getElementById('noteTitle').value.trim();
+    const text  = document.getElementById('noteText').value.trim();
+    if (!title && !text) { this.toast('Введите заголовок или текст'); return; }
     if (this._editingNoteId) {
-      await this.db.patchProjectNote(this._editingNoteId, { text, color: this._noteColor });
+      await this.db.patchProjectNote(this._editingNoteId, { title, text, color: this._noteColor });
       this.toast('Заметка обновлена ✓');
     } else {
-      await this.db.addProjectNote({ text, color: this._noteColor });
+      await this.db.addProjectNote({ title, text, color: this._noteColor });
       this.toast('Заметка добавлена ✓');
     }
     this._editingNoteId = null;

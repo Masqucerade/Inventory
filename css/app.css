@@ -2209,6 +2209,14 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   cursor: pointer; transition: all .15s;
 }
 .quick-item.acts-open .quick-more { color: var(--text); background: var(--fill2); }
+
+/* Заметки — те же тёмные карточки, что и «Доступы»: белый заголовок, текст ниже */
+.note-title {
+  flex: 1; min-width: 0;
+  font-size: 14px; font-weight: 600; color: var(--text);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.note-item .note-date { font-size: 11px; color: var(--text3); }
 .quick-item.pinned { border-color: rgba(251,191,36,.4); }
 [data-theme="light"] .quick-item.pinned { border-color: rgba(217,119,6,.35); }
 .quick-type-icon {
