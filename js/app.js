@@ -2118,7 +2118,7 @@ class App {
   // Человекочитаемая подпись контент-блока для журнала
   _blockLabel(b) {
     const TYPE = { banner: 'баннер', weekly: 'товары недели', duo: 'двойной баннер',
-                   statement: 'слоган', marquee: 'бегущая строка', text: 'текст', promo: 'промо-полоса' };
+                   statement: 'слоган', marquee: 'бегущая строка', text: 'текст', promo: 'промо-полоса', popup: 'попап при входе' };
     const label = String(b.heading || b.text || '').replace(/\n/g, ' ').trim().slice(0, 40);
     return `Блок (${TYPE[b.type] || b.type})${label ? ` «${label}»` : ''}`;
   }
@@ -4394,6 +4394,7 @@ class App {
       duo: { t: 'Двойной баннер (старый)', e: '🖼' }, statement: { t: 'Слоган', e: '✦' },
       marquee: { t: 'Бегущая строка', e: '➰' },
       text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' },
+      popup: { t: 'Попап при входе', e: '🔔' },
     };
     const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
     el.innerHTML = `<div class="settings-section">` + this._blocks.map((b, i) => {
@@ -4478,6 +4479,7 @@ class App {
       html += g('Тип блока', seg('type', [
         { v: 'banner', t: 'Баннер' }, { v: 'weekly', t: 'Товары' },
         { v: 'statement', t: 'Слоган' }, { v: 'text', t: 'Текст' }, { v: 'marquee', t: 'Строка' }, { v: 'promo', t: 'Промо' },
+        { v: 'popup', t: 'Попап' },
       ]));
     html += g('Раздел', seg('section', [{ v: 'all', t: 'Везде' }, { v: 'monarc', t: 'Monarc' }, { v: 'type', t: 'Type' }]));
 
@@ -4526,6 +4528,15 @@ class App {
     } else if (b.type === 'marquee') {
       html += `<div class="blk-hint">Бегущая строка — фраза плавно едет по экрану.</div>`;
       html += g('Текст строки', `<input type="text" class="form-input" id="blkMarquee" value="${esc(b.text || '')}" placeholder="Например: Новая коллекция уже здесь">`);
+    } else if (b.type === 'popup') {
+      b.repeat = b.repeat || 'once';
+      html += `<div class="blk-hint">Всплывающее окно при заходе на сайт — анонс, акция или приветствие. «Один раз» — после закрытия посетителя больше не беспокоим.</div>`;
+      html += imgField('image', 'Картинка (необязательно)');
+      html += g('Заголовок', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || '')}" placeholder="Например: Новый дроп уже на сайте">`);
+      html += g('Текст', `<textarea class="form-input form-textarea" id="blkPopupText" rows="3" placeholder="Пара предложений для посетителя…">${esc(b.text || '')}</textarea>`);
+      html += linkField('linkType', 'linkValue', 'Кнопка (куда ведёт)');
+      html += g('Надпись на кнопке (необязательно)', `<input type="text" class="form-input" id="blkBtnLabel" value="${esc(b.btnLabel || '')}" placeholder="Смотреть / Написать нам…">`);
+      html += g('Показывать', seg('repeat', [{ v: 'once', t: 'Один раз' }, { v: 'always', t: 'Каждый заход' }]));
     } else if (b.type === 'weekly') {
       html += `<div class="blk-hint">Витрина выбранных товаров с заголовком. Показываются только товары с галочкой «На сайте».</div>`;
       html += g('Заголовок', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || 'Товары недели')}" placeholder="Товары недели">`);
@@ -4552,6 +4563,7 @@ class App {
     if (b.type === 'text')            { set('blkHeading', 'heading'); set('blkBody', 'body', false); }
     else if (b.type === 'promo')      { set('blkText', 'text'); }
     else if (b.type === 'marquee')    { set('blkMarquee', 'text'); }
+    else if (b.type === 'popup')      { set('blkHeading', 'heading'); set('blkPopupText', 'text', false); set('blkBtnLabel', 'btnLabel'); }
     else if (b.type === 'statement')  { set('blkKicker', 'kicker'); set('blkStatement', 'text', false); }
     else if (b.type === 'weekly')     { set('blkHeading', 'heading'); }
     else if (b.type === 'banner')     { set('blkHeading', 'heading'); set('blkSub', 'sub'); }
@@ -4630,6 +4642,7 @@ class App {
     if (b.type === 'banner'    && !b.image)               { this.toast('Добавьте фото баннера'); return; }
     if (b.type === 'duo'       && !b.imageA && !b.imageB) { this.toast('Добавьте хотя бы одну картинку'); return; }
     if (b.type === 'weekly'    && !(b.itemIds && b.itemIds.length)) { this.toast('Выберите хотя бы один товар'); return; }
+    if (b.type === 'popup'     && !b.heading && !b.text)  { this.toast('Заполните заголовок или текст попапа'); return; }
     if (this._blockIsNew && this.currentView === 'site') b.order = this._nextStreamOrder();  // в конец потока
     await this.db.saveBlock(b);
     this.db.logAction('site_block', `${this._blockLabel(b)} ${this._blockIsNew ? 'создан' : 'изменён'} на витрине`);
@@ -4817,6 +4830,7 @@ class App {
       duo: { t: 'Двойной баннер (старый)', e: '🖼' },
       statement: { t: 'Слоган', e: '✦' }, text: { t: 'Текст', e: '📝' },
       marquee: { t: 'Бегущая строка', e: '➰' }, promo: { t: 'Промо-полоса', e: '📣' },
+      popup: { t: 'Попап при входе', e: '🔔' },
     };
     const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
     const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };

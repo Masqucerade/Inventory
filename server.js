@@ -409,6 +409,13 @@ app.get('/api/public/blocks', (req, res) => {
         imageA: b.imageA || '', captionA: b.captionA || '', linkTypeA: b.linkTypeA || 'none', linkValueA: b.linkValueA || '',
         imageB: b.imageB || '', captionB: b.captionB || '', linkTypeB: b.linkTypeB || 'none', linkValueB: b.linkValueB || '',
       };
+      // Попап при заходе: section нужен клиенту (лендинг показывает только «Везде»)
+      if (b.type === 'popup') return {
+        id: b.id, type: 'popup', order, section: b.section || 'all',
+        heading: b.heading || '', text: b.text || '', image: b.image || '',
+        linkType: b.linkType || 'none', linkValue: b.linkValue || '', btnLabel: b.btnLabel || '',
+        repeat: b.repeat === 'always' ? 'always' : 'once',
+      };
       return { id: b.id, type: b.type, order };
     })
     .filter(b => {
@@ -416,6 +423,7 @@ app.get('/api/public/blocks', (req, res) => {
       if (b.type === 'duo')       return b.imageA || b.imageB;
       if (b.type === 'statement' || b.type === 'marquee') return b.text;
       if (b.type === 'weekly')    return (b.itemIds || []).length;
+      if (b.type === 'popup')     return b.heading || b.text;
       return true;
     })
   res.json(blocks);
