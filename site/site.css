@@ -389,8 +389,6 @@ body.theme-type .mob-acc-head, body.theme-type .mob-link {
 }
 .photo-ribbon.reserved { background: var(--gold); color: var(--bg); }
 body.theme-type .photo-ribbon.reserved { background: var(--pink); color: #17150f; }
-/* Проданные — фото приглушается и в каталоге (как на странице товара) */
-.good-card.sold .good-photo img { filter: grayscale(1); opacity: .85; }
 @media (max-width: 640px) {
   .photo-ribbon { top: 28px; left: -50px; width: 200px; font-size: 8.5px; letter-spacing: .1em; padding: 5px 0; }
 }
@@ -825,7 +823,6 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
 
 /* ─── Карточка-ссылка и «Продано» ─── */
 .good-card { display: block; color: inherit; text-decoration: none; }
-.good-card.sold .good-photo img { filter: grayscale(1); opacity: .82; }
 .good-card.sold .good-price { color: var(--text3); }
 .good-tag.sold { background: transparent; }
 body.theme-type .good-tag.sold { background: #e7e5e0; color: #9b968a; }
@@ -865,7 +862,6 @@ body.theme-type .good-tag.sold { background: #e7e5e0; color: #9b968a; }
 }
 .p-photo-main img { width: 100%; height: 100%; object-fit: cover; }
 .p-photo-main .no-photo { color: var(--text3); font-family: var(--font-d); font-style: italic; font-size: 17px; }
-.p-photo-main.is-sold img { filter: grayscale(1); opacity: .85; }
 .sold-overlay {
   position: absolute; left: 14px; bottom: 14px; z-index: 1;
   padding: 7px 16px; border-radius: 99px;
