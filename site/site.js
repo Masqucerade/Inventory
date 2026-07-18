@@ -407,14 +407,18 @@ function cardHTML(i) {
   // Полное фото (≤900px) — чёткое даже на retina; браузер лениво подгружает.
   // Карточка — обычная ссылка на страницу товара /product/:id.
   const cover = (i.photos && i.photos[0]) || (i.thumbs && i.thumbs[0]) || null;
-  const tag = i.sold
-    ? '<span class="good-tag sold">Продано</span>'
+  // Лента на фото заменяет текстовый тег для проданных и зарезервированных
+  const ribbon = i.sold ? '<span class="photo-ribbon">Продано</span>'
+    : i.reserved ? '<span class="photo-ribbon reserved">Зарезервировано</span>' : '';
+  const tag = (i.sold || i.reserved)
+    ? ''
     : `<span class="good-tag ${i.inStock ? 'in-stock' : 'preorder'}">${i.inStock ? 'В наличии' : 'Под заказ'}</span>`;
   return `
     <a class="good-card${i.sold ? ' sold' : ''}" href="/product/${encodeURIComponent(i.id)}">
       <div class="good-photo">
         ${cover ? `<img src="${esc(cover)}" alt="${esc(i.name)}" loading="lazy" draggable="false">`
                 : '<span class="no-photo">Masqucerade</span>'}
+        ${ribbon}
       </div>
       <div class="good-info">
         <div class="good-name">${esc(i.name)}</div>

@@ -375,6 +375,25 @@ body.theme-type .mob-acc-head, body.theme-type .mob-link {
 }
 .good-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
 .good-card:hover .good-photo img { transform: scale(1.04); }
+
+/* Лента на фото: «Продано» (контраст) / «Зарезервировано» (акцент) */
+.photo-ribbon {
+  position: absolute; top: 38px; left: -58px; z-index: 2;
+  width: 240px; padding: 6px 0; text-align: center;
+  transform: rotate(-45deg);
+  font-family: var(--font-b); font-size: 10px; font-weight: 700;
+  letter-spacing: .13em; text-transform: uppercase;
+  background: var(--text); color: var(--bg);
+  box-shadow: 0 2px 12px rgba(0,0,0,.28);
+  pointer-events: none;
+}
+.photo-ribbon.reserved { background: var(--gold); color: var(--bg); }
+body.theme-type .photo-ribbon.reserved { background: var(--pink); color: #17150f; }
+/* Проданные — фото приглушается и в каталоге (как на странице товара) */
+.good-card.sold .good-photo img { filter: grayscale(1); opacity: .85; }
+@media (max-width: 640px) {
+  .photo-ribbon { top: 28px; left: -50px; width: 200px; font-size: 8.5px; letter-spacing: .1em; padding: 5px 0; }
+}
 .good-photo .no-photo { color: var(--text3); font-family: var(--font-d); font-style: italic; font-size: 15px; }
 
 /* Фото — только витрина: без drag, лонг-тапа и «поиска по картинке» */

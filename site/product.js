@@ -36,6 +36,9 @@ async function boot() {
   const cat    = cats.find(c => c.id === i.categoryId);
   const photos = i.photos || [];
   const msg    = encodeURIComponent(`Здравствуйте! Интересует «${i.name}» с вашего сайта.`);
+  // Лента на фото: продано / зарезервировано («В заказе»)
+  const ribbonOf = (x) => x.sold ? '<span class="photo-ribbon">Продано</span>'
+    : x.reserved ? '<span class="photo-ribbon reserved">Зарезервировано</span>' : '';
 
   document.getElementById('productWrap').innerHTML = `
     <div class="product-grid">
@@ -44,7 +47,7 @@ async function boot() {
           ${photos.length
             ? `<img id="pMainImg" src="${esc(photos[0])}" alt="${esc(i.name)}" draggable="false">`
             : '<span class="no-photo">Masqucerade</span>'}
-          ${i.sold ? '<span class="sold-overlay">Продано</span>' : ''}
+          ${ribbonOf(i)}
         </div>
         ${photos.length > 1 ? `<div class="p-thumbs">${photos.map((p, idx) =>
           `<button type="button" class="p-thumb${idx === 0 ? ' active' : ''}" data-src="${esc(p)}"><img src="${esc(p)}" alt="" draggable="false"></button>`).join('')}</div>` : ''}
@@ -93,7 +96,7 @@ async function boot() {
           return `<a class="good-card" href="/product/${encodeURIComponent(r.id)}">
             <div class="good-photo">${cover
               ? `<img src="${esc(cover)}" alt="${esc(r.name)}" loading="lazy" draggable="false">`
-              : '<span class="no-photo">Masqucerade</span>'}</div>
+              : '<span class="no-photo">Masqucerade</span>'}${ribbonOf(r)}</div>
             <div class="good-info">
               <div class="good-name">${esc(r.name)}</div>
               <div class="good-meta"><span class="good-price">${fmtPrice(r.price)}</span></div>
