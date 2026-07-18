@@ -34,11 +34,15 @@ async function boot() {
   if (SECTION === 'monarc') {
     const ln = document.getElementById('logoName');
     if (ln) ln.textContent = 'Monarc';
+    const mln = document.getElementById('mobLogoName');
+    if (mln) mln.textContent = 'Monarc';
   }
   document.title = `Masqucerade INC. — ${TITLES[SECTION].title}`;
   document.querySelectorAll('.site-nav a').forEach(a =>
     a.classList.toggle('active', a.dataset.nav === SECTION));
   document.getElementById('footTg').href = `https://t.me/${TG_USERNAME}`;
+  const mobTg = document.getElementById('mobTg');
+  if (mobTg) mobTg.href = `https://t.me/${TG_USERNAME}`;
 
   try {
     const [items, cats, faq, collections, blocks] = await Promise.all([
@@ -152,6 +156,7 @@ function renderHeaderNav() {
     html += `<a class="hnav${activeCat === '__archive__' ? ' active' : ''}" data-cat="__archive__" href="#">Архив</a>`;
   nav.innerHTML = html;
   bindMegaHover(nav);
+  renderMobileMenu();   // мобильное меню строится из тех же данных
 }
 
 /* Наведение открывает мега-меню (десктоп); на тач-устройствах — по тапу.
@@ -175,6 +180,80 @@ function bindMegaHover(nav) {
     nav.addEventListener('mouseleave', () => nav.classList.remove('suppress'));
   }
 }
+
+/* ─── Мобильное бургер-меню: полноэкранный аккордеон (как у Gurbich) ─── */
+let _mobOpenSec = null;   // раскрытый раздел аккордеона — переживает перерисовку
+
+function renderMobileMenu() {
+  const body = document.getElementById('mobMenuBody');
+  if (!body) return;
+  const kids = catKidsMap();
+  const used = new Set(ITEMS.map(i => i.categoryId).filter(Boolean));
+  const inUse = id => [...catSubtree(id)].some(x => used.has(x));
+  const byOrder = (a, b) => (a.order || 0) - (b.order || 0);
+  const caret = `<svg class="mob-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+  let html = HDR_SECTIONS.map(sec => {
+    const cat = sectionCat(sec);
+    const dataCat = cat ? cat.id : `__sec-${sec.id}__`;
+    let catsCol = cat ? (kids[cat.id] || []).filter(s => inUse(s.id)).sort(byOrder) : [];
+    if (!cat) catsCol = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
+    const scope = cat ? (ids => ITEMS.filter(i => ids.has(i.categoryId)))(catSubtree(cat.id)) : ITEMS;
+    const gUsed = new Set(scope.map(i => i.garment).filter(Boolean));
+    const gList = GARMENTS.filter(g => gUsed.has(g.id));
+    const gCat  = cat ? ` data-cat="${esc(cat.id)}"` : '';
+
+    // Нечего раскрывать — обычный пункт-ссылка
+    if (!catsCol.length && !gList.length)
+      return `<a class="mob-link${activeCat === dataCat ? ' active' : ''}" data-cat="${esc(dataCat)}" href="#">${esc(sec.label)}</a>`;
+
+    return `<div class="mob-acc${_mobOpenSec === sec.id ? ' open' : ''}" data-sec="${esc(sec.id)}">
+      <button class="mob-acc-head" type="button">${esc(sec.label)}${caret}</button>
+      <div class="mob-acc-body">
+        <a class="mob-sub mob-sub-all" ${cat ? `data-cat="${esc(cat.id)}"` : 'data-all'} data-garment="" href="#">Смотреть все →</a>
+        ${catsCol.map(s => `<a class="mob-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
+        ${gList.map(g => `<a class="mob-sub${activeGarment === g.id && (!cat || activeCat === cat.id) ? ' active' : ''}"${gCat} data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  html += `<a class="mob-link${activeCat === '__other__' ? ' active' : ''}" data-cat="__other__" href="#">Другое</a>`;
+  if (ARCHIVE.length)
+    html += `<a class="mob-link${activeCat === '__archive__' ? ' active' : ''}" data-cat="__archive__" href="#">Архив</a>`;
+  body.innerHTML = html;
+}
+
+function toggleMobMenu(open) {
+  const el = document.getElementById('mobMenu');
+  if (!el) return;
+  el.classList.toggle('open', open);
+  el.setAttribute('aria-hidden', String(!open));
+  document.getElementById('burgerBtn')?.classList.toggle('active', open);
+  document.body.classList.toggle('mob-lock', open);   // страница под меню не скроллится
+}
+
+document.getElementById('burgerBtn')?.addEventListener('click', () => toggleMobMenu(true));
+document.getElementById('mobCloseBtn')?.addEventListener('click', () => toggleMobMenu(false));
+document.getElementById('mobMenu')?.addEventListener('click', (e) => {
+  const head = e.target.closest('.mob-acc-head');
+  if (head) {
+    const acc  = head.parentElement;
+    const open = acc.classList.toggle('open');
+    _mobOpenSec = open ? acc.dataset.sec : null;
+    // Одновременно раскрыт только один раздел
+    document.querySelectorAll('#mobMenu .mob-acc').forEach(a => { if (a !== acc) a.classList.remove('open'); });
+    return;
+  }
+  const a = e.target.closest('a[data-cat], a[data-all], a[data-garment]');
+  if (a) { e.preventDefault(); toggleMobMenu(false); applyNavFilter(a); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') toggleMobMenu(false);
+});
+// Поворот/расширение экрана до десктопа — меню закрывается само
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 640) toggleMobMenu(false);
+});
 
 function applyNavFilter(link) {
   // Раздел не сбрасывает выбранный тип одежды — фильтры комбинируются.

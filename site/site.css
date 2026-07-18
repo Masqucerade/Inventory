@@ -220,6 +220,85 @@ img { max-width: 100%; display: block; }
 .hnav-sub:hover { color: var(--text); }
 .hnav-sub.active { color: var(--text); }
 
+/* ─── Бургер и мобильное меню (≤640px) ─── */
+.burger-btn {
+  display: none; position: relative; grid-column: 3; justify-self: end;
+  width: 42px; height: 42px; padding: 0; margin-right: -8px;
+  background: none; border: none; cursor: pointer; color: var(--text);
+}
+.burger-btn span {
+  position: absolute; left: 10px; right: 10px; height: 1.5px;
+  background: currentColor; transition: transform .25s, top .25s;
+}
+.burger-btn span:nth-child(1) { top: 17px; }
+.burger-btn span:nth-child(2) { top: 24px; }
+
+.mob-menu {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column;
+  background: var(--bg); color: var(--text);
+  opacity: 0; visibility: hidden; transform: translateY(-14px);
+  transition: opacity .28s ease, transform .3s ease, visibility .28s;
+}
+.mob-menu.open { opacity: 1; visibility: visible; transform: none; }
+body.mob-lock { overflow: hidden; }
+
+.mob-menu-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--line);
+}
+.mob-close {
+  width: 42px; height: 42px; margin-right: -8px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text2);
+  transition: color .2s;
+}
+.mob-close:hover { color: var(--text); }
+
+.mob-menu-body { flex: 1; overflow-y: auto; padding: 8px 22px 20px; }
+.mob-acc-head, .mob-link {
+  display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 18px 0; background: none; border: none; border-bottom: 1px solid var(--line);
+  font-family: var(--font-d); font-size: 24px; font-weight: 500; letter-spacing: .02em;
+  color: var(--text); text-align: left; cursor: pointer;
+  transition: color .2s;
+}
+.mob-link.active { color: var(--gold); }
+.mob-caret { flex-shrink: 0; color: var(--text3); transition: transform .28s; }
+.mob-acc.open .mob-caret { transform: rotate(180deg); }
+.mob-acc { border-bottom: 1px solid var(--line); }
+.mob-acc .mob-acc-head { border-bottom: none; }
+.mob-acc-body {
+  max-height: 0; overflow: hidden;
+  transition: max-height .32s ease;
+}
+.mob-acc.open .mob-acc-body { max-height: 520px; }
+.mob-sub {
+  display: block; padding: 11px 0 11px 16px;
+  font-family: var(--font-b); font-size: 12.5px; font-weight: 500;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text2); transition: color .15s;
+}
+.mob-sub:last-child { padding-bottom: 20px; }
+.mob-sub.active { color: var(--gold); }
+.mob-sub-all { color: var(--gold); }
+
+.mob-menu-foot {
+  padding: 16px 22px calc(16px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+}
+.mob-menu-foot a {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--text2); transition: color .2s;
+}
+.mob-menu-foot a:hover { color: var(--text); }
+
+/* Светлая тема Type: пункты капсом DM Sans, как у Gurbich */
+body.theme-type .mob-acc-head, body.theme-type .mob-link {
+  font-family: var(--font-b); font-size: 14.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .14em;
+}
+
 /* ─── Каталог: контент ─── */
 .catalog-wrap {
   position: relative; z-index: 2;
@@ -583,10 +662,9 @@ a.duo-tile:hover img { transform: scale(1.04); }
   @keyframes sheet-in { from { transform: translateY(60px); opacity: 0; } }
   .item-modal-photo { aspect-ratio: 4 / 3; min-height: 0; }
   .item-modal-info { padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); }
-  /* Шапка: логотип сверху, навигация строкой ниже */
-  .site-header { grid-template-columns: 1fr; row-gap: 10px; justify-items: start; }
-  .site-nav { justify-self: stretch; max-width: 100%; width: 100%; gap: 18px; justify-content: flex-start; }
-  .site-nav a { padding: 2px 0; }
+  /* Шапка: логотип слева, бургер справа; навигация — в полноэкранном меню */
+  .site-nav { display: none; }
+  .burger-btn { display: block; }
   /* Мега-меню на мобильном: колонки в столбик, компактные отступы */
   .mega-inner { flex-direction: column; gap: 20px; padding: 20px 18px 26px; }
   .mega-title { font-size: 24px; }
