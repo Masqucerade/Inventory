@@ -539,7 +539,7 @@ class App {
   _renderAccessChips(access) {
     const el = document.getElementById('userAccessChips');
     if (!el) return;
-    const LABELS = { inventory: '📦 Товары', stats: '📊 Статистика', finance: '💳 Счёт', project: '📁 Task', site: '🌐 Сайт', faq: '📖 FAQ' };
+    const LABELS = { inventory: '📦 Товары', stats: '📊 Статистика', finance: '💳 Счёт', project: '📁 Proj', site: '🌐 Сайт', faq: '📖 FAQ' };
     const on = s => !Array.isArray(access) || access.includes(s);
     el.innerHTML = Object.entries(LABELS).map(([s, label]) =>
       `<button type="button" class="vis-chip${on(s) ? ' active' : ''}" data-acc="${s}">${label}</button>`
@@ -3482,53 +3482,95 @@ class App {
     const svgEye  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
     const svgEyeOff = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
 
+    const mask = (s) => '●'.repeat(Math.min(String(s).length, 12));
+
     el.innerHTML = `<div class="quick-list">${items.map(item => {
       const isPassword = item.type === 'password';
-      const maskedVal  = '●'.repeat(Math.min(item.value.length, 12));
+      const value = String(item.value ?? '');
+      const lines = value.split('\n').map(l => l.trim()).filter(Boolean);
+      // Короткие строки («Логин: … / Пароль: …») — рядами с копированием
+      // каждой; длинный текст (инструкции) — сворачиваемым абзацем.
+      const rowMode = lines.length > 0 && lines.length <= 6 && lines.every(l => l.length <= 80);
+      const long    = !rowMode && (lines.length > 5 || value.length > 260);
+
+      let body;
+      if (rowMode) {
+        body = `<div class="quick-rows">${lines.map(l => {
+          const m   = l.match(/^([^:：]{1,24})[:：]\s*(.+)$/);   // «Ключ: значение»
+          const key = m ? m[1].trim() : '';
+          const val = m ? m[2].trim() : l;
+          return `<div class="quick-row" data-val="${this.esc(val)}">
+            ${key ? `<span class="quick-row-key">${this.esc(key)}</span>` : ''}
+            <span class="quick-row-val${isPassword ? ' masked' : ''}">${isPassword ? mask(val) : this.esc(val)}</span>
+            <button class="quick-row-copy" type="button" title="Скопировать">${svgCopy}</button>
+          </div>`;
+        }).join('')}</div>`;
+      } else {
+        body = `<div class="quick-text${long ? ' clamped' : ''}${isPassword ? ' masked' : ''}">${isPassword ? mask(value) : this.esc(value)}</div>` +
+          (long ? `<button class="quick-expand" type="button">Развернуть</button>` : '');
+      }
+
       return `
       <div class="quick-item${item.pinned ? ' pinned' : ''}" data-quick-id="${item.id}">
-        <div class="quick-type-icon">${this._quickTypeIcon(item.type)}</div>
-        <div class="quick-main">
+        <div class="quick-head">
+          <div class="quick-type-icon">${this._quickTypeIcon(item.type)}</div>
           <span class="quick-label">${this.esc(item.label)}${this._visBadge(item)}</span>
-          <span class="quick-value${isPassword ? ' masked' : ''}" data-revealed="false" data-val="${this.esc(item.value)}">
-            ${isPassword ? maskedVal : this.esc(item.value)}
-          </span>
+          <div class="quick-actions">
+            ${isPassword ? `<button class="quick-eye" title="Показать/скрыть">${svgEyeOff}</button>` : ''}
+            <button class="quick-copy" title="Скопировать всё">${svgCopy}</button>
+            <button class="quick-pin ${item.pinned ? 'active' : ''}" title="${item.pinned ? 'Открепить' : 'Закрепить'}">${svgPin}</button>
+            <button class="quick-edit" title="Изменить">${svgEdit}</button>
+            <button class="quick-del" title="Удалить">${svgDel}</button>
+          </div>
         </div>
-        <div class="quick-actions">
-          ${isPassword ? `<button class="quick-eye" data-quick-id="${item.id}" title="Показать/скрыть">${svgEyeOff}</button>` : ''}
-          <button class="quick-copy" data-val="${this.esc(item.value)}" title="Скопировать">${svgCopy}</button>
-          <button class="quick-pin ${item.pinned ? 'active' : ''}" data-quick-id="${item.id}" title="${item.pinned ? 'Открепить' : 'Закрепить'}">${svgPin}</button>
-          <button class="quick-edit" data-quick-id="${item.id}" title="Изменить">${svgEdit}</button>
-          <button class="quick-del"  data-quick-id="${item.id}" title="Удалить">${svgDel}</button>
-        </div>
+        <div class="quick-body">${body}</div>
       </div>`;
     }).join('')}
     </div>`;
 
-    el.querySelectorAll('.quick-eye').forEach(btn =>
-      btn.addEventListener('click', () => {
-        const valEl    = btn.closest('.quick-item').querySelector('.quick-value');
-        const revealed = valEl.dataset.revealed === 'true';
-        valEl.dataset.revealed = !revealed;
-        valEl.textContent = revealed
-          ? '●'.repeat(Math.min(valEl.dataset.val.length, 12))
-          : valEl.dataset.val;
-        btn.innerHTML = revealed ? svgEyeOff : svgEye;
-      })
-    );
+    const copyText = (val, btn) => {
+      (navigator.clipboard?.writeText(val) || Promise.reject())
+        .catch(() => { const ta = document.createElement('textarea'); ta.value = val; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); });
+      btn.classList.add('copied');
+      setTimeout(() => btn.classList.remove('copied'), 1400);
+      this.toast('Скопировано');
+    };
+    const itemOf = (node) => raw.find(x => x.id === node.closest('.quick-item')?.dataset.quickId);
+
+    el.querySelectorAll('.quick-row-copy').forEach(btn =>
+      btn.addEventListener('click', () => copyText(btn.closest('.quick-row').dataset.val, btn)));
     el.querySelectorAll('.quick-copy').forEach(btn =>
       btn.addEventListener('click', () => {
-        const val = btn.dataset.val;
-        (navigator.clipboard?.writeText(val) || Promise.reject())
-          .catch(() => { const ta = document.createElement('textarea'); ta.value = val; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); });
-        btn.classList.add('copied');
-        setTimeout(() => btn.classList.remove('copied'), 1400);
-        this.toast('Скопировано');
-      })
-    );
+        const item = itemOf(btn);
+        if (item) copyText(String(item.value ?? ''), btn);
+      }));
+    el.querySelectorAll('.quick-eye').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const card     = btn.closest('.quick-item');
+        const item     = itemOf(btn);
+        const revealed = card.dataset.revealed === 'true';
+        card.dataset.revealed = String(!revealed);
+        card.querySelectorAll('.quick-row').forEach(row => {
+          const v = row.querySelector('.quick-row-val');
+          v.textContent = revealed ? mask(row.dataset.val) : row.dataset.val;
+          v.classList.toggle('masked', revealed);
+        });
+        const txt = card.querySelector('.quick-text');
+        if (txt && item) {
+          txt.textContent = revealed ? mask(item.value) : String(item.value ?? '');
+          txt.classList.toggle('masked', revealed);
+        }
+        btn.innerHTML = revealed ? svgEyeOff : svgEye;
+      }));
+    el.querySelectorAll('.quick-expand').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const txt  = btn.closest('.quick-body').querySelector('.quick-text');
+        const open = !txt.classList.toggle('clamped');
+        btn.textContent = open ? 'Свернуть' : 'Развернуть';
+      }));
     el.querySelectorAll('.quick-pin').forEach(btn =>
       btn.addEventListener('click', async () => {
-        const item = raw.find(x => x.id === btn.dataset.quickId);
+        const item = itemOf(btn);
         if (!item) return;
         await this.db.patchQuickItem(item.id, { pinned: !item.pinned });
         this.renderProjectQuick();
@@ -3536,7 +3578,7 @@ class App {
     );
     el.querySelectorAll('.quick-edit').forEach(btn =>
       btn.addEventListener('click', () => {
-        const item = raw.find(x => x.id === btn.dataset.quickId);
+        const item = itemOf(btn);
         if (item) this.openQuickModal(item);
       })
     );
@@ -3544,7 +3586,7 @@ class App {
       btn.addEventListener('click', async () => {
         const ok = await this.confirm('Удалить реквизит?');
         if (!ok) return;
-        await this.db.deleteQuickItem(btn.dataset.quickId);
+        await this.db.deleteQuickItem(btn.closest('.quick-item').dataset.quickId);
         this.renderProject();
       })
     );
@@ -4891,10 +4933,10 @@ class App {
      UTILS
      ────────────────────────────────────────── */
   esc(str) {
-    if (!str) return '';
-    const d = document.createElement('div');
-    d.textContent = String(str);
-    return d.innerHTML;
+    // Экранируем и кавычки: значения попадают в атрибуты (data-val="…")
+    if (str == null || str === '') return '';
+    return String(str).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   fmtDate(iso) {
