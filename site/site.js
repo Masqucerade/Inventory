@@ -467,7 +467,7 @@ function cardHTML(i) {
       <div class="good-info">
         <div class="good-name">${esc(i.name)}</div>
         <div class="good-meta">
-          <span class="good-price">${fmtPrice(i.price)}</span>
+          <span class="good-price">${fmtPrice(i.price)}${i.oldPrice ? ` <s class="old-price">${fmtPrice(i.oldPrice)}</s><em class="disc-badge">−${Math.round((1 - i.price / i.oldPrice) * 100)}%</em>` : ''}</span>
           <span class="good-sizes">${esc(sizesLabel(i.sizes))}</span>
         </div>
         ${tag}

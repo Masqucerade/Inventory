@@ -55,7 +55,7 @@ async function boot() {
       <div class="product-info">
         <p class="m-cat">${esc(cat ? cat.name : (i.section === 'monarc' ? 'Monarc' : 'Type Clothes'))}</p>
         <h1 class="p-name">${esc(i.name)}</h1>
-        <p class="m-price">${fmtPrice(i.price)}</p>
+        <p class="m-price">${fmtPrice(i.price)}${i.oldPrice ? ` <s class="old-price">${fmtPrice(i.oldPrice)}</s><em class="disc-badge">−${Math.round((1 - i.price / i.oldPrice) * 100)}%</em>` : ''}</p>
         ${i.sold
           ? `<span class="good-tag sold p-sold-tag">Продано</span>`
           : `<div class="m-sizes">${(i.sizes || []).filter(s => s.size).map(s =>

@@ -1660,6 +1660,7 @@ class App {
           ['Цена закупа',  item.buyPrice     ? fmtMoney(item.buyPrice)     : '—'],
           ['Доставка',     item.deliveryCost ? fmtMoney(item.deliveryCost) : '—'],
           ['Цена продажи', item.price        ? fmtMoney(item.price)        : '—'],
+          ...(item.oldPrice > item.price ? [['Скидка на сайте', `<s>${fmtMoney(item.oldPrice)}</s> · −${Math.round((1 - item.price / item.oldPrice) * 100)}%`]] : []),
           ['Маржа / шт',   marginStr],
           ['Итого',        fmtMoney(item.total), 'big'],
         ]
@@ -1838,7 +1839,7 @@ class App {
     this._sizes        = [{ size: '', qty: 1 }];
 
     /* Reset */
-    ['fieldName','fieldNotes','fieldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements','fieldGarment'].forEach(k => document.getElementById(k).value = '');
+    ['fieldName','fieldNotes','fieldPrice','fieldOldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements','fieldGarment'].forEach(k => document.getElementById(k).value = '');
     this._garmentManual = false;   // автоподбор типа одежды снова разрешён
     document.getElementById('fieldIsMonarc').checked   = false;
     document.getElementById('fieldShowOnSite').checked = false;
@@ -1874,6 +1875,7 @@ class App {
       if (item) {
         document.getElementById('fieldName').value          = item.name         || '';
         document.getElementById('fieldPrice').value         = item.price        || '';
+        document.getElementById('fieldOldPrice').value      = item.oldPrice     || '';
         document.getElementById('fieldBuyPrice').value      = item.buyPrice     || '';
         document.getElementById('fieldDeliveryCost').value  = item.deliveryCost || '';
         document.getElementById('fieldNotes').value = item.notes || '';
@@ -2156,6 +2158,7 @@ class App {
       sizes,
       quantity:    totQty,
       price:        parseFloat(document.getElementById('fieldPrice').value)        || 0,
+      oldPrice:     parseFloat(document.getElementById('fieldOldPrice').value)     || 0,
       buyPrice:     parseFloat(document.getElementById('fieldBuyPrice').value)     || 0,
       deliveryCost: parseFloat(document.getElementById('fieldDeliveryCost').value) || 0,
       notes:       document.getElementById('fieldNotes').value.trim(),

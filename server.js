@@ -314,6 +314,8 @@ function publicItem(i) {
     id:           i.id,
     name:         i.name,
     price:        i.price ?? null,
+    // Старая цена для скидки — только если реально больше текущей
+    oldPrice:     (i.oldPrice && i.price && i.oldPrice > i.price) ? i.oldPrice : null,
     inStock:      i.orderStatus === 'in_stock',
     sold:         isSoldOut(i),
     reserved:     i.orderStatus === 'processing',   // «В заказе» → лента «Зарезервировано»

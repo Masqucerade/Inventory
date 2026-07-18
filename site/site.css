@@ -838,6 +838,21 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
   body.theme-type .goods-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ─── Скидка: перечёркнутая старая цена + бейдж −N% ─── */
+.old-price {
+  margin-left: 6px;
+  color: var(--text3); font-size: .85em; font-weight: 400;
+  text-decoration-thickness: 1px;
+}
+.disc-badge {
+  display: inline-block; vertical-align: 2px; margin-left: 7px;
+  padding: 2px 7px; border-radius: 5px;
+  font-style: normal; font-family: var(--font-b);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+  background: var(--gold); color: var(--bg);
+}
+body.theme-type .disc-badge { background: var(--pink); color: #17150f; }
+
 /* ─── Попап при заходе на сайт ─── */
 .site-popup {
   position: fixed; inset: 0; z-index: 90;
