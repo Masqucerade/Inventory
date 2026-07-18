@@ -908,7 +908,9 @@ class App {
       if (del) {
         const ok = await this.confirm('Удалить подборку? Товары останутся на сайте.');
         if (!ok) return;
+        const c = (this._collections || []).find(x => x.id === del.dataset.id);
         await this.db.deleteCollection(del.dataset.id);
+        this.db.logAction('site_col', `Подборка «${c?.title || '—'}» удалена с витрины`, { level: 'danger' });
         this.toast('Подборка удалена');
         this.renderCollectionsList();
         return;
@@ -938,7 +940,9 @@ class App {
       const del = e.target.closest('.block-delete-btn');
       if (del) {
         if (!await this.confirm('Удалить блок?')) return;
+        const b = (this._blocks || []).find(x => x.id === del.dataset.id);
         await this.db.deleteBlock(del.dataset.id);
+        this.db.logAction('site_block', `${b ? this._blockLabel(b) : 'Блок'} удалён с витрины`, { level: 'danger' });
         this.toast('Блок удалён');
         this.renderBlocksList();
         return;
@@ -948,7 +952,11 @@ class App {
       const tg = e.target.closest('.block-toggle');
       if (tg) {
         const b = (this._blocks || []).find(x => x.id === tg.dataset.id);
-        if (b) { await this.db.saveBlock({ id: b.id, enabled: !b.enabled }); this.renderBlocksList(); }
+        if (b) {
+          await this.db.saveBlock({ id: b.id, enabled: !b.enabled });
+          this.db.logAction('site_block', `${this._blockLabel(b)} ${!b.enabled ? 'показан' : 'скрыт'} на витрине`);
+          this.renderBlocksList();
+        }
         return;
       }
       const row = e.target.closest('[data-block-id]');
@@ -1294,6 +1302,19 @@ class App {
       return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
     };
 
+    /* Уровень записи: danger — разрушительное (удаления, восстановление,
+       очистка), warn — важное (финансы, витрина, пользователи).
+       Клиент может задать уровень явно через meta.level. */
+    const levelOf = (l) => {
+      if (l.meta?.level) return l.meta.level;
+      const t = l.type || '';
+      if (/_delete$/.test(t) || t === 'restore' || t === 'clear') return 'danger';
+      if (['payment', 'emp_payment', 'sale', 'plan'].includes(t) || t.startsWith('site_') || t.startsWith('user_')) return 'warn';
+      return '';
+    };
+    const flag = (lvl) => lvl === 'danger' ? '<span class="term-flag danger">‼</span>'
+                        : lvl === 'warn'   ? '<span class="term-flag warn">!</span>' : '';
+
     el.innerHTML = `
       <div class="term-window">
         <div class="term-bar">
@@ -1302,12 +1323,17 @@ class App {
         </div>
         <div class="term-body" id="termBody">
           <div class="term-line term-boot">MASQUCERADE INC. · PANEL LOG · ${new Date().getFullYear()}</div>
-          ${logs.length ? logs.map(l => `
-            <div class="term-line">
+          <div class="term-line term-boot"><span class="term-flag warn">!</span> важное · <span class="term-flag danger">‼</span> опасное</div>
+          ${logs.length ? logs.map(l => {
+            const lvl = levelOf(l);
+            return `
+            <div class="term-line${lvl ? ' term-' + lvl : ''}">
               <span class="term-time">[${fmtT(l.ts)}]</span>
               <span class="term-user">${this.esc((l.user || 'system').toLowerCase())}$</span>
+              ${flag(lvl)}
               <span class="term-text">${this.esc(l.desc || l.type || '')}</span>
-            </div>`).join('')
+            </div>`;
+          }).join('')
           : '<div class="term-line term-boot">— журнал пуст —</div>'}
           <div class="term-line">
             <span class="term-user">${this.esc(me)}$</span>
@@ -2089,6 +2115,14 @@ class App {
     if (guess) sel.value = guess;
   }
 
+  // Человекочитаемая подпись контент-блока для журнала
+  _blockLabel(b) {
+    const TYPE = { banner: 'баннер', weekly: 'товары недели', duo: 'двойной баннер',
+                   statement: 'слоган', marquee: 'бегущая строка', text: 'текст', promo: 'промо-полоса' };
+    const label = String(b.heading || b.text || '').replace(/\n/g, ' ').trim().slice(0, 40);
+    return `Блок (${TYPE[b.type] || b.type})${label ? ` «${label}»` : ''}`;
+  }
+
   async saveItem() {
     if (this._saving) return;
     const name = document.getElementById('fieldName').value.trim();
@@ -2096,6 +2130,7 @@ class App {
     this._saving = true;
 
     const isNew  = !this.editingItemId;
+    const oldShowOnSite = !isNew && !!this.items.find(i => i.id === this.editingItemId)?.showOnSite;
     const sizes  = this._sizes.filter(s => s.size.trim() || (s.qty || 0) > 0);
     const totQty = sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
     const item   = {
@@ -2132,6 +2167,12 @@ class App {
         isNew ? `Добавлен товар: «${name}»` : `Изменён товар: «${name}»`,
         { id: saved.id, name, quantity: totQty, price: item.price }
       );
+      // Появление/уход товара с публичной витрины — отдельная строка в журнале
+      if (!!item.showOnSite !== oldShowOnSite) {
+        await this.db.logAction('site_item', item.showOnSite
+          ? `Товар «${name}» показан на витрине сайта`
+          : `Товар «${name}» скрыт с витрины сайта`);
+      }
       await this.loadData();
       this.closeModal('itemModal');
       this.renderInventoryList();
@@ -4214,6 +4255,7 @@ class App {
     const isRoot = this.currentUser?.role === 'root';
     const vis    = isRoot ? this._readVis('faqVisChips') : undefined;
     const showOnSite = document.getElementById('faqShowOnSite').checked;
+    const isNewFaq   = !this._editingFaqId;
     if (this._editingFaqId) {
       const patch = { title, body, lines, showOnSite };
       if (vis !== undefined) patch.visibility = vis;
@@ -4223,6 +4265,7 @@ class App {
       await this.db.addFaqItem({ title, body, lines, showOnSite, ...(vis !== undefined ? { visibility: vis } : {}) });
       this.toast('Топик добавлен ✓');
     }
+    this.db.logAction('site_faq', `FAQ-топик «${title}» ${isNewFaq ? 'добавлен' : 'изменён'}${showOnSite ? ' · виден на сайте' : ''}`);
     this._editingFaqId = null;
     this.closeModal('faqModal');
     this._refreshFaqManage();
@@ -4231,7 +4274,9 @@ class App {
   async deleteFaqItem(id) {
     const ok = await this.confirm('Удалить этот топик?');
     if (!ok) return;
+    const title = (this._faqCache || []).find(f => f.id === id)?.title;
     await this.db.deleteFaqItem(id);
+    this.db.logAction('site_faq', `FAQ-топик «${title || '—'}» удалён`, { level: 'danger' });
     this._refreshFaqManage();
   }
 
@@ -4312,14 +4357,16 @@ class App {
   async saveCollectionForm() {
     const title = document.getElementById('colTitle').value.trim();
     if (!title) { this.toast('Введите название подборки'); return; }
+    const isNewCol = !this._editingColId;
     await this.db.saveCollection({
       ...(this._editingColId ? { id: this._editingColId } : { order: this._nextStreamOrder() }),
       title,
       description: document.getElementById('colDesc').value.trim(),
       itemIds:     [...this._colPicked],
     });
+    this.db.logAction('site_col', `Подборка «${title}» ${isNewCol ? 'создана' : 'изменена'} (${this._colPicked.size} тов.)`);
     this.closeModal('collectionModal');
-    this.toast(this._editingColId ? 'Подборка обновлена ✓' : 'Подборка создана ✓');
+    this.toast(isNewCol ? 'Подборка создана ✓' : 'Подборка обновлена ✓');
     this._editingColId = null;
     await this._refreshCollections();
   }
@@ -4378,6 +4425,7 @@ class App {
     [arr[i], arr[j]] = [arr[j], arr[i]];
     // Нормализуем порядок 0..n и сохраняем только сдвинувшиеся
     await Promise.all(arr.map((b, idx) => b.order === idx ? null : this.db.saveBlock({ id: b.id, order: idx })));
+    this._logReorder();
     await this._refreshBlocks();
   }
 
@@ -4584,6 +4632,7 @@ class App {
     if (b.type === 'weekly'    && !(b.itemIds && b.itemIds.length)) { this.toast('Выберите хотя бы один товар'); return; }
     if (this._blockIsNew && this.currentView === 'site') b.order = this._nextStreamOrder();  // в конец потока
     await this.db.saveBlock(b);
+    this.db.logAction('site_block', `${this._blockLabel(b)} ${this._blockIsNew ? 'создан' : 'изменён'} на витрине`);
     this.closeModal('blockModal');
     this.toast(this._blockIsNew ? 'Блок создан ✓' : 'Блок обновлён ✓');
     await this._refreshBlocks();
@@ -4849,7 +4898,15 @@ class App {
     [arr[i], arr[j]] = [arr[j], arr[i]];
     await Promise.all(arr.map((x, idx) => x.order === idx ? null :
       (x.kind === 'block' ? this.db.saveBlock({ id: x.id, order: idx }) : this.db.saveCollection({ id: x.id, order: idx }))));
+    this._logReorder();
     await this.renderSiteView();
+  }
+
+  // Серия кликов стрелками = одна запись в журнале, а не спам
+  _logReorder() {
+    clearTimeout(this._reorderLogT);
+    this._reorderLogT = setTimeout(() =>
+      this.db.logAction('site_block', 'Порядок блоков и подборок на витрине изменён'), 4000);
   }
 
   async _onSiteClick(e) {
@@ -4865,18 +4922,28 @@ class App {
     const bDel = e.target.closest('.block-delete-btn');
     if (bDel) {
       if (!await this.confirm('Удалить блок?')) return;
-      await this.db.deleteBlock(bDel.dataset.id); this.toast('Блок удалён'); this.renderSiteView(); return;
+      const b = (this._blocks || []).find(x => x.id === bDel.dataset.id);
+      await this.db.deleteBlock(bDel.dataset.id);
+      this.db.logAction('site_block', `${b ? this._blockLabel(b) : 'Блок'} удалён с витрины`, { level: 'danger' });
+      this.toast('Блок удалён'); this.renderSiteView(); return;
     }
     const bTog = e.target.closest('.block-toggle');
     if (bTog) {
       const b = (this._blocks || []).find(x => x.id === bTog.dataset.id);
-      if (b) { await this.db.saveBlock({ id: b.id, enabled: !b.enabled }); this.renderSiteView(); }
+      if (b) {
+        await this.db.saveBlock({ id: b.id, enabled: !b.enabled });
+        this.db.logAction('site_block', `${this._blockLabel(b)} ${!b.enabled ? 'показан' : 'скрыт'} на витрине`);
+        this.renderSiteView();
+      }
       return;
     }
     const cDel = e.target.closest('.col-delete-btn');
     if (cDel) {
       if (!await this.confirm('Удалить подборку? Товары останутся на сайте.')) return;
-      await this.db.deleteCollection(cDel.dataset.id); this.toast('Подборка удалена'); this.renderSiteView(); return;
+      const c = (this._collections || []).find(x => x.id === cDel.dataset.id);
+      await this.db.deleteCollection(cDel.dataset.id);
+      this.db.logAction('site_col', `Подборка «${c?.title || '—'}» удалена с витрины`, { level: 'danger' });
+      this.toast('Подборка удалена'); this.renderSiteView(); return;
     }
 
     const bRow = e.target.closest('[data-block-id]');

@@ -3671,6 +3671,12 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 .term-time { color: rgba(255,255,255,.32); }
 .term-user { color: #fff; font-weight: 700; }
 .term-text { color: rgba(255,255,255,.72); }
+/* Подсветка важного/опасного в журнале */
+.term-flag { font-weight: 800; margin-right: 2px; }
+.term-flag.warn   { color: #fbbf24; }
+.term-flag.danger { color: #f87171; }
+.term-warn .term-text   { color: #fcd34d; }
+.term-danger .term-text { color: #fca5a5; font-weight: 600; }
 .term-caret {
   display: inline-block; width: 7px; height: 13px; vertical-align: -2px; margin-left: 2px;
   background: #fff; animation: term-blink 1.1s steps(1) infinite;

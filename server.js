@@ -657,6 +657,7 @@ const TG_ICONS = {
   item_add:     '➕', item_edit:    '✏️', item_delete:  '🗑',
   owner_add:    '👤', owner_edit:   '✏️', owner_delete: '🗑',
   backup:       '💾', restore:      '📂', clear:        '🧹',
+  site_block:   '🧱', site_col:     '🗂', site_faq:     '💬', site_item: '🌐',
 };
 
 /* Категории уведомлений: каждому типу события — категория,
@@ -777,7 +778,8 @@ app.delete('/api/logs', (req, res) => {
 const STATUS_RU = { ordered: 'Заказано', in_stock: 'В наличии', processing: 'В заказе', waiting: 'Ожидается', done: 'Завершено' };
 const LOG_RU    = { item_add: 'Добавление', item_edit: 'Изменение', item_delete: 'Удаление',
                     owner_add: 'Владелец+', owner_edit: 'Владелец', owner_delete: 'Владелец-',
-                    backup: 'Бэкап', restore: 'Восстановление', clear: 'Очистка' };
+                    backup: 'Бэкап', restore: 'Восстановление', clear: 'Очистка',
+                    site_block: 'Витрина', site_col: 'Подборка', site_faq: 'FAQ сайта', site_item: 'Витрина' };
 
 function csvRow(arr) {
   return arr.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',');
