@@ -107,6 +107,14 @@ async function boot() {
     </section>` : ''}
   `;
 
+  /* Клик по «Написать в Telegram» — счётчик заявок (fire-and-forget) */
+  document.querySelectorAll('.tg-btn').forEach(a =>
+    a.addEventListener('click', () => {
+      const url = `/api/public/items/${encodeURIComponent(i.id)}/click`;
+      try { navigator.sendBeacon(url); }
+      catch (_) { fetch(url, { method: 'POST', keepalive: true }).catch(() => {}); }
+    }));
+
   /* Миниатюры переключают главное фото */
   document.querySelectorAll('.p-thumb').forEach(t =>
     t.addEventListener('click', () => {

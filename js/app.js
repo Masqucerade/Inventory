@@ -1676,7 +1676,10 @@ class App {
                ${this.esc(owner.name)}</span>`
           : '—')],
       ['Создан', this.fmtDate(item.createdAt)],
-      ...(item.showOnSite ? [['Просмотры на сайте', `${item.views || 0}`]] : []),
+      ...(item.showOnSite ? [
+        ['Просмотры на сайте', `${item.views || 0}`],
+        ['Заявки в Telegram', `${item.tgClicks || 0}`],
+      ] : []),
     ].map(([k,v]) =>
       `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`
     ).join('');
@@ -3044,10 +3047,20 @@ class App {
           <div class="stat-value" data-count="${items.filter(i => i.orderStatus === 'in_stock').reduce((s, i) => s + (i.quantity || 0), 0)}">0</div>
           <div class="stat-label">В наличии, шт</div>
         </div>
+        ${(() => {
+          const views  = items.reduce((s, i) => s + (i.views || 0), 0);
+          const clicks = items.reduce((s, i) => s + (i.tgClicks || 0), 0);
+          const conv   = views ? Math.round(clicks / views * 1000) / 10 : 0;
+          return `
         <div class="stat-card">
-          <div class="stat-value" data-count="${items.reduce((s, i) => s + (i.views || 0), 0)}">0</div>
+          <div class="stat-value" data-count="${views}">0</div>
           <div class="stat-label">Просмотры на сайте</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-value" data-count="${clicks}">0</div>
+          <div class="stat-label">Заявки в TG${views && clicks ? ` · ${conv}%` : ''}</div>
+        </div>`;
+        })()}
         <div class="stat-card wide">
           <div class="stat-value" data-count="${avgPrice}" data-fmt="money">0 ₽</div>
           <div class="stat-label">Средняя цена за штуку</div>
@@ -4810,7 +4823,7 @@ class App {
       return `<button class="site-item-card${sold ? ' sold' : ''}" data-site-item="${it.id}">
         <div class="site-item-thumb">
           ${cov ? `<img src="${cov}" loading="lazy" alt="">` : `<span class="site-item-ph">🖼</span>`}
-          <span class="site-item-views">${eyeSvg}${fmtNum(it.views || 0)}</span>
+          <span class="site-item-views">${eyeSvg}${fmtNum(it.views || 0)}${it.tgClicks ? ` · 💬${fmtNum(it.tgClicks)}` : ''}</span>
           ${sold ? `<span class="site-item-sold">Продано</span>` : ''}
         </div>
         <div class="site-item-name">${this.esc(it.name || '—')}</div>

@@ -356,6 +356,15 @@ app.get('/api/public/items/:id', (req, res) => {
   res.json({ item: publicItem(it), related: related.slice(0, 8).map(publicItem) });
 });
 
+// Клик по «Написать в Telegram» на странице товара — счётчик заявок.
+// Вместе с views даёт воронку: смотрят → пишут.
+app.post('/api/public/items/:id/click', (req, res) => {
+  const db = load();
+  const it = (db.items || []).find(i => i.id === req.params.id && i.showOnSite);
+  if (it) { it.tgClicks = (it.tgClicks || 0) + 1; save(db); }
+  res.json({ ok: true });
+});
+
 app.get('/api/public/categories', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.json((load().categories || [])
