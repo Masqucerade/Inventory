@@ -4674,53 +4674,22 @@ class App {
     const views  = onSite.reduce((s, i) => s + (i.views || 0), 0);
     const plur = (n, f) => { const m = n % 100, d = n % 10; if (m > 10 && m < 20) return f[2]; if (d > 1 && d < 5) return f[1]; if (d === 1) return f[0]; return f[2]; };
 
-    /* ── Hero: окно браузера с мини-версией главной (сплит Monarc | Type) ── */
-    const tilesHtml = `
-      <div class="sb-split">
-        <div class="sb-half sb-half-m">
-          <span class="sb-kick">Оригинал</span>
-          <b>Monarc</b>
-          <span class="sb-cta">Смотреть коллекцию →</span>
-        </div>
-        <div class="sb-half sb-half-t">
-          <span class="sb-kick">Люкс-качество</span>
-          <b>Type&nbsp;Clothes</b>
-          <span class="sb-cta">Смотреть каталог →</span>
-        </div>
-        <i class="sb-seal">M</i>
-      </div>`;
-
-    const mq = blocks.find(b => b.enabled && (b.type === 'marquee' || b.type === 'promo') && b.text);
-    const mqText = (mq?.text || 'MASQUCERADE — 1 OF 1 — ТОЛЬКО ОРИГИНАЛ — 2026').replace(/\s*\n\s*/g, ' ').trim();
-    const mqLine = `${mqText} ✦ `.repeat(4);
+    /* ── Компактная панель: открыть сайт + счётчики (без декораций) ── */
     const host = (location.host || 'masqucerade.inc').replace(/^www\./, '');
-
-    const lockSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
-    const extSvg  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>`;
-    const eyeSvg  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    const extSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>`;
+    const eyeSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
     const hero = `
-      <div class="site-hero">
-        <div class="site-browser">
-          <div class="sb-bar">
-            <span class="sb-dots"><i></i><i></i><i></i></span>
-            <span class="sb-addr">${lockSvg}<span>${this.esc(host)}</span></span>
-            <a class="sb-open" href="/" target="_blank" rel="noopener">Открыть${extSvg}</a>
-          </div>
-          <div class="sb-view">
-            <div class="sb-brandline">
-              <span class="sb-brand">Masqucerade<i>&nbsp;INC.</i></span>
-              <span class="sb-nav">Мужское · Женское · Аксессуары</span>
-            </div>
-            ${tilesHtml}
-            <div class="sb-marquee"><span>${this.esc(mqLine)}</span></div>
-          </div>
-          <div class="sb-status">
-            <span class="sb-stat"><b>${onSite.length}</b> ${plur(onSite.length, ['товар', 'товара', 'товаров'])}</span>
-            <span class="sb-stat"><b>${blocks.length}</b> ${plur(blocks.length, ['блок', 'блока', 'блоков'])}</span>
-            <span class="sb-stat"><b>${cols.length}</b> ${plur(cols.length, ['подборка', 'подборки', 'подборок'])}</span>
-            <span class="sb-stat sb-stat-views">${eyeSvg}<b>${fmtNum(views)}</b></span>
-          </div>
+      <div class="site-topbar">
+        <div class="site-topbar-left">
+          <a class="site-open-btn" href="/" target="_blank" rel="noopener">Открыть сайт ${extSvg}</a>
+          <span class="site-topbar-host">${this.esc(host)}</span>
+        </div>
+        <div class="site-topbar-stats">
+          <span class="sb-stat"><b>${onSite.length}</b> ${plur(onSite.length, ['товар', 'товара', 'товаров'])}</span>
+          <span class="sb-stat"><b>${blocks.length}</b> ${plur(blocks.length, ['блок', 'блока', 'блоков'])}</span>
+          <span class="sb-stat"><b>${cols.length}</b> ${plur(cols.length, ['подборка', 'подборки', 'подборок'])}</span>
+          <span class="sb-stat sb-stat-views">${eyeSvg}<b>${fmtNum(views)}</b></span>
         </div>
       </div>`;
 
