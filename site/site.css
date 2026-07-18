@@ -220,10 +220,68 @@ img { max-width: 100%; display: block; }
 .hnav-sub:hover { color: var(--text); }
 .hnav-sub.active { color: var(--text); }
 
+/* ─── Кнопки справа в шапке: поиск (всегда) + бургер (мобайл) ─── */
+.header-side {
+  grid-column: 3; justify-self: end;
+  display: flex; align-items: center; gap: 2px; margin-right: -8px;
+}
+.search-btn {
+  width: 42px; height: 42px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text2);
+  transition: color .2s;
+}
+.search-btn:hover { color: var(--text); }
+
+/* ─── Поиск-оверлей ─── */
+.search-overlay {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; flex-direction: column;
+  background: var(--bg); color: var(--text);
+  opacity: 0; visibility: hidden; transform: translateY(-14px);
+  transition: opacity .28s ease, transform .3s ease, visibility .28s;
+}
+.search-overlay.open { opacity: 1; visibility: visible; transform: none; }
+.so-top {
+  display: flex; align-items: center; gap: 12px;
+  padding: 15px 18px; border-bottom: 1px solid var(--line);
+}
+.so-icon { flex-shrink: 0; color: var(--text3); }
+.so-input {
+  flex: 1; min-width: 0;
+  background: none; border: none; outline: none;
+  color: var(--text); font-family: var(--font-b);
+  font-size: 15px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
+}
+.so-input::placeholder { color: var(--text3); }
+.so-label {
+  padding: 20px 22px 4px;
+  font-size: 10.5px; letter-spacing: .3em; text-transform: uppercase; color: var(--text3);
+}
+.so-results { flex: 1; overflow-y: auto; padding: 4px 22px calc(26px + env(safe-area-inset-bottom)); }
+.sr-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 0; border-bottom: 1px solid var(--line);
+  color: var(--text);
+}
+.sr-thumb {
+  width: 46px; height: 56px; flex-shrink: 0; overflow: hidden;
+  background: var(--surface); border-radius: 6px;
+}
+.sr-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sr-name {
+  flex: 1; min-width: 0;
+  font-size: 13px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.sr-meta { flex-shrink: 0; font-size: 13.5px; color: var(--text2); }
+.sr-sold { font-style: normal; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--text3); }
+.sr-empty { padding: 34px 0; color: var(--text3); font-size: 14px; }
+
 /* ─── Бургер и мобильное меню (≤640px) ─── */
 .burger-btn {
-  display: none; position: relative; grid-column: 3; justify-self: end;
-  width: 42px; height: 42px; padding: 0; margin-right: -8px;
+  display: none; position: relative;
+  width: 42px; height: 42px; padding: 0;
   background: none; border: none; cursor: pointer; color: var(--text);
 }
 .burger-btn span {
@@ -287,11 +345,16 @@ body.mob-lock { overflow: hidden; }
   padding: 16px 22px calc(16px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
 }
-.mob-menu-foot a {
+.mob-menu-foot a, .mob-foot-link {
   font-size: 11.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
   color: var(--text2); transition: color .2s;
 }
-.mob-menu-foot a:hover { color: var(--text); }
+.mob-menu-foot a:hover, .mob-foot-link:hover { color: var(--text); }
+.mob-foot-link {
+  display: block; padding: 0 0 14px;
+  background: none; border: none; cursor: pointer; text-align: left;
+  font-family: var(--font-b);
+}
 
 /* Светлая тема Type: пункты капсом DM Sans, как у Gurbich */
 body.theme-type .mob-acc-head, body.theme-type .mob-link {

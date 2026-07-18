@@ -181,6 +181,50 @@ function bindMegaHover(nav) {
   }
 }
 
+/* ─── Поиск-оверлей: полноэкранный, живой список (как у Gurbich) ─── */
+function renderSearchResults(q) {
+  const list  = document.getElementById('soResults');
+  const label = document.getElementById('soLabel');
+  if (!list) return;
+  q = (q || '').trim().toLowerCase();
+  const catName = id => CATS.find(c => c.id === id)?.name || '';
+  const match = i => !q ||
+    (i.name || '').toLowerCase().includes(q) ||
+    catName(i.categoryId).toLowerCase().includes(q);
+  // Активные — первыми, проданные из архива — в конце с пометкой
+  const res = [...ITEMS.filter(match), ...ARCHIVE.filter(match)].slice(0, 40);
+  if (label) label.textContent = q ? (res.length ? `Найдено: ${res.length}` : '') : 'Все товары';
+  list.innerHTML = res.length ? res.map(i => {
+    const cover = (i.thumbs && i.thumbs[0]) || (i.photos && i.photos[0]) || null;
+    return `<a class="sr-row" href="/product/${encodeURIComponent(i.id)}">
+      <span class="sr-thumb">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy" draggable="false">` : ''}</span>
+      <span class="sr-name">${esc(i.name)}</span>
+      <span class="sr-meta">${i.sold ? '<em class="sr-sold">Продано</em>' : esc(fmtPrice(i.price))}</span>
+    </a>`;
+  }).join('') : `<div class="sr-empty">Ничего не найдено</div>`;
+}
+
+function toggleSearch(open) {
+  const el = document.getElementById('searchOverlay');
+  if (!el) return;
+  el.classList.toggle('open', open);
+  el.setAttribute('aria-hidden', String(!open));
+  document.body.classList.toggle('mob-lock', open);
+  if (open) {
+    toggleMobMenu(false);   // поиск поверх — меню закрываем
+    renderSearchResults(document.getElementById('soInput')?.value);
+    setTimeout(() => document.getElementById('soInput')?.focus(), 250);
+  }
+}
+
+document.getElementById('searchBtn')?.addEventListener('click', () => toggleSearch(true));
+document.getElementById('mobSearchBtn')?.addEventListener('click', () => toggleSearch(true));
+document.getElementById('soClose')?.addEventListener('click', () => toggleSearch(false));
+document.getElementById('soInput')?.addEventListener('input', (e) => renderSearchResults(e.target.value));
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') toggleSearch(false);
+});
+
 /* ─── Мобильное бургер-меню: полноэкранный аккордеон (как у Gurbich) ─── */
 let _mobOpenSec = null;   // раскрытый раздел аккордеона — переживает перерисовку
 
