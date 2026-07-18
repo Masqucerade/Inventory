@@ -2194,6 +2194,21 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   transition: border-color .15s;
 }
 .quick-head { display: flex; align-items: center; gap: 11px; min-width: 0; }
+
+/* Действия спрятаны за «⋯» — шапка карточки не нагромождена */
+.quick-item .quick-actions { display: none; }
+.quick-item.acts-open .quick-actions {
+  display: flex;
+  animation: quick-acts-in .16s ease;
+}
+@keyframes quick-acts-in { from { opacity: 0; transform: translateX(6px); } }
+.quick-more {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+  border: none; background: none; color: var(--text3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s;
+}
+.quick-item.acts-open .quick-more { color: var(--text); background: var(--fill2); }
 .quick-item.pinned { border-color: rgba(251,191,36,.4); }
 [data-theme="light"] .quick-item.pinned { border-color: rgba(217,119,6,.35); }
 .quick-type-icon {

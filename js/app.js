@@ -3522,6 +3522,11 @@ class App {
             <button class="quick-edit" title="Изменить">${svgEdit}</button>
             <button class="quick-del" title="Удалить">${svgDel}</button>
           </div>
+          <button class="quick-more" type="button" title="Действия">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/>
+            </svg>
+          </button>
         </div>
         <div class="quick-body">${body}</div>
       </div>`;
@@ -3536,6 +3541,23 @@ class App {
       this.toast('Скопировано');
     };
     const itemOf = (node) => raw.find(x => x.id === node.closest('.quick-item')?.dataset.quickId);
+
+    /* «⋯» раскрывает действия карточки; открыта только одна за раз */
+    el.querySelectorAll('.quick-more').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.quick-item');
+        const open = !card.classList.contains('acts-open');
+        el.querySelectorAll('.quick-item.acts-open').forEach(c => c.classList.remove('acts-open'));
+        card.classList.toggle('acts-open', open);
+      }));
+    if (!this._quickActsCloseBound) {
+      this._quickActsCloseBound = true;
+      // Тап вне карточки сворачивает раскрытые действия
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('.quick-item')) return;
+        document.querySelectorAll('.quick-item.acts-open').forEach(c => c.classList.remove('acts-open'));
+      });
+    }
 
     el.querySelectorAll('.quick-row-copy').forEach(btn =>
       btn.addEventListener('click', () => copyText(btn.closest('.quick-row').dataset.val, btn)));
