@@ -1118,14 +1118,23 @@ app.delete('/api/blocks/:id', (req, res) => {
 });
 
 /* ─── TASKS ─── */
-/* Личная задача видна только своему создателю (даже root чужие не видит) */
-function taskVisible(t, user) {
+/* Личная задача видна только своему создателю (даже root чужие не видит).
+   Сотрудник видит только СВОИ задачи: назначенные ему (в т.ч. legacy —
+   на владельца вещей с тем же именем), созданные им и общие (без
+   исполнителя). Чужие задачи не отдаются вовсе. Root видит всё. */
+function taskVisible(t, user, db) {
   if (t.personal) return t.createdBy === user.id;
-  return visibleTo(t, user);
+  if (!visibleTo(t, user)) return false;
+  if (user.role === 'root') return true;
+  if (!t.assigneeId || t.assigneeId === user.id || t.createdBy === user.id) return true;
+  const legacy = ((db || load()).owners || []).find(o =>
+    (o.name || '').toLowerCase() === (user.name || '').toLowerCase());
+  return !!legacy && t.assigneeId === legacy.id;
 }
 
 app.get('/api/tasks', (req, res) => {
-  res.json((load().tasks || []).filter(t => taskVisible(t, req.user)));
+  const db = load();
+  res.json((db.tasks || []).filter(t => taskVisible(t, req.user, db)));
 });
 
 app.post('/api/tasks', (req, res) => {
@@ -1143,7 +1152,7 @@ app.patch('/api/tasks/:id', (req, res) => {
   const db  = load();
   const idx = (db.tasks || []).findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  if (!taskVisible(db.tasks[idx], req.user)) return res.status(404).json({ error: 'not found' });
+  if (!taskVisible(db.tasks[idx], req.user, db)) return res.status(404).json({ error: 'not found' });
   db.tasks[idx] = { ...db.tasks[idx], ...req.body, id: req.params.id, createdBy: db.tasks[idx].createdBy };
   save(db);
   res.json(db.tasks[idx]);
@@ -1152,7 +1161,7 @@ app.patch('/api/tasks/:id', (req, res) => {
 app.delete('/api/tasks/:id', (req, res) => {
   const db = load();
   const t  = (db.tasks || []).find(x => x.id === req.params.id);
-  if (t && !taskVisible(t, req.user)) return res.status(404).json({ error: 'not found' });
+  if (t && !taskVisible(t, req.user, db)) return res.status(404).json({ error: 'not found' });
   db.tasks = (db.tasks || []).filter(x => x.id !== req.params.id);
   save(db);
   res.json({ ok: true });

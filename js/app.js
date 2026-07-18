@@ -3146,14 +3146,15 @@ class App {
       const name  = this.currentUser?.name || '';
       const h     = new Date().getHours();
       const greet = h >= 5 && h < 12 ? 'Доброе утро' : h >= 12 && h < 17 ? 'Добрый день' : h >= 17 && h < 23 ? 'Добрый вечер' : 'Доброй ночи';
-      const mine = tasks.filter(t => !t.done && isMineTask(t)).length;
+      const mine       = tasks.filter(t => !t.done && isMineTask(t)).length;
+      const mineUrgent = tasks.filter(t => !t.done && isMineTask(t) && (t.kind || 'duty') === 'urgent').length;
 
       if (hero) hero.innerHTML = `
         ${phoneHtml}
         <div class="ph-main">
           <div class="ph-label">Проект · Masqucerade</div>
           <div class="ph-num" style="font-size:26px">${greet}, ${this.esc(name)}</div>
-          <div class="ph-sub">${mine ? `Для тебя: ${mine} ${plural(mine)}` : 'Для тебя задач нет'}</div>
+          <div class="ph-sub">${mine ? `Для тебя: ${mine} ${plural(mine)}${mineUrgent ? ` · срочных: ${mineUrgent}` : ''}` : 'Для тебя задач нет'}</div>
           <div class="ph-bar"><i style="width:${Math.round(pct * 100)}%"></i></div>
         </div>`;
     }
@@ -3245,7 +3246,10 @@ class App {
        «Общие» — задачи без исполнителя (общие цели и планы). */
     const legacyIdOf = u => owners.find(o =>
       (o.name || '').toLowerCase() === (u.name || '').toLowerCase())?.id || null;
-    const staff = [...team].sort((a, b) => (a.role === 'root') - (b.role === 'root'));
+    // Сотрудник видит только свои задачи: в дашборде — «Общие» и он сам
+    const staff = isRoot
+      ? [...team].sort((a, b) => (a.role === 'root') - (b.role === 'root'))
+      : team.filter(u => u.id === this.currentUser?.id);
     if (this._projPerson === undefined ||
         (this._projPerson !== '__common__' && !team.some(u => u.id === this._projPerson)))
       this._projPerson = isRoot ? '__common__' : (this.currentUser?.id || '__common__');

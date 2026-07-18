@@ -3445,8 +3445,21 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 /* ── Карточки задач: ч/б, круглый чекбокс ── */
 #view-project .task-check { border-radius: 50%; border: 1.5px solid var(--sep); background: transparent; }
 #view-project .task-item.done .task-check { background: var(--text); border-color: var(--text); color: var(--bg); }
+/* Акцент на «свои» задачи: ярче фон, контрастная рамка и белая полоса */
 #view-project .task-item.task-mine,
-#view-project #projectContent .task-item.task-mine { border-color: color-mix(in srgb, var(--text) 32%, transparent); }
+#view-project #projectContent .task-item.task-mine {
+  border-color: color-mix(in srgb, var(--text) 46%, transparent);
+  background: rgba(255, 255, 255, .13);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 13%, transparent),
+              0 10px 26px -16px rgba(0, 0, 0, .85);
+}
+#view-project #projectContent .task-item.task-mine::before { background: var(--text); }
+[data-theme="light"] #view-project .task-item.task-mine,
+[data-theme="light"] #view-project #projectContent .task-item.task-mine {
+  background: #fff;
+  border-color: rgba(0, 0, 0, .34);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .1), 0 10px 24px -18px rgba(0, 0, 0, .3);
+}
 #view-project .task-mine-badge { background: var(--text); color: var(--bg); }
 #view-project .task-assignee { display: inline-flex; align-items: center; gap: 5px; }
 #view-project .task-assignee i {
