@@ -1117,6 +1117,30 @@ app.delete('/api/blocks/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── Уведомление исполнителю: «пришла новая задача» ───
+   Шлётся лично, если у сотрудника указан tgChatId. Личные задачи и
+   назначение самому себе не уведомляем. Fire-and-forget. */
+const TASK_KIND_RU = { urgent: '🔥 Срочная', duty: '📌 Обязанность', goal: '🎯 Цель' };
+
+async function notifyTaskAssigned(task, byUser) {
+  try {
+    const token = process.env.TG_LOG_TOKEN;
+    if (!token || !task?.assigneeId || task.personal) return;
+    const db = load();
+    const u  = (db.users || []).find(x => x.id === task.assigneeId);
+    if (!u || !u.tgChatId || u.id === byUser?.id) return;
+    const chatId = await resolveTgChat(token, u.tgChatId);
+    if (!chatId) return;
+    const text =
+      `🆕 <b>Новая задача для тебя</b>\n\n` +
+      `<b>${escAttr(task.title || task.text || 'Без названия')}</b>` +
+      (task.description ? `\n${escAttr(task.description)}` : '') +
+      `\n\n<i>${TASK_KIND_RU[task.kind] || TASK_KIND_RU.duty}` +
+      `${byUser?.name ? ' · от ' + escAttr(byUser.name) : ''}</i>`;
+    tgSend(token, chatId, text);
+  } catch (_) {}
+}
+
 /* ─── TASKS ─── */
 /* Личная задача видна только своему создателю (даже root чужие не видит).
    Сотрудник видит только СВОИ задачи: назначенные ему (в т.ч. legacy —
@@ -1145,6 +1169,7 @@ app.post('/api/tasks', (req, res) => {
   if (!db.tasks) db.tasks = [];
   db.tasks.push(task);
   save(db);
+  notifyTaskAssigned(task, req.user);   // лично исполнителю в Telegram
   res.json(task);
 });
 
@@ -1153,8 +1178,12 @@ app.patch('/api/tasks/:id', (req, res) => {
   const idx = (db.tasks || []).findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
   if (!taskVisible(db.tasks[idx], req.user, db)) return res.status(404).json({ error: 'not found' });
+  const prevAssignee = db.tasks[idx].assigneeId || null;
   db.tasks[idx] = { ...db.tasks[idx], ...req.body, id: req.params.id, createdBy: db.tasks[idx].createdBy };
   save(db);
+  // Переназначили на другого человека — уведомляем нового исполнителя
+  if (db.tasks[idx].assigneeId && db.tasks[idx].assigneeId !== prevAssignee && !db.tasks[idx].done)
+    notifyTaskAssigned(db.tasks[idx], req.user);
   res.json(db.tasks[idx]);
 });
 
@@ -1165,6 +1194,91 @@ app.delete('/api/tasks/:id', (req, res) => {
   db.tasks = (db.tasks || []).filter(x => x.id !== req.params.id);
   save(db);
   res.json({ ok: true });
+});
+
+/* ─── ВЕЧЕРНЯЯ СВОДКА ЗАДАЧ В TELEGRAM ───
+   Каждый день в 19:00 МСК каждому пользователю с tgChatId приходит
+   личная сводка: его активные задачи по типам + личные. Root получает
+   полную картину по всем задачам. Дата отправки хранится в meta —
+   рестарты не приводят к дублям. */
+const DIGEST_HOUR_MSK = 19;
+
+function mskParts() {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const g = t => p.find(x => x.type === t)?.value;
+  return { date: `${g('year')}-${g('month')}-${g('day')}`, hour: parseInt(g('hour'), 10) };
+}
+
+async function sendTaskDigests() {
+  const token = process.env.TG_LOG_TOKEN;
+  if (!token) return 0;
+  const db    = load();
+  const tasks = db.tasks || [];
+  const dateStr = new Date().toLocaleDateString('ru-RU',
+    { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' });
+  let sent = 0;
+
+  for (const u of (db.users || [])) {
+    if (!u.tgChatId) continue;
+    const legacy = (db.owners || []).find(o =>
+      (o.name || '').toLowerCase() === (u.name || '').toLowerCase());
+    // Сотруднику — его задачи; root — все активные (полная картина)
+    const pool = u.role === 'root'
+      ? tasks.filter(t => !t.done && !t.personal)
+      : tasks.filter(t => !t.done && !t.personal && t.assigneeId &&
+          (t.assigneeId === u.id || (legacy && t.assigneeId === legacy.id)));
+    const personal  = tasks.filter(t => !t.done && t.personal && t.createdBy === u.id);
+    const commonCnt = tasks.filter(t => !t.done && !t.personal && !t.assigneeId).length;
+    if (!pool.length && !personal.length) continue;   // нечего сводить — не беспокоим
+
+    const chatId = await resolveTgChat(token, u.tgChatId);
+    if (!chatId) continue;
+
+    const sec = (icon, title, list) => !list.length ? '' :
+      `\n${icon} <b>${title}</b>\n` +
+      list.slice(0, 6).map(t => `  •  ${escAttr(t.title || t.text || '')}`).join('\n') +
+      (list.length > 6 ? `\n  <i>…и ещё ${list.length - 6}</i>` : '') + '\n';
+    const byKind = k => pool.filter(t => (t.kind || 'duty') === k);
+
+    let text = `🌙 <b>Вечерняя сводка</b> · Masqucerade INC.\n<i>${escAttr(dateStr)}</i>\n`;
+    text += sec('🔥', 'Срочные', byKind('urgent'));
+    text += sec('📌', 'Обязанности', byKind('duty'));
+    text += sec('🎯', 'Цели и планы', byKind('goal'));
+    text += sec('🔒', 'Личное', personal);
+    if (u.role !== 'root' && commonCnt)
+      text += `\n✦ Общих задач без исполнителя: ${commonCnt}\n`;
+    text += `\nАктивных: <b>${pool.length + personal.length}</b> · продуктивного вечера ✨`;
+
+    tgSend(token, chatId, text);
+    sent++;
+  }
+  return sent;
+}
+
+function scheduleTaskDigest() {
+  setInterval(async () => {
+    try {
+      const { date, hour } = mskParts();
+      if (hour < DIGEST_HOUR_MSK) return;
+      const db = load();
+      if (db.meta?.taskDigestDate === date) return;   // сегодня уже отправляли
+      if (!db.meta) db.meta = {};
+      db.meta.taskDigestDate = date;   // помечаем до отправки — защита от дублей
+      save(db);
+      const n = await sendTaskDigests();
+      console.log(`Task digest sent (${n}) · ${date}`);
+    } catch (e) { console.error('digest error:', e.message); }
+  }, 5 * 60 * 1000);
+}
+
+/* Ручной запуск сводки (root) — проверить оформление, не дожидаясь вечера */
+app.post('/api/tasks/digest', async (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const n = await sendTaskDigests();
+  res.json({ ok: true, sent: n });
 });
 
 /* ─── QUICK ACCESS ─── */
@@ -1438,7 +1552,7 @@ function migrateSiteAccess() {
 /* ─── Гайд по панели: контент живёт в коде и версионируется.
    При повышении PANEL_GUIDE_REV содержимое гайда «Гайд по панели»
    перезаписывается при старте — так гайд в проде всегда актуален. ─── */
-const PANEL_GUIDE_REV   = 1;
+const PANEL_GUIDE_REV   = 2;
 const PANEL_GUIDE_TITLE = 'Гайд по панели';
 const PANEL_GUIDE_BODY = `# Гайд по панели Masqucerade INC.
 
@@ -1509,7 +1623,9 @@ const PANEL_GUIDE_BODY = `# Гайд по панели Masqucerade INC.
 ## Telegram-уведомления
 
 - Бот шлёт события в общий чат и лично подписанным сотрудникам (по категориям: товары, финансы, система…).
-- Чтобы получать личные уведомления: нажать Start у бота и указать свой Chat ID или @username в настройках пользователя.`;
+- **Новая задача**: когда вам назначают задачу, бот присылает её лично — с типом, описанием и от кого.
+- **Вечерняя сводка**: каждый день в 19:00 МСК приходит личная сводка активных задач — срочные, обязанности, цели и личные. Root получает полную картину по всем задачам.
+- Чтобы всё это работало: нажать Start у бота и указать свой Chat ID или @username в настройках пользователя (меню ☰ → Пользователи).`;
 
 function migratePanelGuide() {
   const db = load();
@@ -1537,4 +1653,5 @@ app.listen(PORT, () => {
   migrateSiteAccess();
   migratePanelGuide();
   scheduleBackup();
+  scheduleTaskDigest();
 });

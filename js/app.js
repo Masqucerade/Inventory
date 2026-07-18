@@ -323,6 +323,10 @@ class App {
           <div class="menu-tile-icon" style="background:var(--fill2);color:var(--text2)">${svgDownload}</div>
           <span>Скачать<br>JSON</span>
         </button>
+        ${isRoot ? `<button class="menu-tile" id="mBtnDigest">
+          <div class="menu-tile-icon" style="background:rgba(167,139,250,.12)">🌙</div>
+          <span>Сводка задач<br>в Telegram</span>
+        </button>` : ''}
         ${isRoot ? `<button class="menu-tile" id="mBtnRestore">
           <div class="menu-tile-icon" style="background:rgba(251,146,60,.12);color:#fb923c">${svgUpload}</div>
           <span>Восстановить<br>из файла</span>
@@ -410,6 +414,16 @@ class App {
     document.getElementById('mBtnBackup').addEventListener('click', () => {
       this.closeMenu();
       this.doManualSave();
+    });
+
+    document.getElementById('mBtnDigest')?.addEventListener('click', async () => {
+      this.closeMenu();
+      this.toast('Отправляю сводку…');
+      try {
+        const r = await fetch('/api/tasks/digest', { method: 'POST' });
+        const d = await r.json();
+        this.toast(d.ok ? `✓ Сводка отправлена (получателей: ${d.sent})` : '✗ Не удалось отправить');
+      } catch { this.toast('✗ Ошибка отправки'); }
     });
 
     document.getElementById('mBtnRestore')?.addEventListener('click', () => {
