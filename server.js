@@ -1131,7 +1131,7 @@ app.delete('/api/blocks/:id', (req, res) => {
 /* ─── Уведомление исполнителю: «пришла новая задача» ───
    Шлётся лично, если у сотрудника указан tgChatId. Личные задачи и
    назначение самому себе не уведомляем. Fire-and-forget. */
-const TASK_KIND_RU = { urgent: '🔥 Срочная', duty: '📌 Обязанность', goal: '🎯 Цель' };
+const TASK_KIND_RU = { urgent: 'Срочная', duty: 'Обязанность', goal: 'Цель' };
 
 async function notifyTaskAssigned(task, byUser) {
   try {
@@ -1143,11 +1143,12 @@ async function notifyTaskAssigned(task, byUser) {
     const chatId = await resolveTgChat(token, u.tgChatId);
     if (!chatId) return;
     const text =
-      `🆕 <b>Новая задача для тебя</b>\n\n` +
+      `<b>MASQUCERADE INC.</b>\n` +
+      `<i>Вам назначена новая задача</i>\n\n` +
       `<b>${escAttr(task.title || task.text || 'Без названия')}</b>` +
       (task.description ? `\n${escAttr(task.description)}` : '') +
-      `\n\n<i>${TASK_KIND_RU[task.kind] || TASK_KIND_RU.duty}` +
-      `${byUser?.name ? ' · от ' + escAttr(byUser.name) : ''}</i>`;
+      `\n\nТип: ${TASK_KIND_RU[task.kind] || TASK_KIND_RU.duty}` +
+      (byUser?.name ? `\nНазначил: ${escAttr(byUser.name)}` : '');
     tgSend(token, chatId, text);
   } catch (_) {}
 }
@@ -1248,20 +1249,20 @@ async function sendTaskDigests() {
     const chatId = await resolveTgChat(token, u.tgChatId);
     if (!chatId) continue;
 
-    const sec = (icon, title, list) => !list.length ? '' :
-      `\n${icon} <b>${title}</b>\n` +
-      list.slice(0, 6).map(t => `  •  ${escAttr(t.title || t.text || '')}`).join('\n') +
-      (list.length > 6 ? `\n  <i>…и ещё ${list.length - 6}</i>` : '') + '\n';
+    const sec = (title, list) => !list.length ? '' :
+      `\n<b>${title} — ${list.length}</b>\n` +
+      list.slice(0, 6).map(t => `•  ${escAttr(t.title || t.text || '')}`).join('\n') +
+      (list.length > 6 ? `\n<i>…и ещё ${list.length - 6}</i>` : '') + '\n';
     const byKind = k => pool.filter(t => (t.kind || 'duty') === k);
 
-    let text = `🌙 <b>Вечерняя сводка</b> · Masqucerade INC.\n<i>${escAttr(dateStr)}</i>\n`;
-    text += sec('🔥', 'Срочные', byKind('urgent'));
-    text += sec('📌', 'Обязанности', byKind('duty'));
-    text += sec('🎯', 'Цели и планы', byKind('goal'));
-    text += sec('🔒', 'Личное', personal);
+    let text = `<b>MASQUCERADE INC.</b>\n<i>Вечерняя сводка · ${escAttr(dateStr)}</i>\n`;
+    text += sec('Срочные', byKind('urgent'));
+    text += sec('Обязанности', byKind('duty'));
+    text += sec('Цели и планы', byKind('goal'));
+    text += sec('Личные', personal);
     if (u.role !== 'root' && commonCnt)
-      text += `\n✦ Общих задач без исполнителя: ${commonCnt}\n`;
-    text += `\nАктивных: <b>${pool.length + personal.length}</b> · продуктивного вечера ✨`;
+      text += `\nОбщие задачи без исполнителя: ${commonCnt}\n`;
+    text += `\nВсего активных задач: <b>${pool.length + personal.length}</b>`;
 
     tgSend(token, chatId, text);
     sent++;
