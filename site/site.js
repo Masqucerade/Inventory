@@ -37,7 +37,8 @@ async function boot() {
     const mln = document.getElementById('mobLogoName');
     if (mln) mln.textContent = 'Monarc';
   }
-  document.title = `Masqucerade INC. — ${TITLES[SECTION].title}`;
+  // Название вкладки: Monarc — своё, Type — общий бренд
+  document.title = SECTION === 'monarc' ? 'Monarc' : 'Masqucerade';
   document.querySelectorAll('.site-nav a').forEach(a =>
     a.classList.toggle('active', a.dataset.nav === SECTION));
   document.getElementById('footTg').href = `https://t.me/${TG_USERNAME}`;
@@ -150,7 +151,6 @@ function renderHeaderNav() {
     </div>`;
   }).join('');
   // «Другое» — вместо «Под заказ» у Gurbich (остальные товары)
-  html += `<a class="hnav${activeCat === '__other__' ? ' active' : ''}" data-cat="__other__" href="#">Другое</a>`;
   // «Архив» — проданные вещи (как у Gurbich)
   if (ARCHIVE.length)
     html += `<a class="hnav${activeCat === '__archive__' ? ' active' : ''}" data-cat="__archive__" href="#">Архив</a>`;
@@ -305,7 +305,6 @@ function renderMobileMenu() {
     </div>`;
   }).join('');
 
-  html += `<a class="mob-link${activeCat === '__other__' ? ' active' : ''}" data-cat="__other__" href="#">Другое</a>`;
   if (ARCHIVE.length)
     html += `<a class="mob-link${activeCat === '__archive__' ? ' active' : ''}" data-cat="__archive__" href="#">Архив</a>`;
   body.innerHTML = html;

@@ -220,6 +220,21 @@ img { max-width: 100%; display: block; }
 .hnav-sub:hover { color: var(--text); }
 .hnav-sub.active { color: var(--text); }
 
+/* ─── Фирменный скролл-бар: тонкий, золото на Monarc, чернила на Type ─── */
+html { scrollbar-width: thin; scrollbar-color: rgba(212, 180, 131, .45) transparent; }
+html:has(body.theme-type) { scrollbar-color: rgba(23, 21, 15, .35) transparent; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(212, 180, 131, .45);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(212, 180, 131, .7); background-clip: padding-box; }
+html:has(body.theme-type) ::-webkit-scrollbar-thumb { background: rgba(23, 21, 15, .32); background-clip: padding-box; }
+html:has(body.theme-type) ::-webkit-scrollbar-thumb:hover { background: rgba(23, 21, 15, .55); background-clip: padding-box; }
+
 /* ─── Кнопки справа в шапке: поиск (всегда) + бургер (мобайл) ─── */
 .header-side {
   grid-column: 3; justify-self: end;

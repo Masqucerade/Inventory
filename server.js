@@ -51,8 +51,8 @@ app.get('/', (req, res) => {
 app.get(['/monarc', '/type'], (req, res) => {
   const o = originOf(req);
   const section  = req.path === '/monarc' ? 'monarc' : 'type';
-  const secTitle = section === 'monarc' ? 'Monarc' : 'Type Clothes';
-  let title = `Masqucerade INC. — ${secTitle}`;
+  // Название вкладки: Monarc — своё, Type — общий бренд
+  let title = section === 'monarc' ? 'Monarc' : 'Masqucerade';
   let description = section === 'monarc'
     ? 'Оригинальные дизайнерские бренды — ERD, Chrome Hearts, Balenciaga, Rick Owens и другие.'
     : 'Люкс-качество на каждый день — повседневная одежда в безупречном исполнении.';
@@ -1223,7 +1223,7 @@ app.delete('/api/tasks/:id', (req, res) => {
    личная сводка: его активные задачи по типам + личные. Root получает
    полную картину по всем задачам. Дата отправки хранится в meta —
    рестарты не приводят к дублям. */
-const DIGEST_HOUR_MSK = 19;
+const DIGEST_HOUR_MSK = 18;
 
 function mskParts() {
   const p = new Intl.DateTimeFormat('en-CA', {
