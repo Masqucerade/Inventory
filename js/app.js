@@ -605,21 +605,29 @@ class App {
     if (!el) return;
     const users     = (this.users || []).filter(u => u.role !== 'root');
     const allActive = !Array.isArray(selected) || selected.length === 0;
+    // «Только я»: visibility=['__none__'] — id никому не принадлежит,
+    // поэтому сотрудники записи не видят, root видит всё как всегда
+    const onlyMe = selected?.includes('__none__');
     el.innerHTML =
       `<button type="button" class="vis-chip${allActive ? ' active' : ''}" data-vis="all">Все</button>` +
+      `<button type="button" class="vis-chip${onlyMe ? ' active' : ''}" data-vis="__none__">🔒 Только я</button>` +
       (users.length
         ? users.map(u => `<button type="button" class="vis-chip${selected?.includes(u.id) ? ' active' : ''}" data-vis="${u.id}">${this.esc(u.name || u.login)}</button>`).join('')
-        : `<span class="vis-empty">Нет пользователей — добавьте их в меню</span>`);
+        : '');
     el.onclick = (e) => {
       const chip = e.target.closest('.vis-chip');
       if (!chip) return;
-      const allChip = el.querySelector('[data-vis="all"]');
-      if (chip.dataset.vis === 'all') {
-        el.querySelectorAll('.vis-chip').forEach(c => c.classList.toggle('active', c === allChip));
+      const allChip  = el.querySelector('[data-vis="all"]');
+      const noneChip = el.querySelector('[data-vis="__none__"]');
+      if (chip === allChip || chip === noneChip) {
+        // «Все» и «Только я» — взаимоисключающие одиночные режимы
+        el.querySelectorAll('.vis-chip').forEach(c => c.classList.toggle('active', c === chip));
       } else {
         chip.classList.toggle('active');
         allChip.classList.remove('active');
-        const anyUser = [...el.querySelectorAll('.vis-chip')].some(c => c.dataset.vis !== 'all' && c.classList.contains('active'));
+        noneChip.classList.remove('active');
+        const anyUser = [...el.querySelectorAll('.vis-chip')].some(c =>
+          c.dataset.vis !== 'all' && c.dataset.vis !== '__none__' && c.classList.contains('active'));
         if (!anyUser) allChip.classList.add('active');
       }
     };
@@ -637,6 +645,9 @@ class App {
     if (this.currentUser?.role !== 'root') return '';
     const v = rec.visibility;
     if (!Array.isArray(v) || v.length === 0) return '';
+    if (v.includes('__none__'))
+      return `<span class="vis-badge" title="Видно только вам">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>`;
     const names = v.map(id => this.users.find(u => u.id === id)?.name).filter(Boolean).join(', ');
     return `<span class="vis-badge" title="Видно: ${this.esc(names)}">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -3636,10 +3647,22 @@ class App {
 
     el.querySelectorAll('.quick-row-copy').forEach(btn =>
       btn.addEventListener('click', () => copyText(btn.closest('.quick-row').dataset.val, btn)));
+    // «Скопировать всё»: у построчных реквизитов склеиваем значения через
+    // двоеточие — «Логин: a / Пароль: b» копируется как «a:b» (login:password)
+    const copyValueOf = (item) => {
+      const value = String(item.value ?? '');
+      const lines = value.split('\n').map(l => l.trim()).filter(Boolean);
+      const rowMode = lines.length > 1 && lines.length <= 6 && lines.every(l => l.length <= 80);
+      if (!rowMode) return value;
+      return lines.map(l => {
+        const m = l.match(/^([^:：]{1,24})[:：]\s*(.+)$/);
+        return (m ? m[2] : l).trim();
+      }).join(':');
+    };
     el.querySelectorAll('.quick-copy').forEach(btn =>
       btn.addEventListener('click', () => {
         const item = itemOf(btn);
-        if (item) copyText(String(item.value ?? ''), btn);
+        if (item) copyText(copyValueOf(item), btn);
       }));
     el.querySelectorAll('.quick-eye').forEach(btn =>
       btn.addEventListener('click', () => {
