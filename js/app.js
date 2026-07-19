@@ -2148,7 +2148,7 @@ class App {
   // Человекочитаемая подпись контент-блока для журнала
   _blockLabel(b) {
     const TYPE = { banner: 'баннер', weekly: 'товары недели', duo: 'двойной баннер',
-                   statement: 'слоган', marquee: 'бегущая строка', text: 'текст', promo: 'промо-полоса', popup: 'попап при входе' };
+                   statement: 'слоган', marquee: 'бегущая строка', text: 'текст', promo: 'промо-полоса', popup: 'попап при входе', cover: 'обложка раздела' };
     const label = String(b.heading || b.text || '').replace(/\n/g, ' ').trim().slice(0, 40);
     return `Блок (${TYPE[b.type] || b.type})${label ? ` «${label}»` : ''}`;
   }
@@ -4451,7 +4451,7 @@ class App {
       duo: { t: 'Двойной баннер (старый)', e: '🖼' }, statement: { t: 'Слоган', e: '✦' },
       marquee: { t: 'Бегущая строка', e: '➰' },
       text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' },
-      popup: { t: 'Попап при входе', e: '🔔' },
+      popup: { t: 'Попап при входе', e: '🔔' }, cover: { t: 'Обложка раздела', e: '🏞' },
     };
     const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
     el.innerHTML = `<div class="settings-section">` + this._blocks.map((b, i) => {
@@ -4534,7 +4534,7 @@ class App {
     let html = '';
     if (this._blockIsNew)
       html += g('Тип блока', seg('type', [
-        { v: 'banner', t: 'Баннер' }, { v: 'weekly', t: 'Товары' },
+        { v: 'banner', t: 'Баннер' }, { v: 'cover', t: 'Обложка' }, { v: 'weekly', t: 'Товары' },
         { v: 'statement', t: 'Слоган' }, { v: 'text', t: 'Текст' }, { v: 'marquee', t: 'Строка' }, { v: 'promo', t: 'Промо' },
         { v: 'popup', t: 'Попап' },
       ]));
@@ -4585,6 +4585,22 @@ class App {
     } else if (b.type === 'marquee') {
       html += `<div class="blk-hint">Бегущая строка — фраза плавно едет по экрану.</div>`;
       html += g('Текст строки', `<input type="text" class="form-input" id="blkMarquee" value="${esc(b.text || '')}" placeholder="Например: Новая коллекция уже здесь">`);
+    } else if (b.type === 'cover') {
+      b.pos = b.pos || 'center center';
+      html += `<div class="blk-hint">Полноэкранное превью на самом верху раздела — заглавный кадр, ниже посетитель листает к товарам. Показывается первая включённая обложка раздела.</div>`;
+      html += imgField('image', 'Фото обложки');
+      if (b.image) html += g('Предпросмотр', `
+        <div class="blk-banner-preview h-xl">
+          <img src="${esc(b.image)}" alt="" style="object-fit:cover;object-position:${esc(b.pos)}">
+          ${b.heading ? `<div class="blk-preview-cap">${esc(b.heading)}</div>` : ''}
+        </div>`);
+      html += g('Фокус фото — какая часть в кадре', `
+        <div class="blk-seg blk-pos-grid" data-seg="pos">
+          ${['left top','center top','right top','left center','center center','right center','left bottom','center bottom','right bottom']
+            .map(v => `<button type="button" class="${b.pos === v ? 'on' : ''}" data-val="${v}" title="${v}"><i></i></button>`).join('')}
+        </div>`);
+      html += g('Заголовок (необязательно)', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || '')}" placeholder="Например: Monarc">`);
+      html += g('Подпись (необязательно)', `<input type="text" class="form-input" id="blkSub" value="${esc(b.sub || '')}" placeholder="Короткая строка под заголовком">`);
     } else if (b.type === 'popup') {
       b.repeat = b.repeat || 'once';
       html += `<div class="blk-hint">Всплывающее окно при заходе на сайт — анонс, акция или приветствие. «Один раз» — после закрытия посетителя больше не беспокоим.</div>`;
@@ -4621,6 +4637,7 @@ class App {
     else if (b.type === 'promo')      { set('blkText', 'text'); }
     else if (b.type === 'marquee')    { set('blkMarquee', 'text'); }
     else if (b.type === 'popup')      { set('blkHeading', 'heading'); set('blkPopupText', 'text', false); set('blkBtnLabel', 'btnLabel'); }
+    else if (b.type === 'cover')      { set('blkHeading', 'heading'); set('blkSub', 'sub'); }
     else if (b.type === 'statement')  { set('blkKicker', 'kicker'); set('blkStatement', 'text', false); }
     else if (b.type === 'weekly')     { set('blkHeading', 'heading'); }
     else if (b.type === 'banner')     { set('blkHeading', 'heading'); set('blkSub', 'sub'); }
@@ -4670,7 +4687,8 @@ class App {
     if (e.target.classList.contains('blk-img-input')) {
       const field = e.target.closest('[data-imgfield]').dataset.imgfield;
       const f = e.target.files[0];
-      if (f) resizeImage(f, 1400, 1400, 0.85)
+      const maxSide = this._block?.type === 'cover' ? 1920 : 1400;
+      if (f) resizeImage(f, maxSide, maxSide, 0.85)
         .then(url => { this._readBlockForm(); this._block[field] = url; this._renderBlockForm(); })
         .catch(() => this.toast('Ошибка загрузки фото'));
       return;
@@ -4700,6 +4718,7 @@ class App {
     if (b.type === 'duo'       && !b.imageA && !b.imageB) { this.toast('Добавьте хотя бы одну картинку'); return; }
     if (b.type === 'weekly'    && !(b.itemIds && b.itemIds.length)) { this.toast('Выберите хотя бы один товар'); return; }
     if (b.type === 'popup'     && !b.heading && !b.text)  { this.toast('Заполните заголовок или текст попапа'); return; }
+    if (b.type === 'cover'     && !b.image)               { this.toast('Добавьте фото обложки'); return; }
     if (this._blockIsNew && this.currentView === 'site') b.order = this._nextStreamOrder();  // в конец потока
     await this.db.saveBlock(b);
     this.db.logAction('site_block', `${this._blockLabel(b)} ${this._blockIsNew ? 'создан' : 'изменён'} на витрине`);
@@ -4887,7 +4906,7 @@ class App {
       duo: { t: 'Двойной баннер (старый)', e: '🖼' },
       statement: { t: 'Слоган', e: '✦' }, text: { t: 'Текст', e: '📝' },
       marquee: { t: 'Бегущая строка', e: '➰' }, promo: { t: 'Промо-полоса', e: '📣' },
-      popup: { t: 'Попап при входе', e: '🔔' },
+      popup: { t: 'Попап при входе', e: '🔔' }, cover: { t: 'Обложка раздела', e: '🏞' },
     };
     const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
     const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };

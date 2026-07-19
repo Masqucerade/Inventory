@@ -626,10 +626,44 @@ function markCarousels() {
 let _carouselResizeT;
 window.addEventListener('resize', () => { clearTimeout(_carouselResizeT); _carouselResizeT = setTimeout(markCarousels, 150); });
 
+/* Обложка раздела: полноэкранное превью на самом верху, ниже — каталог.
+   Берётся первый включённый блок типа «cover» своего раздела. */
+function renderCover(blocks) {
+  const wrap = document.getElementById('siteCover');
+  if (!wrap) return;
+  const c = (blocks || []).find(b => b.type === 'cover' && b.image);
+  if (!c) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `
+    <section class="site-cover">
+      <img src="${esc(c.image)}" alt="" style="object-position:${esc(c.pos || 'center center')}" draggable="false">
+      <div class="sc-shade" aria-hidden="true"></div>
+      ${c.heading || c.sub ? `<div class="sc-caption">
+        ${c.heading ? `<h2>${esc(c.heading)}</h2>` : ''}
+        ${c.sub ? `<p>${esc(c.sub)}</p>` : ''}
+      </div>` : ''}
+      <button class="sc-scroll" type="button" aria-label="К товарам">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+    </section>`;
+  wrap.querySelector('.sc-scroll').addEventListener('click', () => {
+    const target = document.querySelector('.catalog-wrap');
+    if (!target) return;
+    const before = window.scrollY;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Фолбэк: если среда не умеет smooth-скролл — прыгаем мгновенно
+    setTimeout(() => {
+      if (Math.abs(window.scrollY - before) < 4) target.scrollIntoView({ block: 'start' });
+    }, 350);
+  });
+}
+
 /* Единый поток витрины: баннеры, текст и подборки в общем порядке (order).
    Промо-полосы — отдельно, тонкой строкой сверху. */
 function renderStream(blocks, collections) {
   blocks = blocks || [];
+  renderCover(blocks);
 
   const promos = blocks.filter(b => b.type === 'promo' && b.text).sort((a, b) => (a.order || 0) - (b.order || 0));
   const bar = document.getElementById('promoBar');

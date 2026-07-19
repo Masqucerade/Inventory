@@ -420,6 +420,12 @@ app.get('/api/public/blocks', (req, res) => {
         imageA: b.imageA || '', captionA: b.captionA || '', linkTypeA: b.linkTypeA || 'none', linkValueA: b.linkValueA || '',
         imageB: b.imageB || '', captionB: b.captionB || '', linkTypeB: b.linkTypeB || 'none', linkValueB: b.linkValueB || '',
       };
+      // Обложка раздела: полноэкранное превью на самом верху каталога
+      if (b.type === 'cover') return {
+        id: b.id, type: 'cover', order,
+        image: b.image || '', heading: b.heading || '', sub: b.sub || '',
+        pos: b.pos || 'center center',
+      };
       // Попап при заходе: section нужен клиенту (лендинг показывает только «Везде»)
       if (b.type === 'popup') return {
         id: b.id, type: 'popup', order, section: b.section || 'all',
@@ -431,6 +437,7 @@ app.get('/api/public/blocks', (req, res) => {
     })
     .filter(b => {
       if (b.type === 'banner')    return !!b.image;
+      if (b.type === 'cover')     return !!b.image;
       if (b.type === 'duo')       return b.imageA || b.imageB;
       if (b.type === 'statement' || b.type === 'marquee') return b.text;
       if (b.type === 'weekly')    return (b.itemIds || []).length;
