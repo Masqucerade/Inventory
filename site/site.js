@@ -30,16 +30,12 @@ const GARMENTS = [
 async function boot() {
   document.getElementById('sectionKicker').textContent = TITLES[SECTION].kicker;
   document.getElementById('sectionTitle').textContent  = TITLES[SECTION].title;
-  // На разделе Monarc логотип в шапке — «Monarc» + фирменный знак Σi
+  // На разделе Monarc в шапке только надпись «Monarc» (медальон скрыт в CSS)
   if (SECTION === 'monarc') {
     const ln = document.getElementById('logoName');
     if (ln) ln.textContent = 'Monarc';
     const mln = document.getElementById('mobLogoName');
     if (mln) mln.textContent = 'Monarc';
-    document.querySelectorAll('.site-logo .brand-mark').forEach(el => {
-      el.classList.add('brand-mark-monarc');
-      el.innerHTML = '<img src="/site/monarc-logo.jpg?v=1" alt="Monarc">';
-    });
   }
   // Название вкладки: Monarc — своё, Type — общий бренд
   document.title = SECTION === 'monarc' ? 'Monarc' : 'Masqucerade';
