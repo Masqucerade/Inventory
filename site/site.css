@@ -868,14 +868,8 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
   width: 100%; height: 100%; object-fit: cover; display: block;
   pointer-events: none; -webkit-user-drag: none; user-select: none;
 }
-/* Режим «Фото целиком»: высота по самому фото, без кадрирования.
-   Ширина ограничена — на больших мониторах кадр тот же, что на ноуте,
-   а не растянутый на весь экран. */
-.site-cover.fit-auto {
-  height: auto; min-height: 0;
-  max-width: 1600px;
-  margin-left: auto; margin-right: auto;
-}
+/* Режим «Фото целиком»: во всю ширину экрана, высота по самому фото */
+.site-cover.fit-auto { height: auto; min-height: 0; }
 .site-cover.fit-auto img { height: auto; }
 /* Есть обложка → заголовок раздела не дублируем (бренд уже в кадре);
    кнопка «Фильтры» остаётся на месте */
