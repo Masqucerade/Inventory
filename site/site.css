@@ -856,6 +856,10 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
 /* Режим «Фото целиком»: высота по самому фото, без кадрирования */
 .site-cover.fit-auto { height: auto; min-height: 0; }
 .site-cover.fit-auto img { height: auto; }
+/* Есть обложка → заголовок раздела не дублируем (бренд уже в кадре);
+   кнопка «Фильтры» остаётся на месте */
+body.has-cover .hero-titles { display: none; }
+body.has-cover .catalog-wrap { padding-top: clamp(14px, 3vh, 28px); }
 .sc-shade {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, transparent 55%, color-mix(in srgb, var(--bg) 78%, transparent) 100%);

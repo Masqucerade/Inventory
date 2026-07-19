@@ -632,6 +632,8 @@ function renderCover(blocks) {
   const wrap = document.getElementById('siteCover');
   if (!wrap) return;
   const c = (blocks || []).find(b => b.type === 'cover' && b.image);
+  // При обложке заголовок раздела прячется — бренд уже в кадре, дубль не нужен
+  document.body.classList.toggle('has-cover', !!c);
   if (!c) { wrap.innerHTML = ''; return; }
   const fitAuto = c.fit === 'auto';   // «фото целиком» — высота по кадру, стрелка не нужна
   wrap.innerHTML = `
