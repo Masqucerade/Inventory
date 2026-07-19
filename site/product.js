@@ -29,6 +29,10 @@ async function boot() {
   if (i.section === 'monarc') {
     const ln = document.getElementById('logoName');
     if (ln) ln.textContent = 'Monarc';
+    document.querySelectorAll('.site-logo .brand-mark').forEach(el => {
+      el.classList.add('brand-mark-monarc');
+      el.innerHTML = '<img src="/site/monarc-mark.svg?v=1" alt="Monarc">';
+    });
   }
   document.getElementById('backLink').href = '/' + i.section;
   document.title = `${i.name} — Masqucerade INC.`;

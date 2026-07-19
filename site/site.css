@@ -161,6 +161,9 @@ img { max-width: 100%; display: block; }
 }
 .site-logo em { font-style: italic; color: var(--gold); }
 .brand-mark-sm { width: 34px; height: 34px; margin: 0; font-size: 17px; }
+/* Знак Monarc (Σi) внутри медальона */
+.brand-mark-monarc { padding: 7px; }
+.brand-mark-monarc img { width: 100%; height: 100%; display: block; }
 .site-nav {
   display: flex; align-items: center; flex-wrap: wrap; justify-content: center;
   gap: clamp(14px, 2vw, 30px); justify-self: center; max-width: min(66vw, 720px);

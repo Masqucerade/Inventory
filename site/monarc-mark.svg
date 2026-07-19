@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Monarc: Σ с курсивным i (прозрачный фон — для шапки) -->
+  <polyline points="76,15 22,15 55,48 22,81 76,81" fill="none" stroke="#ffffff" stroke-width="9" stroke-miterlimit="12"/>
+  <text x="70" y="99" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="34" fill="#ffffff">i</text>
+</svg>

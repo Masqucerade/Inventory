@@ -21,6 +21,12 @@ const OG_FALLBACK  = '/site/og-cover.png';
 const escAttr = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 const originOf = req => `${req.protocol}://${req.get('host')}`;
 
+// Страницы Monarc получают свою фавиконку (Σi на чёрном)
+const monarcFavicon = html => html
+  .replace('<link rel="icon" href="/favicon.svg" type="image/svg+xml">',
+           '<link rel="icon" href="/site/monarc-favicon.svg" type="image/svg+xml">')
+  .replace('<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">', '');
+
 function headTags({ title, description, url, image, type = 'website' }) {
   const t = escAttr(title), d = escAttr(description), u = escAttr(url), i = escAttr(image);
   return `<title>${t}</title>
@@ -61,7 +67,9 @@ app.get(['/monarc', '/type'], (req, res) => {
   // Старые прямые ссылки /type?item=<id> → постоянная страница товара
   if (req.query.item) return res.redirect(301, `/product/${encodeURIComponent(req.query.item)}`);
 
-  res.set('Cache-Control', 'no-cache').send(SITE_CATALOG.replace('<!--META-->', headTags({ title, description, url, image, type })));
+  let html = SITE_CATALOG.replace('<!--META-->', headTags({ title, description, url, image, type }));
+  if (section === 'monarc') html = monarcFavicon(html);
+  res.set('Cache-Control', 'no-cache').send(html);
 });
 
 // Страница товара — постоянный адрес, og-превью с фото вещи
@@ -71,13 +79,15 @@ app.get('/product/:id', (req, res) => {
   if (!it) return res.redirect(302, '/');
   const photos = (it.photos && it.photos.length) ? it.photos : (it.photo ? [it.photo] : []);
   const price  = it.price != null ? new Intl.NumberFormat('ru-RU').format(it.price) + ' ₽' : '';
-  res.set('Cache-Control', 'no-cache').send(SITE_PRODUCT.replace('<!--META-->', headTags({
+  let html = SITE_PRODUCT.replace('<!--META-->', headTags({
     title:       `${it.name} — Masqucerade INC.`,
     description: it.description || [price, it.isMonarc ? 'Monarc' : 'Type Clothes'].filter(Boolean).join(' · '),
     url:   `${o}/product/${encodeURIComponent(it.id)}`,
     image: photos[0] ? o + photos[0] : o + OG_FALLBACK,
     type:  'product',
-  })));
+  }));
+  if (it.isMonarc) html = monarcFavicon(html);
+  res.set('Cache-Control', 'no-cache').send(html);
 });
 
 app.get('/brands', (req, res) => res.redirect(301, '/monarc'));
