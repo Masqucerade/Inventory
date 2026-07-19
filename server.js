@@ -24,7 +24,7 @@ const originOf = req => `${req.protocol}://${req.get('host')}`;
 // Страницы Monarc получают свою фавиконку (Σi на чёрном)
 const monarcFavicon = html => html
   .replace('<link rel="icon" href="/favicon.svg" type="image/svg+xml">',
-           '<link rel="icon" href="/site/monarc-favicon.svg" type="image/svg+xml">')
+           '<link rel="icon" href="/site/monarc-logo.jpg" type="image/jpeg">')
   .replace('<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">', '');
 
 function headTags({ title, description, url, image, type = 'website' }) {

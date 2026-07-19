@@ -31,7 +31,7 @@ async function boot() {
     if (ln) ln.textContent = 'Monarc';
     document.querySelectorAll('.site-logo .brand-mark').forEach(el => {
       el.classList.add('brand-mark-monarc');
-      el.innerHTML = '<img src="/site/monarc-mark.svg?v=1" alt="Monarc">';
+      el.innerHTML = '<img src="/site/monarc-logo.jpg?v=1" alt="Monarc">';
     });
   }
   document.getElementById('backLink').href = '/' + i.section;
