@@ -841,7 +841,10 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
 /* ─── Обложка раздела: полноэкранное превью над каталогом ─── */
 .site-cover {
   position: relative;
-  height: calc(100dvh - var(--header-h, 56px));
+  /* svh, не dvh: высота не «дышит» при скролле на мобильных
+     (динамический viewport дёргал страницу — скролл казался сломанным) */
+  height: calc(100vh - var(--header-h, 56px));
+  height: calc(100svh - var(--header-h, 56px));
   min-height: 420px;
   overflow: hidden;
   background: var(--bg2);
@@ -850,6 +853,9 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
   width: 100%; height: 100%; object-fit: cover; display: block;
   pointer-events: none; -webkit-user-drag: none; user-select: none;
 }
+/* Режим «Фото целиком»: высота по самому фото, без кадрирования */
+.site-cover.fit-auto { height: auto; min-height: 0; }
+.site-cover.fit-auto img { height: auto; }
 .sc-shade {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, transparent 55%, color-mix(in srgb, var(--bg) 78%, transparent) 100%);

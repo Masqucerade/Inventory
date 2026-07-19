@@ -425,6 +425,7 @@ app.get('/api/public/blocks', (req, res) => {
         id: b.id, type: 'cover', order,
         image: b.image || '', heading: b.heading || '', sub: b.sub || '',
         pos: b.pos || 'center center',
+        fit: b.fit === 'auto' ? 'auto' : 'cover',   // auto = фото целиком, без кадрирования
       };
       // Попап при заходе: section нужен клиенту (лендинг показывает только «Везде»)
       if (b.type === 'popup') return {
@@ -1116,7 +1117,9 @@ app.put('/api/blocks', (req, res) => {
   const b = { ...req.body };
   // Картинки (баннер + обе картинки двойного баннера): base64 → файл на volume.
   const toRef = v => (typeof v === 'string' && v.startsWith('data:')) ? (saveDataUrl(v) || v) : v;
-  for (const f of ['image', 'imageA', 'imageB']) b[f] = toRef(b[f]);
+  // Только присланные поля: b[f] = toRef(undefined) создавал ключ со значением
+  // undefined, и частичный мердж (тумблер/порядок/fit) затирал сохранённое фото
+  for (const f of ['image', 'imageA', 'imageB']) if (b[f] !== undefined) b[f] = toRef(b[f]);
   if (Array.isArray(b.images)) b.images = b.images.map(toRef).filter(Boolean);   // мультифото баннера
   if (!b.id) {
     b.id = uid();

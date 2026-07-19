@@ -4586,15 +4586,18 @@ class App {
       html += `<div class="blk-hint">Бегущая строка — фраза плавно едет по экрану.</div>`;
       html += g('Текст строки', `<input type="text" class="form-input" id="blkMarquee" value="${esc(b.text || '')}" placeholder="Например: Новая коллекция уже здесь">`);
     } else if (b.type === 'cover') {
-      b.pos = b.pos || 'center center';
-      html += `<div class="blk-hint">Полноэкранное превью на самом верху раздела — заглавный кадр, ниже посетитель листает к товарам. Показывается первая включённая обложка раздела.</div>`;
+      b.pos = b.pos || 'center center'; b.fit = b.fit || 'cover';
+      html += `<div class="blk-hint">Заглавный кадр на самом верху раздела, ниже посетитель листает к товарам. Показывается первая включённая обложка раздела.</div>`;
       html += imgField('image', 'Фото обложки');
       if (b.image) html += g('Предпросмотр', `
         <div class="blk-banner-preview h-xl">
-          <img src="${esc(b.image)}" alt="" style="object-fit:cover;object-position:${esc(b.pos)}">
+          <img src="${esc(b.image)}" alt="" style="object-fit:${b.fit === 'auto' ? 'contain' : 'cover'};object-position:${esc(b.pos)}">
           ${b.heading ? `<div class="blk-preview-cap">${esc(b.heading)}</div>` : ''}
         </div>`);
-      html += g('Фокус фото — какая часть в кадре', `
+      html += g('Кадр', seg('fit', [
+        { v: 'cover', t: 'На весь экран' }, { v: 'auto', t: 'Фото целиком' },
+      ]));
+      if (b.fit !== 'auto') html += g('Фокус фото — какая часть в кадре', `
         <div class="blk-seg blk-pos-grid" data-seg="pos">
           ${['left top','center top','right top','left center','center center','right center','left bottom','center bottom','right bottom']
             .map(v => `<button type="button" class="${b.pos === v ? 'on' : ''}" data-val="${v}" title="${v}"><i></i></button>`).join('')}

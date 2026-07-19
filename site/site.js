@@ -633,21 +633,22 @@ function renderCover(blocks) {
   if (!wrap) return;
   const c = (blocks || []).find(b => b.type === 'cover' && b.image);
   if (!c) { wrap.innerHTML = ''; return; }
+  const fitAuto = c.fit === 'auto';   // «фото целиком» — высота по кадру, стрелка не нужна
   wrap.innerHTML = `
-    <section class="site-cover">
+    <section class="site-cover${fitAuto ? ' fit-auto' : ''}">
       <img src="${esc(c.image)}" alt="" style="object-position:${esc(c.pos || 'center center')}" draggable="false">
       <div class="sc-shade" aria-hidden="true"></div>
       ${c.heading || c.sub ? `<div class="sc-caption">
         ${c.heading ? `<h2>${esc(c.heading)}</h2>` : ''}
         ${c.sub ? `<p>${esc(c.sub)}</p>` : ''}
       </div>` : ''}
-      <button class="sc-scroll" type="button" aria-label="К товарам">
+      ${fitAuto ? '' : `<button class="sc-scroll" type="button" aria-label="К товарам">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
-      </button>
+      </button>`}
     </section>`;
-  wrap.querySelector('.sc-scroll').addEventListener('click', () => {
+  wrap.querySelector('.sc-scroll')?.addEventListener('click', () => {
     const target = document.querySelector('.catalog-wrap');
     if (!target) return;
     const before = window.scrollY;
