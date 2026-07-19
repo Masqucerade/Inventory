@@ -181,6 +181,50 @@ function bindMegaHover(nav) {
   }
 }
 
+/* ─── Scroll-reveal: секции и карточки всплывают при входе в вьюпорт ───
+   Каскад для карточек грида; при prefers-reduced-motion выключен.
+   Fail-safe: если IntersectionObserver недоступен или молчит (сломанные
+   среды) — контент раскрывается сразу, просто без анимации. */
+let _ioFired = false, _ioDead = false, _revealFallbackT;
+const _revealIO = (typeof IntersectionObserver !== 'function' ||
+                   matchMedia('(prefers-reduced-motion: reduce)').matches) ? null :
+  new IntersectionObserver((entries) => {
+    _ioFired = true;
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      e.target.classList.add('rv-in');
+      _revealIO.unobserve(e.target);
+    }
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
+
+function revealScan() {
+  if (!_revealIO || _ioDead) return;
+  const els = [
+    ...document.querySelectorAll('#siteBlocks > *'),
+    ...document.querySelectorAll('#collectionsWrap > *'),
+    document.getElementById('gridHeading'),
+    ...document.querySelectorAll('#goodsGrid .good-card'),
+    document.getElementById('faqSection'),
+  ].filter(Boolean);
+  let cardIdx = 0;
+  els.forEach(el => {
+    if (el.classList.contains('rv')) return;
+    el.classList.add('rv');
+    // Карточки грида — каскадом по строке
+    if (el.classList.contains('good-card'))
+      el.style.transitionDelay = Math.min((cardIdx++ % 6) * 55, 280) + 'ms';
+    _revealIO.observe(el);
+  });
+  // IO не сработал ни разу — раскрываем всё и больше не прячем
+  clearTimeout(_revealFallbackT);
+  _revealFallbackT = setTimeout(() => {
+    if (_ioFired) return;
+    _ioDead = true;
+    _revealIO.disconnect();
+    document.querySelectorAll('.rv').forEach(el => el.classList.add('rv-in'));
+  }, 1200);
+}
+
 /* ─── Поиск-оверлей: полноэкранный, живой список (как у Gurbich) ─── */
 function renderSearchResults(q) {
   const list  = document.getElementById('soResults');
@@ -503,6 +547,7 @@ function renderGrid() {
     return;
   }
   el.innerHTML = items.map(cardHTML).join('');
+  revealScan();
 }
 
 /* ─── Контент-блоки (баннер / текст / промо) ─── */
@@ -697,6 +742,7 @@ function renderStream(blocks, collections) {
   document.getElementById('siteBlocks').innerHTML = stream.map(x => x.html).join('');
   document.getElementById('collectionsWrap').innerHTML = '';
   _streamHasContent = stream.length > 0;
+  revealScan();
   requestAnimationFrame(() => requestAnimationFrame(markCarousels));
   setTimeout(markCarousels, 400);   // подстраховка: дождаться загрузки фото/шрифтов
 }
@@ -744,6 +790,7 @@ function renderFaq(faq) {
     const open = item.classList.toggle('open');
     ans.style.maxHeight = open ? ans.scrollHeight + 'px' : '0';
   });
+  revealScan();
 }
 
 boot();
