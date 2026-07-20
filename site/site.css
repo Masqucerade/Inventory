@@ -1118,24 +1118,20 @@ body.theme-type .good-cond.cond-new { color: #17150f; }
 .p-cond.cond-new { color: var(--gold-hi); }
 body.theme-type .p-cond.cond-new { color: #17150f; }
 
-/* ─── Подсказка «листайте вниз» ─── */
+/* ─── Подсказка-стрелка «вниз» (как .sc-scroll на обложке) ─── */
 .scroll-hint {
-  position: fixed; left: 50%; bottom: 26px; z-index: 40;
-  transform: translate(-50%, 14px); opacity: 0; pointer-events: none;
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 18px; border-radius: 99px; cursor: pointer;
-  border: 1px solid var(--line2);
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  color: var(--text2); font-family: var(--font-b); font-size: 11px; font-weight: 600;
-  letter-spacing: .16em; text-transform: uppercase;
-  transition: opacity .4s, transform .4s;
+  position: fixed; left: 50%; bottom: 18px; z-index: 40;
+  transform: translateX(-50%); opacity: 0; pointer-events: none;
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text2);
+  transition: opacity .4s, color .2s;
 }
-.scroll-hint.visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.scroll-hint.visible { opacity: 1; pointer-events: auto; }
 .scroll-hint[hidden] { display: none; }
-.scroll-hint:hover { color: var(--text); border-color: var(--text); }
-.scroll-hint svg { animation: hint-bob 1.6s ease-in-out infinite; }
-@keyframes hint-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+.scroll-hint:hover { color: var(--text); }
+.scroll-hint svg { animation: sc-bounce-y 2.2s ease-in-out infinite; }
+@keyframes sc-bounce-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
 @media (prefers-reduced-motion: reduce) { .scroll-hint svg { animation: none; } }
 
 /* ─── Страница товара /product/:id ─── */
