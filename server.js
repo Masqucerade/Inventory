@@ -383,6 +383,8 @@ function publicItem(i) {
     measurements: i.measurements || '',
     categoryId:   i.categoryId || null,
     garment:      i.garment || null,
+    brand:        i.brand || null,
+    condition:    i.condition || null,   // new | excellent | good — износ вещи
     quantity:     i.quantity ?? null,
     createdAt:    i.createdAt || null,
     section:      i.isMonarc ? 'monarc' : 'type',

@@ -287,6 +287,24 @@
               </select>
             </div>
           </div>
+          <div class="form-divider"></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Бренд</label>
+              <input type="text" id="fieldBrand" class="form-input" placeholder="Например: Rick Owens" autocomplete="off" list="brandsList">
+              <datalist id="brandsList"></datalist>
+            </div>
+            <div class="form-divider vert"></div>
+            <div class="form-group">
+              <label class="form-label">Состояние</label>
+              <select class="form-input form-select" id="fieldCondition">
+                <option value="">— Не указано —</option>
+                <option value="new">Новое с биркой</option>
+                <option value="excellent">Отличное состояние</option>
+                <option value="good">Хорошее состояние</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <div class="form-section-title">Размеры и количество</div>
@@ -1056,6 +1074,6 @@
 
 <script src="js/db.js?v=49"></script>
 <script src="js/backup.js?v=44"></script>
-<script src="js/app.js?v=104"></script>
+<script src="js/app.js?v=105"></script>
 </body>
 </html>

@@ -1850,7 +1850,7 @@ class App {
     this._sizes        = [{ size: '', qty: 1 }];
 
     /* Reset */
-    ['fieldName','fieldNotes','fieldPrice','fieldOldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements','fieldGarment'].forEach(k => document.getElementById(k).value = '');
+    ['fieldName','fieldNotes','fieldPrice','fieldOldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements','fieldGarment','fieldBrand','fieldCondition'].forEach(k => document.getElementById(k).value = '');
     this._garmentManual = false;   // автоподбор типа одежды снова разрешён
     document.getElementById('fieldIsMonarc').checked   = false;
     document.getElementById('fieldShowOnSite').checked = false;
@@ -1875,6 +1875,12 @@ class App {
         subs.map(s => `<option value="${s.id}">  — ${this.esc(s.name)}</option>`).join('');
     }).join('');
     catSel.innerHTML = `<option value="">— Без категории —</option>` + catOpts;
+
+    /* Подсказки брендов — из уже заведённых товаров */
+    const brands = [...new Set(this.items.map(i => (i.brand || '').trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'ru'));
+    document.getElementById('brandsList').innerHTML =
+      brands.map(b => `<option value="${this.esc(b)}">`).join('');
     const hasCats = this.categories.length > 0;
     document.getElementById('categoryGroup').style.display   = hasCats ? '' : 'none';
     document.getElementById('categoryDivider').style.display = hasCats ? '' : 'none';
@@ -1896,7 +1902,9 @@ class App {
         document.getElementById('fieldMeasurements').value  = item.measurements || '';
         document.getElementById('siteDescGroup').style.display = item.showOnSite ? '' : 'none';
         catSel.value    = item.categoryId  || '';
-        document.getElementById('fieldGarment').value = item.garment || '';
+        document.getElementById('fieldGarment').value   = item.garment   || '';
+        document.getElementById('fieldBrand').value     = item.brand     || '';
+        document.getElementById('fieldCondition').value = item.condition || '';
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'ordered';
         this._sizes = item.sizes?.length > 0
@@ -2188,6 +2196,8 @@ class App {
                    App.guessGarment(
                      document.getElementById('fieldCategory').selectedOptions[0]?.text,
                      name) || null,
+      brand:       document.getElementById('fieldBrand').value.trim() || null,
+      condition:   document.getElementById('fieldCondition').value || null,
       _updatedBy:  null,
     };
 

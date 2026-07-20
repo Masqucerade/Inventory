@@ -7,6 +7,13 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
 const fmtPrice = (p) => p == null || p === '' ? '' :
   new Intl.NumberFormat('ru-RU').format(p) + ' ₽';
 
+// Износ вещи (как у Gurbich: «НОВОЕ С БИРКАМИ»)
+const CONDITIONS = {
+  new:       'Новое с биркой',
+  excellent: 'Отличное состояние',
+  good:      'Хорошее состояние',
+};
+
 const ID = decodeURIComponent(location.pathname.split('/').pop());
 
 async function boot() {
@@ -56,8 +63,9 @@ async function boot() {
           `<button type="button" class="p-thumb${idx === 0 ? ' active' : ''}" data-src="${esc(p)}"><img src="${esc(p)}" alt="" draggable="false"></button>`).join('')}</div>` : ''}
       </div>
       <div class="product-info">
-        <p class="m-cat">${esc(cat ? cat.name : (i.section === 'monarc' ? 'Monarc' : 'Type Clothes'))}</p>
+        <p class="m-cat">${esc(i.brand ? i.brand : (cat ? cat.name : (i.section === 'monarc' ? 'Monarc' : 'Type Clothes')))}</p>
         <h1 class="p-name">${esc(i.name)}</h1>
+        ${i.condition ? `<p class="p-cond${i.condition === 'new' ? ' cond-new' : ''}">${CONDITIONS[i.condition] || ''}</p>` : ''}
         <p class="m-price">${fmtPrice(i.price)}${i.oldPrice ? ` <s class="old-price">${fmtPrice(i.oldPrice)}</s><em class="disc-badge">−${Math.round((1 - i.price / i.oldPrice) * 100)}%</em>` : ''}</p>
         ${i.sold
           ? `<span class="good-tag sold p-sold-tag">Продано</span>`

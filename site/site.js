@@ -21,7 +21,14 @@ const fmtPrice = (p) => p == null || p === '' ? '' :
   new Intl.NumberFormat('ru-RU').format(p) + ' ₽';
 
 let ITEMS = [], ARCHIVE = [], CATS = [], activeCat = null, activeGarment = null;
-let activeSort = 'new', priceMin = null, priceMax = null;
+let activeSort = 'new', priceMin = null, priceMax = null, activeBrand = null;
+
+// Износ вещи — подпись в карточке и на странице товара
+const CONDITIONS = {
+  new:       'Новое с биркой',
+  excellent: 'Отличное состояние',
+  good:      'Хорошее состояние',
+};
 
 // Фиксированные типы одежды
 const GARMENTS = [
@@ -67,6 +74,8 @@ async function boot() {
     renderGrid();
     updateCatalogChrome();
     renderFaq(faq);
+    // Подсказка «листайте вниз» — когда контент уже отрисован и высота известна
+    setTimeout(initScrollHint, 350);
   } catch (e) {
     document.getElementById('goodsGrid').innerHTML =
       '<div class="goods-empty">Не удалось загрузить каталог — попробуйте обновить страницу</div>';
@@ -238,6 +247,7 @@ function renderSearchResults(q) {
   const catName = id => CATS.find(c => c.id === id)?.name || '';
   const match = i => !q ||
     (i.name || '').toLowerCase().includes(q) ||
+    (i.brand || '').toLowerCase().includes(q) ||
     catName(i.categoryId).toLowerCase().includes(q);
   // Активные — первыми, проданные из архива — в конце с пометкой
   const res = [...ITEMS.filter(match), ...ARCHIVE.filter(match)].slice(0, 40);
@@ -389,36 +399,51 @@ document.addEventListener('click', (e) => {
     document.querySelectorAll('.hnav-group.open').forEach(g => g.classList.remove('open'));
 });
 
-// Фильтры под кнопкой «Фильтры»: тип одежды, сортировка и диапазон цены
+// Фильтры под кнопкой «Фильтры»: тип одежды, бренд и диапазон цены.
+// Сортировка — отдельной мини-кнопкой (три палочки) рядом с «Фильтры».
 let _filtersOpen = false;
 const filtersActive = () =>
-  !!activeGarment || activeSort !== 'new' || priceMin != null || priceMax != null;
+  !!activeGarment || !!activeBrand || priceMin != null || priceMax != null;
+
+// Бренды, встречающиеся в живых товарах раздела
+const usedBrands = () =>
+  [...new Set(ITEMS.map(i => (i.brand || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'ru'));
 
 function renderFilters() {
   const el  = document.getElementById('catChips');
   const btn = document.getElementById('filtersBtn');
   const usedG = new Set(ITEMS.map(i => i.garment).filter(Boolean));
   const gShown = GARMENTS.filter(g => usedG.has(g.id));
+  const brands = usedBrands();
   if (btn) { btn.hidden = !ITEMS.length; btn.classList.toggle('on', filtersActive()); }
+  renderSortUI();
   if (!el) return;
   if (!ITEMS.length) { el.hidden = true; el.innerHTML = ''; _filtersOpen = false; return; }
 
   const garmentRow = gShown.length
     ? `<div class="cat-row garment-row">` +
+      `<span class="cat-row-label">Тип</span>` +
       `<button class="cat-chip${!activeGarment ? ' active' : ''}" data-garment="">Все</button>` +
       gShown.map(g => `<button class="cat-chip${activeGarment === g.id ? ' active' : ''}" data-garment="${esc(g.id)}">${esc(g.name)}</button>`).join('') +
       `</div>`
     : '';
-  const SORTS = [['new', 'Сначала новые'], ['asc', 'Дешевле'], ['desc', 'Дороже']];
-  const sortRow = `<div class="cat-row sort-row">` +
-    SORTS.map(([v, t]) => `<button class="cat-chip${activeSort === v ? ' active' : ''}" data-sort="${v}">${t}</button>`).join('') +
-    `<span class="price-range">
+  const brandRow = brands.length
+    ? `<div class="cat-row brand-row">` +
+      `<span class="cat-row-label">Бренд</span>` +
+      `<button class="cat-chip${!activeBrand ? ' active' : ''}" data-brand="">Все</button>` +
+      brands.map(b => `<button class="cat-chip${activeBrand === b ? ' active' : ''}" data-brand="${esc(b)}">${esc(b)}</button>`).join('') +
+      `</div>`
+    : '';
+  const priceRow = `<div class="cat-row price-row">
+    <span class="cat-row-label">Цена</span>
+    <span class="price-range">
       <input type="number" id="priceMin" inputmode="numeric" min="0" placeholder="Цена от" value="${priceMin ?? ''}">
       <i>—</i>
       <input type="number" id="priceMax" inputmode="numeric" min="0" placeholder="до ₽" value="${priceMax ?? ''}">
     </span></div>`;
 
-  el.innerHTML = garmentRow + sortRow;
+  el.innerHTML = garmentRow + brandRow + priceRow;
   el.hidden = !_filtersOpen;
 
   // Поля цены: применяем с небольшой задержкой, не перерисовывая панель
@@ -448,24 +473,92 @@ const _catChips = document.getElementById('catChips');
 if (_catChips) _catChips.addEventListener('click', (e) => {
   const chip = e.target.closest('.cat-chip');
   if (!chip) return;
-  if (chip.dataset.sort !== undefined)         activeSort = chip.dataset.sort;
-  else if (chip.dataset.garment !== undefined) activeGarment = chip.dataset.garment || null;   // уточняет внутри раздела
+  if (chip.dataset.garment !== undefined)    activeGarment = chip.dataset.garment || null;   // уточняет внутри раздела
+  else if (chip.dataset.brand !== undefined) activeBrand   = chip.dataset.brand || null;
   else return;
   renderFilters();
   renderGrid();
   updateCatalogChrome();
-  if (activeCat || activeGarment) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (activeCat || activeGarment || activeBrand) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
+
+/* ─── Мини-кнопка сортировки (три палочки) с выпадающим меню ─── */
+const SORTS = [['new', 'Сначала новые'], ['asc', 'Сначала дешевле'], ['desc', 'Сначала дороже']];
+
+function renderSortUI() {
+  const wrap = document.getElementById('sortWrap');
+  const btn  = document.getElementById('sortBtn');
+  const menu = document.getElementById('sortMenu');
+  if (!wrap || !btn || !menu) return;
+  wrap.hidden = !ITEMS.length;
+  btn.classList.toggle('on', activeSort !== 'new');
+  menu.innerHTML = SORTS.map(([v, t]) =>
+    `<button class="sort-item${activeSort === v ? ' active' : ''}" data-sort="${v}">${t}</button>`).join('');
+}
+
+function toggleSortMenu(open) {
+  const menu = document.getElementById('sortMenu');
+  const btn  = document.getElementById('sortBtn');
+  if (!menu || !btn) return;
+  const to = open ?? menu.hidden;
+  menu.hidden = !to;
+  btn.setAttribute('aria-expanded', String(to));
+  btn.classList.toggle('open', to);
+}
+
+document.getElementById('sortBtn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleSortMenu();
+});
+document.getElementById('sortMenu')?.addEventListener('click', (e) => {
+  const it = e.target.closest('.sort-item');
+  if (!it) return;
+  activeSort = it.dataset.sort;
+  toggleSortMenu(false);
+  renderSortUI();
+  renderGrid();
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.sort-wrap')) toggleSortMenu(false);
+});
+
+/* ─── Подсказка «листайте вниз»: до первого скролла, раз за сессию ─── */
+function initScrollHint() {
+  const el = document.getElementById('scrollHint');
+  if (!el || el._bound) return;
+  try { if (sessionStorage.getItem('mqHintShown')) return; } catch (_) {}
+  // На обложке уже есть своя стрелка вниз — вторая подсказка не нужна
+  if (document.querySelector('.sc-scroll')) return;
+  if (window.scrollY > 60) return;
+  // Показываем только если ниже действительно есть что листать
+  if (document.documentElement.scrollHeight < window.innerHeight + 200) return;
+  el._bound = true;
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add('visible'));
+  const hide = () => {
+    el.classList.remove('visible');
+    setTimeout(() => { el.hidden = true; }, 400);
+    window.removeEventListener('scroll', onScroll);
+    try { sessionStorage.setItem('mqHintShown', '1'); } catch (_) {}
+  };
+  const onScroll = () => { if (window.scrollY > 60) hide(); };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  el.addEventListener('click', () => {
+    document.getElementById('gridHeading')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    hide();
+  });
+}
 
 // При активном фильтре показываем только товары категории, пряча промо-поток
 let _streamHasContent = false;
 function updateCatalogChrome() {
-  const filtering = !!activeCat || !!activeGarment || priceMin != null || priceMax != null;
+  const filtering = !!activeCat || !!activeGarment || !!activeBrand || priceMin != null || priceMax != null;
   // inline-стиль, т.к. #siteBlocks:not(:empty){display:flex} перебивает [hidden]
   document.getElementById('siteBlocks').style.display = filtering ? 'none' : '';
   const gh = document.getElementById('gridHeading');
   if (filtering) {
     const parts = [];
+    if (activeBrand)   parts.push(activeBrand);
     if (activeGarment) parts.push((GARMENTS.find(g => g.id === activeGarment) || {}).name);
     if (activeCat === '__archive__') parts.push('Архив');
     else if (activeCat === '__other__') parts.push('Другое');
@@ -514,6 +607,7 @@ function cardHTML(i) {
       </div>
       <div class="good-info">
         <div class="good-name">${esc(i.name)}</div>
+        ${i.condition ? `<div class="good-cond${i.condition === 'new' ? ' cond-new' : ''}">${CONDITIONS[i.condition] || ''}</div>` : ''}
         <div class="good-meta">
           <span class="good-price">${fmtPrice(i.price)}${i.oldPrice ? ` <s class="old-price">${fmtPrice(i.oldPrice)}</s><em class="disc-badge">−${Math.round((1 - i.price / i.oldPrice) * 100)}%</em>` : ''}</span>
           <span class="good-sizes">${esc(sizesLabel(i.sizes))}</span>
@@ -537,6 +631,7 @@ function renderGrid() {
   else if (activeCat) { const ids = catSubtree(activeCat); items = ITEMS.filter(i => ids.has(i.categoryId)); }
   else items = ITEMS;
   if (activeGarment) items = items.filter(i => i.garment === activeGarment);
+  if (activeBrand)   items = items.filter(i => (i.brand || '').trim() === activeBrand);
 
   // Диапазон цены и сортировка (из панели «Фильтры»)
   if (priceMin != null) items = items.filter(i => i.price != null && i.price >= priceMin);
@@ -685,12 +780,12 @@ function renderCover(blocks) {
   // При обложке заголовок раздела прячется — бренд уже в кадре, дубль не нужен
   document.body.classList.toggle('has-cover', !!c);
   if (c) {
-    // Кнопку «Фильтры» переносим в строку заголовка «Все товары» —
-    // отдельной строкой под обложкой она смотрелась одиноко
-    const row = document.querySelector('.grid-head-row');
-    const fb  = document.getElementById('filtersBtn');
-    if (row && fb && !row.contains(fb)) {
-      row.appendChild(fb);
+    // Кнопки «Фильтры» и сортировки переносим в строку заголовка «Все товары» —
+    // отдельной строкой под обложкой они смотрелись одиноко
+    const row   = document.querySelector('.grid-head-row');
+    const tools = document.getElementById('catalogTools');
+    if (row && tools && !row.contains(tools)) {
+      row.appendChild(tools);
       // Панель чипов — сразу под этой строкой, чтобы раскрывалась рядом
       const chips = document.getElementById('catChips');
       if (chips) row.parentNode.insertBefore(chips, row.nextSibling);
@@ -699,10 +794,6 @@ function renderCover(blocks) {
   if (!c) { wrap.innerHTML = ''; return; }
   const fitAuto = c.fit === 'auto';   // «фото целиком» — высота по кадру, стрелка не нужна
   const hasCaption = !!(c.heading || c.sub);
-  // Кнопка «Фильтры» при обложке переезжает в строку заголовка «Все товары»
-  const fb = document.getElementById('filtersBtn');
-  const ghRow = document.querySelector('.grid-head-row');
-  if (fb && ghRow && !ghRow.contains(fb)) ghRow.appendChild(fb);
   wrap.innerHTML = `
     <section class="site-cover${fitAuto ? ' fit-auto' : ''}">
       <img src="${esc(c.image)}" alt="" style="object-position:${esc(c.pos || 'center center')}" draggable="false">
