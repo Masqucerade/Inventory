@@ -568,6 +568,10 @@ body.theme-type .photo-ribbon.reserved { background: var(--pink); color: #17150f
 }
 .site-foot a { color: var(--gold); transition: color .2s; }
 .site-foot a:hover { color: var(--gold-hi); }
+.site-foot .foot-links { display: flex; gap: 20px; flex-shrink: 0; }
+@media (max-width: 480px) {
+  .site-foot { flex-direction: column; gap: 10px; align-items: flex-start; }
+}
 
 /* ─── Модалка товара ─── */
 .item-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 18px; }
