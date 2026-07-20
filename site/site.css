@@ -874,11 +874,22 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
 /* Режим «Фото целиком»: во всю ширину экрана, высота по самому фото */
 .site-cover.fit-auto { height: auto; min-height: 0; }
 .site-cover.fit-auto img { height: auto; }
-/* Есть обложка → заголовок раздела не дублируем (бренд уже в кадре);
-   кнопка «Фильтры» уходит вправо отдельной аккуратной строкой */
-body.has-cover .hero-titles { display: none; }
+/* Есть обложка → заголовок раздела не дублируем, а кнопка «Фильтры»
+   переезжает в строку заголовка «Все товары» (как у Gurbich) */
+body.has-cover .catalog-hero { display: none; }
 body.has-cover .catalog-wrap { padding-top: clamp(18px, 3.4vh, 34px); }
-body.has-cover .catalog-hero { justify-content: flex-end; margin-bottom: clamp(10px, 2vh, 22px); }
+
+/* Строка заголовка грида: слева «Все товары», справа кнопка «Фильтры».
+   Вертикальные отступы заголовка переезжают на строку — иначе
+   flex-центрирование кнопки сбивается его margin/padding. */
+.grid-head-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin-top: 94px;   /* 54 + бывший padding 40 заголовка */
+}
+.grid-head-row .grid-heading { margin-top: 0; padding-top: 0; }
+.grid-head-row .filters-btn { flex-shrink: 0; }
+/* Заголовок скрыт (пусто без фильтра) — строка не занимает место без кнопки */
+.grid-head-row:not(:has(.filters-btn:not([hidden]))):has(.grid-heading[hidden]) { display: none; }
 .sc-shade {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, transparent 55%, color-mix(in srgb, var(--bg) 78%, transparent) 100%);

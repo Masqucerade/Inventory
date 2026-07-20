@@ -473,7 +473,8 @@ function updateCatalogChrome() {
     gh.hidden = false;
     gh.textContent = parts.filter(Boolean).join(' · ') || 'Товары';
   } else {
-    gh.hidden = !_streamHasContent;
+    // При обложке строка заголовка держит кнопку «Фильтры» — не прячем
+    gh.hidden = !_streamHasContent && !document.body.classList.contains('has-cover');
     gh.textContent = 'Все товары';
   }
 }
@@ -678,13 +679,35 @@ function renderCover(blocks) {
   const c = (blocks || []).find(b => b.type === 'cover' && b.image);
   // При обложке заголовок раздела прячется — бренд уже в кадре, дубль не нужен
   document.body.classList.toggle('has-cover', !!c);
+  if (c) {
+    // Кнопку «Фильтры» переносим в строку заголовка «Все товары» —
+    // отдельной строкой под обложкой она смотрелась одиноко
+    const gh = document.getElementById('gridHeading');
+    const fb = document.getElementById('filtersBtn');
+    if (gh && fb && !document.getElementById('gridHeadRow')) {
+      const row = document.createElement('div');
+      row.id = 'gridHeadRow';
+      row.className = 'grid-head-row';
+      gh.parentNode.insertBefore(row, gh);
+      row.appendChild(gh);
+      row.appendChild(fb);
+      // Панель чипов — сразу под этой строкой, чтобы раскрывалась рядом
+      const chips = document.getElementById('catChips');
+      if (chips) row.parentNode.insertBefore(chips, row.nextSibling);
+    }
+  }
   if (!c) { wrap.innerHTML = ''; return; }
   const fitAuto = c.fit === 'auto';   // «фото целиком» — высота по кадру, стрелка не нужна
+  const hasCaption = !!(c.heading || c.sub);
+  // Кнопка «Фильтры» при обложке переезжает в строку заголовка «Все товары»
+  const fb = document.getElementById('filtersBtn');
+  const ghRow = document.querySelector('.grid-head-row');
+  if (fb && ghRow && !ghRow.contains(fb)) ghRow.appendChild(fb);
   wrap.innerHTML = `
     <section class="site-cover${fitAuto ? ' fit-auto' : ''}">
       <img src="${esc(c.image)}" alt="" style="object-position:${esc(c.pos || 'center center')}" draggable="false">
-      <div class="sc-shade" aria-hidden="true"></div>
-      ${c.heading || c.sub ? `<div class="sc-caption">
+      ${hasCaption ? `<div class="sc-shade" aria-hidden="true"></div>
+      <div class="sc-caption">
         ${c.heading ? `<h2>${esc(c.heading)}</h2>` : ''}
         ${c.sub ? `<p>${esc(c.sub)}</p>` : ''}
       </div>` : ''}
