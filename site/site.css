@@ -525,6 +525,12 @@ body.theme-type .photo-ribbon.reserved { background: var(--pink); color: #17150f
 }
 .collection-grid > .good-card { flex: 0 0 clamp(200px, 24%, 258px); scroll-snap-align: start; }
 .collection-grid::-webkit-scrollbar { display: none; height: 0; }
+/* ПК с мышью: карусель тянется перетаскиванием (ползунок спрятан) */
+@media (hover: hover) and (pointer: fine) {
+  .collection-grid { cursor: grab; }
+  .collection-grid.dragging { cursor: grabbing; scroll-snap-type: none; user-select: none; }
+  .collection-grid.dragging .good-card { pointer-events: none; }
+}
 .grid-heading {
   font-family: var(--font-d); font-weight: 500;
   font-size: clamp(26px, 4.5vw, 40px); letter-spacing: .03em;

@@ -75,7 +75,7 @@ function headTags({ title, description, url, image, type = 'website', section = 
 /* Каталог раздела: главная страница каждого бренд-домена */
 function serveCatalog(req, res, section) {
   const o = originOf(req);
-  const title = section === 'monarc' ? 'Monarc' : 'Masqucerade';
+  const title = 'Masqucerade';
   const description = section === 'monarc'
     ? 'Оригинальные дизайнерские бренды — ERD, Chrome Hearts, Balenciaga, Rick Owens и другие.'
     : 'Люкс-качество на каждый день — повседневная одежда в безупречном исполнении.';
@@ -118,7 +118,7 @@ app.get('/product/:id', (req, res) => {
   const photos = (it.photos && it.photos.length) ? it.photos : (it.photo ? [it.photo] : []);
   const price  = it.price != null ? new Intl.NumberFormat('ru-RU').format(it.price) + ' ₽' : '';
   let html = SITE_PRODUCT.replace('<!--META-->', headTags({
-    title:       `${it.name} — ${it.isMonarc ? 'Monarc' : 'Masqucerade'}`,
+    title:       `${it.name} — Masqucerade`,
     description: it.description || [price, it.isMonarc ? 'Monarc' : 'Type Clothes'].filter(Boolean).join(' · '),
     url:   `${o}/product/${encodeURIComponent(it.id)}`,
     image: photos[0] ? o + photos[0] : o + OG_FALLBACK,

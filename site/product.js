@@ -31,12 +31,8 @@ async function boot() {
   }
   const i = data.item;
 
-  /* Тема раздела + шапка */
+  /* Тема раздела; в шапке всегда «Masqucerade» */
   document.body.classList.add('theme-' + i.section);
-  if (i.section === 'monarc') {
-    const ln = document.getElementById('logoName');
-    if (ln) ln.textContent = 'Monarc';
-  }
   // Сервер уводит товар на домен его бренда, так что «назад» — на главную;
   // пока Type-домен не подключён, его товары живут на /type
   const typeHost = document.querySelector('meta[name="mq-type-host"]')?.content || '';

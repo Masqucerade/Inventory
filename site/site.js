@@ -41,15 +41,8 @@ const GARMENTS = [
 async function boot() {
   document.getElementById('sectionKicker').textContent = TITLES[SECTION].kicker;
   document.getElementById('sectionTitle').textContent  = TITLES[SECTION].title;
-  // На разделе Monarc в шапке только надпись «Monarc» (медальон скрыт в CSS)
-  if (SECTION === 'monarc') {
-    const ln = document.getElementById('logoName');
-    if (ln) ln.textContent = 'Monarc';
-    const mln = document.getElementById('mobLogoName');
-    if (mln) mln.textContent = 'Monarc';
-  }
-  // Название вкладки: Monarc — своё, Type — общий бренд
-  document.title = SECTION === 'monarc' ? 'Monarc' : 'Masqucerade';
+  // В шапке всегда «Masqucerade» — общий бренд (медальон на Monarc скрыт в CSS)
+  document.title = 'Masqucerade';
   document.querySelectorAll('.site-nav a').forEach(a =>
     a.classList.toggle('active', a.dataset.nav === SECTION));
   document.getElementById('footTg').href = `https://t.me/${TG_USERNAME}`;
@@ -764,6 +757,44 @@ function markCarousels() {
     };
     update();
     if (!grid._carBound) { grid._carBound = true; grid.addEventListener('scroll', update, { passive: true }); }
+  });
+  bindCarouselDrag();
+}
+
+/* Карусели: перетаскивание мышью — на ПК без тачпада иначе не прокрутить
+   (системный ползунок спрятан). Клик без движения по-прежнему открывает товар. */
+function bindCarouselDrag() {
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  document.querySelectorAll('.collection-grid').forEach(grid => {
+    if (grid._dragBound) return;
+    grid._dragBound = true;
+    let startX = 0, startL = 0, active = false, moved = false;
+    grid.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      active = true; moved = false;
+      startX = e.clientX; startL = grid.scrollLeft;
+    });
+    grid.addEventListener('pointermove', (e) => {
+      if (!active) return;
+      const dx = e.clientX - startX;
+      if (!moved && Math.abs(dx) < 6) return;   // ещё не перетаскивание — обычный клик
+      if (!moved) {
+        moved = true;
+        grid.classList.add('dragging');
+        try { grid.setPointerCapture(e.pointerId); } catch (_) {}
+      }
+      grid.scrollLeft = startL - dx;
+    });
+    const stop = () => {
+      if (!active) return;
+      active = false;
+      // Сбрасываем после события click, чтобы карточка не открылась от перетаскивания
+      setTimeout(() => { moved = false; grid.classList.remove('dragging'); }, 0);
+    };
+    grid.addEventListener('pointerup', stop);
+    grid.addEventListener('pointercancel', stop);
+    grid.addEventListener('click', (e) => { if (moved) { e.preventDefault(); e.stopPropagation(); } }, true);
+    grid.addEventListener('dragstart', (e) => e.preventDefault());   // нативный drag ссылок мешает
   });
 }
 let _carouselResizeT;
