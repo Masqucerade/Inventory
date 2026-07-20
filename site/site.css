@@ -1116,13 +1116,17 @@ body.theme-type .p-cond.cond-new { color: #17150f; }
   transform: translateX(-50%); opacity: 0; pointer-events: none;
   width: 48px; height: 48px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: none; border: none; cursor: pointer; color: var(--text2);
+  background: none; border: none; cursor: pointer; color: var(--text);
   transition: opacity .4s, color .2s;
 }
 .scroll-hint.visible { opacity: 1; pointer-events: auto; }
 .scroll-hint[hidden] { display: none; }
-.scroll-hint:hover { color: var(--text); }
-.scroll-hint svg { animation: sc-bounce-y 2.2s ease-in-out infinite; }
+.scroll-hint:hover { color: var(--text2); }
+.scroll-hint svg {
+  animation: sc-bounce-y 2.2s ease-in-out infinite;
+  /* Тень — чтобы стрелка читалась и на светлом фото, и на тёмном фоне */
+  filter: drop-shadow(0 1px 5px rgba(0,0,0,.55));
+}
 @keyframes sc-bounce-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
 @media (prefers-reduced-motion: reduce) { .scroll-hint svg { animation: none; } }
 

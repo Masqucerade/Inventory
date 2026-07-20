@@ -522,11 +522,10 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.sort-wrap')) toggleSortMenu(false);
 });
 
-/* ─── Подсказка «листайте вниз»: до первого скролла, раз за сессию ─── */
+/* ─── Подсказка-стрелка «вниз»: видна при каждом открытии до первого скролла ─── */
 function initScrollHint() {
   const el = document.getElementById('scrollHint');
   if (!el || el._bound) return;
-  try { if (sessionStorage.getItem('mqHintShown')) return; } catch (_) {}
   // На обложке уже есть своя стрелка вниз — вторая подсказка не нужна
   if (document.querySelector('.sc-scroll')) return;
   if (window.scrollY > 60) return;
@@ -534,12 +533,12 @@ function initScrollHint() {
   if (document.documentElement.scrollHeight < window.innerHeight + 200) return;
   el._bound = true;
   el.hidden = false;
-  requestAnimationFrame(() => el.classList.add('visible'));
+  // Класс — отложенно, чтобы сработал fade-in (rAF в фоновых вкладках молчит)
+  setTimeout(() => el.classList.add('visible'), 40);
   const hide = () => {
     el.classList.remove('visible');
     setTimeout(() => { el.hidden = true; }, 400);
     window.removeEventListener('scroll', onScroll);
-    try { sessionStorage.setItem('mqHintShown', '1'); } catch (_) {}
   };
   const onScroll = () => { if (window.scrollY > 60) hide(); };
   window.addEventListener('scroll', onScroll, { passive: true });
