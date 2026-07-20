@@ -95,7 +95,7 @@ async function boot() {
               </svg>
               Написать в Telegram
             </a>
-            <p class="p-note">В продаже только оригинальные вещи · отправка по России и СНГ</p>`}
+            <p class="p-note">В продаже только оригинальные вещи · отправка по России и всему миру</p>`}
       </div>
     </div>
     ${data.related && data.related.length ? `
