@@ -4767,7 +4767,7 @@ class App {
     const plur = (n, f) => { const m = n % 100, d = n % 10; if (m > 10 && m < 20) return f[2]; if (d > 1 && d < 5) return f[1]; if (d === 1) return f[0]; return f[2]; };
 
     /* ── Компактная панель: открыть сайт + счётчики (без декораций) ── */
-    const host = (location.host || 'masqucerade.inc').replace(/^www\./, '');
+    const host = (location.host || 'masqucerade.com').replace(/^www\./, '');
     const extSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>`;
     const eyeSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
 

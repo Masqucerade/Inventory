@@ -5,6 +5,20 @@ const crypto  = require('crypto');
 
 const app = express();
 app.set('trust proxy', true);          // за прокси Railway → req.protocol === 'https'
+
+/* Канонический домен: www и технический *.up.railway.app отдают 301 на
+   masqucerade.com — поисковики видят один адрес. Локалка не задета:
+   редиректим только известные алиасы. */
+const CANONICAL_HOST = 'masqucerade.com';
+app.use((req, res, next) => {
+  const host = (req.get('host') || '').toLowerCase();
+  if (host === `www.${CANONICAL_HOST}` || host.endsWith('.up.railway.app')) {
+    const code = (req.method === 'GET' || req.method === 'HEAD') ? 301 : 308;
+    return res.redirect(code, `https://${CANONICAL_HOST}${req.originalUrl}`);
+  }
+  next();
+});
+
 app.use(express.json({ limit: '25mb' }));
 
 // Страницы: / — витрина, /monarc и /type — каталог, /admin — Mini App.
