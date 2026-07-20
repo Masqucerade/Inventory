@@ -8,21 +8,20 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  const path      = location.pathname.replace(/\/+$/, '');
-  const isLanding = path === '';
-  const section   = (path === '/monarc' || path === '/brands') ? 'monarc' : 'type';
+  const path     = location.pathname.replace(/\/+$/, '');
+  // Раздел задаёт сервер по домену (meta); фолбэк — по пути
+  const section  = document.querySelector('meta[name="mq-section"]')?.content
+    || ((path === '/monarc' || path === '/brands') ? 'monarc' : 'type');
+  const typeHost = document.querySelector('meta[name="mq-type-host"]')?.content || '';
   const href = (b) =>
-    b.linkType === 'monarc' ? '/monarc'
-    : b.linkType === 'type' ? '/type'
+    b.linkType === 'monarc' ? (section === 'monarc' ? '/' : 'https://masqucerade.com/')
+    : b.linkType === 'type' ? (section === 'type' ? '/' : (typeHost ? `https://${typeHost}/` : '/type'))
     : b.linkType === 'tg'   ? `https://t.me/${TG_USERNAME}`
     : b.linkType === 'url'  ? (b.linkValue || '') : '';
 
   try {
     const blocks = await fetch(`/api/public/blocks?section=${section}`).then(r => r.json());
-    let pops = blocks.filter(b => b.type === 'popup');
-    // На лендинге раздел ещё не выбран — показываем только попапы «Везде»
-    if (isLanding) pops = pops.filter(b => b.section === 'all');
-    const p = pops[0];
+    const p = blocks.filter(b => b.type === 'popup')[0];
     if (!p) return;
 
     const key = 'mq_popup_' + p.id;

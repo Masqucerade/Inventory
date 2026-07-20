@@ -6,16 +6,27 @@ const crypto  = require('crypto');
 const app = express();
 app.set('trust proxy', true);          // за прокси Railway → req.protocol === 'https'
 
-/* Канонический домен: www и технический *.up.railway.app отдают 301 на
-   masqucerade.com — поисковики видят один адрес. Локалка не задета:
-   редиректим только известные алиасы. */
+/* Два бренд-домена:
+   - masqucerade.com — сайт Monarc (главная = каталог Monarc) + панель /admin
+   - TYPE_HOST (env-переменная, задать в Railway когда домен куплен) — сайт Type
+   www и технический *.up.railway.app отдают 301 на канонические адреса.
+   Локалка не задета: редиректим только известные алиасы. */
 const CANONICAL_HOST = 'masqucerade.com';
+const TYPE_HOST = (process.env.TYPE_HOST || '').trim().toLowerCase();
+
+const hostOf     = req => (req.get('host') || '').toLowerCase();
+const isTypeHost = req => !!TYPE_HOST && hostOf(req) === TYPE_HOST;
+// Хост известный (прод) — можно уводить кросс-доменными редиректами;
+// локалку и превью не трогаем
+const onKnownHost = req => hostOf(req) === CANONICAL_HOST || isTypeHost(req);
+
 app.use((req, res, next) => {
-  const host = (req.get('host') || '').toLowerCase();
-  if (host === `www.${CANONICAL_HOST}` || host.endsWith('.up.railway.app')) {
-    const code = (req.method === 'GET' || req.method === 'HEAD') ? 301 : 308;
+  const host = hostOf(req);
+  const code = (req.method === 'GET' || req.method === 'HEAD') ? 301 : 308;
+  if (host === `www.${CANONICAL_HOST}` || host.endsWith('.up.railway.app'))
     return res.redirect(code, `https://${CANONICAL_HOST}${req.originalUrl}`);
-  }
+  if (TYPE_HOST && host === `www.${TYPE_HOST}`)
+    return res.redirect(code, `https://${TYPE_HOST}${req.originalUrl}`);
   next();
 });
 
@@ -27,7 +38,7 @@ const sendHtml = (res, file) =>
 
 /* ─── SEO: og-теги (превью в Telegram), per-item карточки, sitemap ─── */
 // HTML витрины читаем один раз и подставляем <!--META--> на каждый запрос.
-const SITE_INDEX   = fs.readFileSync(path.join(__dirname, 'site/index.html'),   'utf8');
+// (Лендинг-развилка site/index.html больше не используется: главная = Monarc.)
 const SITE_CATALOG = fs.readFileSync(path.join(__dirname, 'site/catalog.html'), 'utf8');
 const SITE_PRODUCT = fs.readFileSync(path.join(__dirname, 'site/product.html'), 'utf8');
 const OG_FALLBACK  = '/site/og-cover.png';
@@ -41,7 +52,7 @@ const monarcFavicon = html => html
            '<link rel="icon" href="/site/monarc-logo.jpg" type="image/jpeg">')
   .replace('<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">', '');
 
-function headTags({ title, description, url, image, type = 'website' }) {
+function headTags({ title, description, url, image, type = 'website', section = '' }) {
   const t = escAttr(title), d = escAttr(description), u = escAttr(url), i = escAttr(image);
   return `<title>${t}</title>
   <meta name="description" content="${d}">
@@ -55,63 +66,85 @@ function headTags({ title, description, url, image, type = 'website' }) {
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${t}">
   <meta name="twitter:description" content="${d}">
-  <meta name="twitter:image" content="${i}">`;
+  <meta name="twitter:image" content="${i}">` +
+  // Маркеры для клиента: какой раздел рендерить и где живёт Type
+  (section ? `\n  <meta name="mq-section" content="${escAttr(section)}">` : '') +
+  (TYPE_HOST ? `\n  <meta name="mq-type-host" content="${escAttr(TYPE_HOST)}">` : '');
+}
+
+/* Каталог раздела: главная страница каждого бренд-домена */
+function serveCatalog(req, res, section) {
+  const o = originOf(req);
+  const title = section === 'monarc' ? 'Monarc' : 'Masqucerade';
+  const description = section === 'monarc'
+    ? 'Оригинальные дизайнерские бренды — ERD, Chrome Hearts, Balenciaga, Rick Owens и другие.'
+    : 'Люкс-качество на каждый день — повседневная одежда в безупречном исполнении.';
+  let html = SITE_CATALOG.replace('<!--META-->', headTags({
+    title, description, url: o + '/', image: o + OG_FALLBACK, section,
+  }));
+  if (section === 'monarc') html = monarcFavicon(html);
+  res.set('Cache-Control', 'no-cache').send(html);
 }
 
 app.get('/', (req, res) => {
-  const o = originOf(req);
-  res.set('Cache-Control', 'no-cache').send(SITE_INDEX.replace('<!--META-->', headTags({
-    title:       'Masqucerade INC.',
-    description: 'Monarc — оригинальные дизайнерские бренды. Type Clothes — повседневная одежда в безупречном исполнении.',
-    url:   o + '/',
-    image: o + OG_FALLBACK,
-  })));
+  serveCatalog(req, res, isTypeHost(req) ? 'type' : 'monarc');
 });
 
-app.get(['/monarc', '/type'], (req, res) => {
-  const o = originOf(req);
-  const section  = req.path === '/monarc' ? 'monarc' : 'type';
-  // Название вкладки: Monarc — своё, Type — общий бренд
-  let title = section === 'monarc' ? 'Monarc' : 'Masqucerade';
-  let description = section === 'monarc'
-    ? 'Оригинальные дизайнерские бренды — ERD, Chrome Hearts, Balenciaga, Rick Owens и другие.'
-    : 'Люкс-качество на каждый день — повседневная одежда в безупречном исполнении.';
-  let image = o + OG_FALLBACK, url = `${o}/${section}`, type = 'website';
-
-  // Старые прямые ссылки /type?item=<id> → постоянная страница товара
+// Старые адреса разделов: /monarc теперь главная, /brands — совсем старый алиас
+app.get(['/monarc', '/brands'], (req, res) => {
   if (req.query.item) return res.redirect(301, `/product/${encodeURIComponent(req.query.item)}`);
-
-  let html = SITE_CATALOG.replace('<!--META-->', headTags({ title, description, url, image, type }));
-  if (section === 'monarc') html = monarcFavicon(html);
-  res.set('Cache-Control', 'no-cache').send(html);
+  if (isTypeHost(req)) return res.redirect(301, `https://${CANONICAL_HOST}/`);
+  res.redirect(301, '/');
 });
 
-// Страница товара — постоянный адрес, og-превью с фото вещи
+// Type: до покупки домена живёт на /type, после — уезжает на свой хост
+app.get('/type', (req, res) => {
+  if (req.query.item) return res.redirect(301, `/product/${encodeURIComponent(req.query.item)}`);
+  if (TYPE_HOST && onKnownHost(req)) return res.redirect(301, `https://${TYPE_HOST}/`);
+  if (isTypeHost(req)) return res.redirect(301, '/');
+  serveCatalog(req, res, 'type');
+});
+
+// Страница товара — постоянный адрес, og-превью с фото вещи.
+// Товар живёт на домене своего бренда — с чужого хоста уводим 301.
 app.get('/product/:id', (req, res) => {
   const o  = originOf(req);
   const it = (load().items || []).find(i => i.id === req.params.id && i.showOnSite);
   if (!it) return res.redirect(302, '/');
+  if (TYPE_HOST && onKnownHost(req)) {
+    if (it.isMonarc && isTypeHost(req))   return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
+    if (!it.isMonarc && !isTypeHost(req)) return res.redirect(301, `https://${TYPE_HOST}${req.originalUrl}`);
+  }
   const photos = (it.photos && it.photos.length) ? it.photos : (it.photo ? [it.photo] : []);
   const price  = it.price != null ? new Intl.NumberFormat('ru-RU').format(it.price) + ' ₽' : '';
   let html = SITE_PRODUCT.replace('<!--META-->', headTags({
-    title:       `${it.name} — Masqucerade INC.`,
+    title:       `${it.name} — ${it.isMonarc ? 'Monarc' : 'Masqucerade'}`,
     description: it.description || [price, it.isMonarc ? 'Monarc' : 'Type Clothes'].filter(Boolean).join(' · '),
     url:   `${o}/product/${encodeURIComponent(it.id)}`,
     image: photos[0] ? o + photos[0] : o + OG_FALLBACK,
     type:  'product',
+    section: it.isMonarc ? 'monarc' : 'type',
   }));
   if (it.isMonarc) html = monarcFavicon(html);
   res.set('Cache-Control', 'no-cache').send(html);
 });
 
-app.get('/brands', (req, res) => res.redirect(301, '/monarc'));
-app.get('/admin',  (req, res) => sendHtml(res, 'index.html'));
+// Панель одна — живёт на каноническом домене
+app.get('/admin', (req, res) => {
+  if (isTypeHost(req)) return res.redirect(301, `https://${CANONICAL_HOST}/admin`);
+  sendHtml(res, 'index.html');
+});
 
 app.get('/sitemap.xml', (req, res) => {
   const o = originOf(req);
-  const urls = [`${o}/`, `${o}/monarc`, `${o}/type`];
+  const typeSite = isTypeHost(req);
+  const urls = [`${o}/`];
+  if (!TYPE_HOST && !typeSite) urls.push(`${o}/type`);   // переходный период
   for (const it of (load().items || [])) {
-    if (it.showOnSite) urls.push(`${o}/product/${encodeURIComponent(it.id)}`);
+    if (!it.showOnSite) continue;
+    // На бренд-домене — только свои товары (пока Type-домена нет — все на общем)
+    if (TYPE_HOST && (!!it.isMonarc === typeSite)) continue;
+    urls.push(`${o}/product/${encodeURIComponent(it.id)}`);
   }
   res.type('application/xml').send(
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
@@ -1598,7 +1631,7 @@ function migrateSiteAccess() {
 /* ─── Гайд по панели: контент живёт в коде и версионируется.
    При повышении PANEL_GUIDE_REV содержимое гайда «Гайд по панели»
    перезаписывается при старте — так гайд в проде всегда актуален. ─── */
-const PANEL_GUIDE_REV   = 2;
+const PANEL_GUIDE_REV   = 3;
 const PANEL_GUIDE_TITLE = 'Гайд по панели';
 const PANEL_GUIDE_BODY = `# Гайд по панели Masqucerade INC.
 
@@ -1646,7 +1679,7 @@ const PANEL_GUIDE_BODY = `# Гайд по панели Masqucerade INC.
 - **Блоки** (вкладка Витрина): баннер, товары недели, слоган, текст, бегущая строка, промо-полоса. Каждый блок — для раздела Monarc, Type или везде. Порядок стрелками, блоки чередуются с подборками. Глаз скрывает блок не удаляя.
 - **Подборки**: наборы товаров с заголовком — карусели на витрине.
 - **FAQ сайта**: топики с галочкой «Виден на сайте» показываются покупателям; без неё — внутренние скрипты ответов с кнопками копирования.
-- Страницы: главная «/», разделы «/monarc» и «/type», товар «/product/…». Кнопка «Открыть сайт» — вверху вкладки.
+- Страницы: masqucerade.com — сайт Monarc (главная = каталог Monarc), Type Clothes — на своём отдельном домене (до его подключения живёт на /type), товар — «/product/…» на домене своего бренда. Кнопка «Открыть сайт» — вверху вкладки.
 
 ## Terminal
 

@@ -30,7 +30,10 @@ async function boot() {
     const ln = document.getElementById('logoName');
     if (ln) ln.textContent = 'Monarc';
   }
-  document.getElementById('backLink').href = '/' + i.section;
+  // Сервер уводит товар на домен его бренда, так что «назад» — на главную;
+  // пока Type-домен не подключён, его товары живут на /type
+  const typeHost = document.querySelector('meta[name="mq-type-host"]')?.content || '';
+  document.getElementById('backLink').href = (i.section === 'type' && !typeHost) ? '/type' : '/';
   document.title = `${i.name} — Masqucerade INC.`;
 
   const cat    = cats.find(c => c.id === i.categoryId);

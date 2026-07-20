@@ -4,7 +4,11 @@
 const TG_USERNAME = 'Masqucerade';
 
 const path    = location.pathname.replace(/\/+$/, '');
-const SECTION = (path === '/monarc' || path === '/brands') ? 'monarc' : 'type';
+// Раздел задаёт сервер по домену (meta); фолбэк — по пути (старые ссылки)
+const SECTION = document.querySelector('meta[name="mq-section"]')?.content
+  || ((path === '/monarc' || path === '/brands') ? 'monarc' : 'type');
+// Отдельный домен Type (если уже подключён) — для кросс-брендовых ссылок
+const TYPE_HOST_PUB = document.querySelector('meta[name="mq-type-host"]')?.content || '';
 const TITLES  = {
   monarc: { kicker: 'Оригинальные бренды',           title: 'Monarc'       },
   type:   { kicker: 'Люкс-качество на каждый день',  title: 'Type Clothes' },
@@ -553,8 +557,9 @@ function renderGrid() {
 /* ─── Контент-блоки (баннер / текст / промо) ─── */
 function blockLinkHref(b) {
   switch (b.linkType) {
-    case 'monarc': return '/monarc';
-    case 'type':   return '/type';
+    // Свой раздел — главная; чужой — его бренд-домен
+    case 'monarc': return SECTION === 'monarc' ? '/' : 'https://masqucerade.com/';
+    case 'type':   return SECTION === 'type' ? '/' : (TYPE_HOST_PUB ? `https://${TYPE_HOST_PUB}/` : '/type');
     case 'tg':     return `https://t.me/${TG_USERNAME}`;
     case 'url':    return b.linkValue || '';
     default:       return '';
@@ -682,14 +687,9 @@ function renderCover(blocks) {
   if (c) {
     // Кнопку «Фильтры» переносим в строку заголовка «Все товары» —
     // отдельной строкой под обложкой она смотрелась одиноко
-    const gh = document.getElementById('gridHeading');
-    const fb = document.getElementById('filtersBtn');
-    if (gh && fb && !document.getElementById('gridHeadRow')) {
-      const row = document.createElement('div');
-      row.id = 'gridHeadRow';
-      row.className = 'grid-head-row';
-      gh.parentNode.insertBefore(row, gh);
-      row.appendChild(gh);
+    const row = document.querySelector('.grid-head-row');
+    const fb  = document.getElementById('filtersBtn');
+    if (row && fb && !row.contains(fb)) {
       row.appendChild(fb);
       // Панель чипов — сразу под этой строкой, чтобы раскрывалась рядом
       const chips = document.getElementById('catChips');
