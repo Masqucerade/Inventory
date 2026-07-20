@@ -725,7 +725,7 @@ a.duo-tile:hover img { transform: scale(1.04); }
 }
 .duo-tile .block-banner-cap h2 { font-family: var(--font-d); font-weight: 500; font-size: clamp(20px, 2.6vw, 30px); color: #fff; line-height: 1.1; }
 
-/* Индикатор карусели — мягкое затухание + изящный шеврон справа */
+/* Индикатор карусели — мягкое затухание + изящные шевроны по краям */
 .collection-head { display: flex; align-items: center; gap: 12px; }
 .collection-carousel { position: relative; }
 .collection-carousel::after {
@@ -734,9 +734,16 @@ a.duo-tile:hover img { transform: scale(1.04); }
   background: linear-gradient(90deg, transparent, var(--bg) 78%);
 }
 .collection-block.scrollable:not(.at-end) .collection-carousel::after { opacity: 1; }
+/* Затухание слева — когда карусель уже прокручена вправо */
+.collection-carousel::before {
+  content: ''; position: absolute; top: 0; left: 0; bottom: 8px; width: 80px; z-index: 1;
+  pointer-events: none; opacity: 0; transition: opacity .35s;
+  background: linear-gradient(270deg, transparent, var(--bg) 78%);
+}
+.collection-block.scrollable:not(.at-start) .collection-carousel::before { opacity: 1; }
 
-.carousel-next {
-  position: absolute; z-index: 2; top: 50%; right: 12px; margin-top: -21px;
+.carousel-next, .carousel-prev {
+  position: absolute; z-index: 2; top: 50%; margin-top: -21px;
   width: 42px; height: 42px; border-radius: 50%;
   border: 1px solid var(--line2); color: var(--gold);
   background: color-mix(in srgb, var(--bg) 78%, transparent);
@@ -744,9 +751,13 @@ a.duo-tile:hover img { transform: scale(1.04); }
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   opacity: 0; pointer-events: none; transition: opacity .35s, background .2s, transform .2s;
 }
+.carousel-next { right: 12px; }
+.carousel-prev { left: 12px; }
 .carousel-next svg { transform: translateX(1px); }
-.carousel-next:hover { background: var(--bg); border-color: var(--gold); }
+.carousel-prev svg { transform: translateX(-1px); }
+.carousel-next:hover, .carousel-prev:hover { background: var(--bg); border-color: var(--gold); }
 .collection-block.scrollable:not(.at-end) .carousel-next { opacity: 1; pointer-events: auto; }
+.collection-block.scrollable:not(.at-start) .carousel-prev { opacity: 1; pointer-events: auto; }
 
 @media (max-width: 640px) {
   .block-duo { grid-template-columns: 1fr; }
