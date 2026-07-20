@@ -607,7 +607,6 @@ function cardHTML(i) {
       </div>
       <div class="good-info">
         <div class="good-name">${esc(i.name)}</div>
-        ${i.condition ? `<div class="good-cond${i.condition === 'new' ? ' cond-new' : ''}">${CONDITIONS[i.condition] || ''}</div>` : ''}
         <div class="good-meta">
           <span class="good-price">${fmtPrice(i.price)}${i.oldPrice ? ` <s class="old-price">${fmtPrice(i.oldPrice)}</s><em class="disc-badge">−${Math.round((1 - i.price / i.oldPrice) * 100)}%</em>` : ''}</span>
           <span class="good-sizes">${esc(sizesLabel(i.sizes))}</span>
