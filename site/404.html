@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Страница не найдена — Masqucerade</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/site/site.css?v=61">
+  <style>
+    .nf-wrap {
+      position: relative; z-index: 2; min-height: 100svh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 40px 24px calc(40px + env(safe-area-inset-bottom));
+    }
+    .nf-code {
+      font-family: var(--font-d); font-weight: 500; line-height: 1;
+      font-size: clamp(110px, 24vw, 220px); letter-spacing: .04em;
+      color: var(--gold); opacity: .9;
+    }
+    .nf-title {
+      font-family: var(--font-d); font-weight: 500;
+      font-size: clamp(22px, 3.4vw, 32px); letter-spacing: .03em; margin-top: 10px;
+    }
+    .nf-sub { color: var(--text2); font-size: 14px; line-height: 1.6; margin-top: 12px; max-width: 420px; }
+    .nf-btn {
+      display: inline-block; margin-top: 30px; padding: 13px 34px; border-radius: 99px;
+      background: var(--gold); color: #17130b; text-decoration: none;
+      font-family: var(--font-b); font-size: 12.5px; font-weight: 600;
+      letter-spacing: .14em; text-transform: uppercase;
+      transition: background .2s, transform .2s;
+    }
+    .nf-btn:hover { background: var(--gold-hi); transform: translateY(-1px); }
+    .nf-foot {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding: 20px 24px calc(20px + env(safe-area-inset-bottom));
+      color: var(--text3); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body class="catalog">
+  <div class="bg-grain"></div>
+  <main class="nf-wrap">
+    <div class="nf-code">404</div>
+    <h1 class="nf-title">Такой страницы нет</h1>
+    <p class="nf-sub">Возможно, вещь уже нашла владельца или ссылка устарела. Загляните в каталог — там много интересного.</p>
+    <a class="nf-btn" href="/">В каталог</a>
+    <div class="nf-foot">Masqucerade INC.</div>
+  </main>
+</body>
+</html>

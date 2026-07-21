@@ -3,6 +3,10 @@ const fs      = require('fs');
 const path    = require('path');
 const crypto  = require('crypto');
 
+// sharp — конвертация фото в WebP; без него фото сохраняются как есть
+let sharp = null;
+try { sharp = require('sharp'); } catch (_) { console.warn('sharp недоступен — фото без сжатия'); }
+
 const app = express();
 app.set('trust proxy', true);          // за прокси Railway → req.protocol === 'https'
 
@@ -41,6 +45,7 @@ const sendHtml = (res, file) =>
 // (Лендинг-развилка site/index.html больше не используется: главная = Monarc.)
 const SITE_CATALOG = fs.readFileSync(path.join(__dirname, 'site/catalog.html'), 'utf8');
 const SITE_PRODUCT = fs.readFileSync(path.join(__dirname, 'site/product.html'), 'utf8');
+const SITE_404     = fs.readFileSync(path.join(__dirname, 'site/404.html'), 'utf8');
 const OG_FALLBACK  = '/site/og-cover.png';
 
 const escAttr = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
@@ -56,6 +61,7 @@ function headTags({ title, description, url, image, type = 'website', section = 
   const t = escAttr(title), d = escAttr(description), u = escAttr(url), i = escAttr(image);
   return `<title>${t}</title>
   <meta name="description" content="${d}">
+  <link rel="canonical" href="${u}">
   <meta property="og:type" content="${type}">
   <meta property="og:site_name" content="Masqucerade INC.">
   <meta property="og:title" content="${t}">
@@ -110,21 +116,37 @@ app.get('/type', (req, res) => {
 app.get('/product/:id', (req, res) => {
   const o  = originOf(req);
   const it = (load().items || []).find(i => i.id === req.params.id && i.showOnSite);
-  if (!it) return res.redirect(302, '/');
+  if (!it) return res.status(404).type('html').send(SITE_404);   // вещь продана/скрыта — честная 404
   if (TYPE_HOST && onKnownHost(req)) {
     if (it.isMonarc && isTypeHost(req))   return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
     if (!it.isMonarc && !isTypeHost(req)) return res.redirect(301, `https://${TYPE_HOST}${req.originalUrl}`);
   }
   const photos = (it.photos && it.photos.length) ? it.photos : (it.photo ? [it.photo] : []);
   const price  = it.price != null ? new Intl.NumberFormat('ru-RU').format(it.price) + ' ₽' : '';
+  const url    = `${o}/product/${encodeURIComponent(it.id)}`;
+  // JSON-LD Product — поисковики показывают цену/наличие прямо в выдаче
+  const ld = {
+    '@context': 'https://schema.org', '@type': 'Product',
+    name: it.name,
+    image: photos.map(p => o + p),
+    ...(it.description ? { description: it.description } : {}),
+    ...(it.brand ? { brand: { '@type': 'Brand', name: it.brand } } : {}),
+    offers: {
+      '@type': 'Offer', url,
+      price: it.price ?? 0, priceCurrency: 'RUB',
+      availability: isSoldOut(it) ? 'https://schema.org/SoldOut'
+        : it.orderStatus === 'in_stock' ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder',
+      itemCondition: it.condition === 'new' ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition',
+    },
+  };
   let html = SITE_PRODUCT.replace('<!--META-->', headTags({
     title:       `${it.name} — Masqucerade`,
     description: it.description || [price, it.isMonarc ? 'Monarc' : 'Type Clothes'].filter(Boolean).join(' · '),
-    url:   `${o}/product/${encodeURIComponent(it.id)}`,
+    url,
     image: photos[0] ? o + photos[0] : o + OG_FALLBACK,
     type:  'product',
     section: it.isMonarc ? 'monarc' : 'type',
-  }));
+  }) + `\n  <script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
   if (it.isMonarc) html = monarcFavicon(html);
   res.set('Cache-Control', 'no-cache').send(html);
 });
@@ -138,17 +160,18 @@ app.get('/admin', (req, res) => {
 app.get('/sitemap.xml', (req, res) => {
   const o = originOf(req);
   const typeSite = isTypeHost(req);
-  const urls = [`${o}/`];
-  if (!TYPE_HOST && !typeSite) urls.push(`${o}/type`);   // переходный период
+  const urls = [{ loc: `${o}/` }];
+  if (!TYPE_HOST && !typeSite) urls.push({ loc: `${o}/type` });   // переходный период
   for (const it of (load().items || [])) {
     if (!it.showOnSite) continue;
     // На бренд-домене — только свои товары (пока Type-домена нет — все на общем)
     if (TYPE_HOST && (!!it.isMonarc === typeSite)) continue;
-    urls.push(`${o}/product/${encodeURIComponent(it.id)}`);
+    urls.push({ loc: `${o}/product/${encodeURIComponent(it.id)}`,
+                mod: (it.updatedAt || it.createdAt || '').slice(0, 10) });
   }
   res.type('application/xml').send(
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-    urls.map(u => `  <url><loc>${u.replace(/&/g, '&amp;')}</loc></url>`).join('\n') +
+    urls.map(u => `  <url><loc>${u.loc.replace(/&/g, '&amp;')}</loc>${u.mod ? `<lastmod>${u.mod}</lastmod>` : ''}</url>`).join('\n') +
     `\n</urlset>\n`);
 });
 
@@ -183,27 +206,44 @@ const PHOTOS_DIR = path.join(DATA_DIR, 'photos');
 fs.mkdirSync(PHOTOS_DIR, { recursive: true });
 app.use('/photos', express.static(PHOTOS_DIR, { immutable: true, maxAge: '365d' }));
 
-// data:image/…;base64,… → файл /photos/<hash>.jpg. Дедуп по хэшу: одинаковые
-// байты пишутся один раз. Возвращает ссылку либо null, если это не data-URL.
-function saveDataUrl(dataUrl) {
+// data:image/…;base64,… → файл /photos/<hash>.webp (или исходный формат, если
+// sharp недоступен / конвертация не дала выигрыша). Дедуп по хэшу исходных байт.
+// WebP q92 визуально неотличим от исходного JPEG, но на 30–50% легче.
+async function saveDataUrl(dataUrl) {
   const m = /^data:image\/([a-z]+);base64,(.+)$/is.exec(dataUrl);
   if (!m) return null;
-  const ext = m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase();
-  const name = crypto.createHash('sha1').update(m[2]).digest('hex').slice(0, 16) + '.' + ext;
+  const extRaw = m[1].toLowerCase();
+  const ext  = extRaw === 'jpeg' ? 'jpg' : extRaw;
+  const hash = crypto.createHash('sha1').update(m[2]).digest('hex').slice(0, 16);
+  const buf  = Buffer.from(m[2], 'base64');
+  if (sharp && (ext === 'jpg' || ext === 'png')) {
+    const webpFile = path.join(PHOTOS_DIR, hash + '.webp');
+    try {
+      if (fs.existsSync(webpFile)) return '/photos/' + hash + '.webp';
+      // .rotate() применяет EXIF-ориентацию (иначе фото с телефона лежат боком)
+      const out = await sharp(buf).rotate().webp({ quality: 92, effort: 5 }).toBuffer();
+      // Пишем webp только если он реально легче — качество важнее галочки
+      if (out.length < buf.length * 0.95) {
+        fs.writeFileSync(webpFile, out);
+        return '/photos/' + hash + '.webp';
+      }
+    } catch (e) { console.error('webp convert failed:', e.message); }
+  }
+  const name = hash + '.' + ext;
   const file = path.join(PHOTOS_DIR, name);
-  try { if (!fs.existsSync(file)) fs.writeFileSync(file, Buffer.from(m[2], 'base64')); }
+  try { if (!fs.existsSync(file)) fs.writeFileSync(file, buf); }
   catch (e) { console.error('photo write failed:', e.message); return null; }
   return '/photos/' + name;
 }
 
 // Выгружает base64-фото товара в файлы, оставляя ссылки. Идемпотентна: ссылки
 // /photos/… и любые не-data-строки проходят как есть. Мутирует и возвращает item.
-function externalizePhotos(item) {
+async function externalizePhotos(item) {
   if (!item || typeof item !== 'object') return item;
-  const ref = v => (typeof v === 'string' && v.startsWith('data:')) ? (saveDataUrl(v) || v) : v;
-  if (Array.isArray(item.photos)) item.photos = item.photos.map(ref).filter(Boolean);
-  if (Array.isArray(item.thumbs)) item.thumbs = item.thumbs.map(ref).filter(Boolean);
-  if (typeof item.photo === 'string') item.photo = ref(item.photo);
+  const ref = async v => (typeof v === 'string' && v.startsWith('data:')) ? ((await saveDataUrl(v)) || v) : v;
+  if (Array.isArray(item.photos)) item.photos = (await Promise.all(item.photos.map(ref))).filter(Boolean);
+  if (Array.isArray(item.thumbs)) item.thumbs = (await Promise.all(item.thumbs.map(ref))).filter(Boolean);
+  if (typeof item.photo === 'string') item.photo = await ref(item.photo);
   // Легаси/миграция: миниатюр нет — берём полные (они и так ≤900px).
   if ((!item.thumbs || !item.thumbs.length) && item.photos && item.photos.length)
     item.thumbs = [...item.photos];
@@ -671,10 +711,10 @@ app.get('/api/items/:id', (req, res) => {
   item ? res.json(stripCosts(item, req.user)) : res.status(404).json({ error: 'Not found' });
 });
 
-app.put('/api/items', (req, res) => {
+app.put('/api/items', async (req, res) => {
   const db  = load();
   const now = new Date().toISOString();
-  const item = externalizePhotos({ ...req.body });
+  const item = await externalizePhotos({ ...req.body });
   // hideCosts-пользователь не видит закупочные поля — сохраняем их из старой записи
   if (req.user?.hideCosts && req.user.role !== 'root' && item.id) {
     const old = (db.items || []).find(i => i.id === item.id);
@@ -1518,13 +1558,13 @@ app.get('/api/export', (req, res) => {
   });
 });
 
-app.post('/api/import', (req, res) => {
+app.post('/api/import', async (req, res) => {
   // Восстановление заменяет всю базу товаров — только root.
   // (Заодно защита от потери закупа: hideCosts-экспорт не содержит buyPrice,
   // и его обратный импорт стёр бы закупочные цены у всех товаров.)
   if (!requireRoot(req, res)) return;
   const db  = load();
-  db.items  = (req.body.items || []).map(externalizePhotos);
+  db.items  = await Promise.all((req.body.items || []).map(externalizePhotos));
   db.owners = req.body.owners || [];
   save(db);
   res.json({ ok: true });
@@ -1592,7 +1632,7 @@ function scheduleBackup() {
 }
 
 // Разовая миграция: выгрузить base64-фото существующих товаров в файлы.
-function migratePhotos() {
+async function migratePhotos() {
   const db = load();
   if (!Array.isArray(db.items) || !db.items.length) return;
   // Страховка: перед первым переносом сохраняем нетронутую копию базы (с base64)
@@ -1608,7 +1648,7 @@ function migratePhotos() {
   let changed = 0;
   for (const it of db.items) {
     const before = JSON.stringify([it.photos, it.thumbs, it.photo]);
-    externalizePhotos(it);
+    await externalizePhotos(it);
     if (JSON.stringify([it.photos, it.thumbs, it.photo]) !== before) changed++;
   }
   if (changed) { save(db); console.log(`Photo migration: ${changed} item(s) externalized`); }
@@ -1726,6 +1766,12 @@ function migratePanelGuide() {
   save(db);
   console.log('Panel guide → rev', PANEL_GUIDE_REV);
 }
+
+// Все неизвестные адреса (после статики и API) — стильная 404
+app.use((req, res) => {
+  if (req.method === 'GET' && req.accepts('html')) return res.status(404).type('html').send(SITE_404);
+  res.status(404).json({ error: 'Not found' });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

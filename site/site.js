@@ -21,7 +21,7 @@ const fmtPrice = (p) => p == null || p === '' ? '' :
   new Intl.NumberFormat('ru-RU').format(p) + ' ₽';
 
 let ITEMS = [], ARCHIVE = [], CATS = [], activeCat = null, activeGarment = null;
-let activeSort = 'new', priceMin = null, priceMax = null, activeBrand = null;
+let activeSort = 'new', priceMin = null, priceMax = null, activeBrand = null, activeCond = null;
 
 // Износ вещи — подпись в карточке и на странице товара
 const CONDITIONS = {
@@ -396,7 +396,7 @@ document.addEventListener('click', (e) => {
 // Сортировка — отдельной мини-кнопкой (три палочки) рядом с «Фильтры».
 let _filtersOpen = false;
 const filtersActive = () =>
-  !!activeGarment || !!activeBrand || priceMin != null || priceMax != null;
+  !!activeGarment || !!activeBrand || !!activeCond || priceMin != null || priceMax != null;
 
 // Бренды, встречающиеся в живых товарах раздела
 const usedBrands = () =>
@@ -428,6 +428,16 @@ function renderFilters() {
       brands.map(b => `<button class="cat-chip${activeBrand === b ? ' active' : ''}" data-brand="${esc(b)}">${esc(b)}</button>`).join('') +
       `</div>`
     : '';
+  // Состояние — только варианты, реально встречающиеся в товарах
+  const usedC = new Set(ITEMS.map(i => i.condition).filter(Boolean));
+  const condRow = usedC.size
+    ? `<div class="cat-row cond-row">` +
+      `<span class="cat-row-label">Износ</span>` +
+      `<button class="cat-chip${!activeCond ? ' active' : ''}" data-cond="">Все</button>` +
+      Object.entries(CONDITIONS).filter(([id]) => usedC.has(id))
+        .map(([id, name]) => `<button class="cat-chip${activeCond === id ? ' active' : ''}" data-cond="${id}">${name}</button>`).join('') +
+      `</div>`
+    : '';
   const priceRow = `<div class="cat-row price-row">
     <span class="cat-row-label">Цена</span>
     <span class="price-range">
@@ -436,7 +446,7 @@ function renderFilters() {
       <input type="number" id="priceMax" inputmode="numeric" min="0" placeholder="до ₽" value="${priceMax ?? ''}">
     </span></div>`;
 
-  el.innerHTML = garmentRow + brandRow + priceRow;
+  el.innerHTML = garmentRow + brandRow + condRow + priceRow;
   el.hidden = !_filtersOpen;
 
   // Поля цены: применяем с небольшой задержкой, не перерисовывая панель
@@ -468,6 +478,7 @@ if (_catChips) _catChips.addEventListener('click', (e) => {
   if (!chip) return;
   if (chip.dataset.garment !== undefined)    activeGarment = chip.dataset.garment || null;   // уточняет внутри раздела
   else if (chip.dataset.brand !== undefined) activeBrand   = chip.dataset.brand || null;
+  else if (chip.dataset.cond !== undefined)  activeCond    = chip.dataset.cond || null;
   else return;
   renderFilters();
   renderGrid();
@@ -544,13 +555,14 @@ function initScrollHint() {
 // При активном фильтре показываем только товары категории, пряча промо-поток
 let _streamHasContent = false;
 function updateCatalogChrome() {
-  const filtering = !!activeCat || !!activeGarment || !!activeBrand || priceMin != null || priceMax != null;
+  const filtering = !!activeCat || !!activeGarment || !!activeBrand || !!activeCond || priceMin != null || priceMax != null;
   // inline-стиль, т.к. #siteBlocks:not(:empty){display:flex} перебивает [hidden]
   document.getElementById('siteBlocks').style.display = filtering ? 'none' : '';
   const gh = document.getElementById('gridHeading');
   if (filtering) {
     const parts = [];
     if (activeBrand)   parts.push(activeBrand);
+    if (activeCond)    parts.push(CONDITIONS[activeCond]);
     if (activeGarment) parts.push((GARMENTS.find(g => g.id === activeGarment) || {}).name);
     if (activeCat === '__archive__') parts.push('Архив');
     else if (activeCat === '__other__') parts.push('Другое');
@@ -623,6 +635,7 @@ function renderGrid() {
   else items = ITEMS;
   if (activeGarment) items = items.filter(i => i.garment === activeGarment);
   if (activeBrand)   items = items.filter(i => (i.brand || '').trim() === activeBrand);
+  if (activeCond)    items = items.filter(i => i.condition === activeCond);
 
   // Диапазон цены и сортировка (из панели «Фильтры»)
   if (priceMin != null) items = items.filter(i => i.price != null && i.price >= priceMin);
