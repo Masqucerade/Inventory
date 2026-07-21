@@ -564,13 +564,17 @@ body.theme-type .photo-ribbon.reserved { background: var(--pink); color: #17150f
 .faq-a-inner b { color: var(--text); font-weight: 500; }
 .faq-a-label { color: var(--gold); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; margin: 10px 0 4px; }
 
-/* Вкладыши внутри топика-группы */
-.faq-subacc { margin: 2px 0 6px; padding-left: 16px; border-left: 1px solid var(--line2); }
+/* Вкладыши внутри топика-группы — тот же вид, что и основные вопросы.
+   white-space: normal гасит pre-wrap родителя: переносы из разметки
+   не должны раздувать блок пустотой. */
+.faq-subacc {
+  white-space: normal;
+  margin: 0 0 6px; padding-left: 16px;
+  border-left: 1px solid var(--line2);
+}
 .faq-subitem { border-bottom: 1px solid var(--line); }
 .faq-subitem:last-child { border-bottom: none; }
 .faq-subitem:first-child { border-top: none; }
-.faq-subitem .faq-q { padding: 14px 4px; font-size: 14px; }
-.faq-subitem .faq-q svg { width: 14px; height: 14px; }
 
 /* ─── Футер ─── */
 .site-foot {
@@ -584,6 +588,8 @@ body.theme-type .photo-ribbon.reserved { background: var(--pink); color: #17150f
 .site-foot a { color: var(--gold); transition: color .2s; }
 .site-foot a:hover { color: var(--gold-hi); }
 .site-foot .foot-links { display: flex; gap: 20px; flex-shrink: 0; }
+.site-foot .foot-links a { display: inline-flex; align-items: center; gap: 6px; }
+.site-foot .foot-links svg { flex-shrink: 0; opacity: .85; }
 @media (max-width: 480px) {
   .site-foot { flex-direction: column; gap: 10px; align-items: flex-start; }
 }

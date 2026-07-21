@@ -492,10 +492,58 @@
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span>Владелец</span>
     </button>
+    <button id="bulkParamsBtn" class="select-bar-btn" disabled>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+      <span>Параметры</span>
+    </button>
     <button id="bulkFlagsBtn" class="select-bar-btn" disabled>
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       <span>Флаги</span>
     </button>
+  </div>
+</div>
+
+<!-- Bulk: бренд / состояние / пол для выбранных товаров -->
+<div class="modal" id="bulkParamsModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="bulkParamsClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title">Параметры товаров</span>
+      <button class="modal-action-btn" id="bulkParamsSave">Применить</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label" id="bulkParamsDesc" style="margin-bottom:2px"></label>
+        <div style="font-size:11px;color:var(--text3)">Пустые поля не изменяются</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Бренд</label>
+        <input type="text" id="bulkBrand" class="form-input" placeholder="— Не менять —" autocomplete="off" list="brandsList">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Введите «—», чтобы убрать бренд у выбранных</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Состояние</label>
+        <select id="bulkCondition" class="form-input form-select">
+          <option value="">— Не менять —</option>
+          <option value="new">Новое с биркой</option>
+          <option value="excellent">Отличное состояние</option>
+          <option value="good">Хорошее состояние</option>
+          <option value="__clear__">Убрать состояние</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Пол</label>
+        <select id="bulkSex" class="form-input form-select">
+          <option value="">— Не менять —</option>
+          <option value="m">Мужское</option>
+          <option value="w">Женское</option>
+          <option value="uni">Унисекс</option>
+          <option value="__clear__">Убрать пол</option>
+        </select>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1087,6 +1135,6 @@
 
 <script src="js/db.js?v=50"></script>
 <script src="js/backup.js?v=44"></script>
-<script src="js/app.js?v=108"></script>
+<script src="js/app.js?v=109"></script>
 </body>
 </html>

@@ -953,6 +953,21 @@ class App {
     });
     document.getElementById('bulkDeliveryBtn').addEventListener('click', () => this.openDeliveryModal());
     document.getElementById('bulkOwnerBtn').addEventListener('click', () => this.openBulkOwnerModal());
+    document.getElementById('bulkParamsBtn').addEventListener('click', () => {
+      if (!this._selectedIds.size) return;
+      document.getElementById('bulkParamsDesc').textContent = this._bulkDesc();
+      ['bulkBrand', 'bulkCondition', 'bulkSex'].forEach(id => document.getElementById(id).value = '');
+      // Подсказки брендов — те же, что в форме товара
+      const brands = [...new Set([
+        ...(this.brands || []).map(b => b.name),
+        ...this.items.map(i => (i.brand || '').trim()),
+      ].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
+      const dl = document.getElementById('brandsList');
+      if (dl) dl.innerHTML = brands.map(b => `<option value="${this.esc(b)}">`).join('');
+      this.openModal('bulkParamsModal');
+    });
+    document.getElementById('bulkParamsClose').addEventListener('click', () => this.closeModal('bulkParamsModal'));
+    document.getElementById('bulkParamsSave').addEventListener('click', () => this.applyBulkParams());
     document.getElementById('bulkFlagsBtn').addEventListener('click', () => {
       if (!this._selectedIds.size) return;
       document.getElementById('bulkFlagsDesc').textContent = this._bulkDesc();
@@ -2102,7 +2117,7 @@ class App {
     const word = n === 1 ? 'товар' : n > 1 && n < 5 ? 'товара' : 'товаров';
     document.getElementById('deliveryBarCount').textContent =
       n === 0 ? 'Выберите товары' : `${n} ${word}`;
-    ['bulkParcelBtn', 'bulkDeliveryBtn', 'bulkOwnerBtn', 'bulkFlagsBtn'].forEach(id => {
+    ['bulkParcelBtn', 'bulkDeliveryBtn', 'bulkOwnerBtn', 'bulkParamsBtn', 'bulkFlagsBtn'].forEach(id => {
       const b = document.getElementById(id);
       if (b) b.disabled = n === 0;
     });
@@ -2111,6 +2126,23 @@ class App {
   _bulkDesc() {
     const n = this._selectedIds.size;
     return `Применить к ${n} ${n === 1 ? 'товару' : 'товарам'}`;
+  }
+
+  /* Bulk: бренд / состояние / пол — меняются только заполненные поля */
+  async applyBulkParams() {
+    const patch = {};
+    const b = document.getElementById('bulkBrand').value.trim();
+    if (b === '—' || b === '-') patch.brand = null;
+    else if (b) patch.brand = b;
+    const c = document.getElementById('bulkCondition').value;
+    if (c === '__clear__') patch.condition = null;
+    else if (c) patch.condition = c;
+    const s = document.getElementById('bulkSex').value;
+    if (s === '__clear__') patch.sex = null;
+    else if (s) patch.sex = s;
+    if (!Object.keys(patch).length) { this.toast('Выберите, что изменить'); return; }
+    this.closeModal('bulkParamsModal');
+    await this.applyBulk(patch, 'Параметры товаров обновлены', 'Параметры обновлены ✓');
   }
 
   /* Патч по всем выбранным товарам — одним запросом (bulk API) */
@@ -4428,7 +4460,8 @@ class App {
       item ? 'Редактировать' : (this._faqParentId ? 'Новый вкладыш' : 'Новый топик');
     document.getElementById('faqTitle').value = item?.title || '';
     document.getElementById('faqBody').value  = item?.body  || '';
-    document.getElementById('faqShowOnSite').checked = !!item?.showOnSite;
+    // Новые топики по умолчанию видны на сайте
+    document.getElementById('faqShowOnSite').checked = item ? !!item.showOnSite : true;
     const list = document.getElementById('faqLinesList');
     list.innerHTML = '';
     (item?.lines || []).forEach(l => this._addFaqLine(l.label, l.text));
