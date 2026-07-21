@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=92">
+  <link rel="stylesheet" href="css/app.css?v=93">
 </head>
 <body>
 
@@ -305,6 +305,16 @@
               </select>
             </div>
           </div>
+          <div class="form-divider"></div>
+          <div class="form-group">
+            <label class="form-label">Пол — раздел «Мужское / Женское» на сайте</label>
+            <select class="form-input form-select" id="fieldSex">
+              <option value="">— Не указан —</option>
+              <option value="m">Мужское</option>
+              <option value="w">Женское</option>
+              <option value="uni">Унисекс (в обоих разделах)</option>
+            </select>
+          </div>
         </div>
 
         <div class="form-section-title">Размеры и количество</div>
@@ -470,24 +480,30 @@
 </div>
 
 
-<!-- Delivery selection bar -->
+<!-- Delivery selection bar — нижний лист на месте нижнего меню -->
 <div class="delivery-bar hidden" id="deliveryBar">
-  <span id="deliveryBarCount" class="delivery-bar-count">Выберите товары</span>
+  <div class="delivery-bar-top">
+    <span id="deliveryBarCount" class="delivery-bar-count">Выберите товары</span>
+    <button id="deliveryBarCancel" class="delivery-bar-cancel">✕</button>
+  </div>
   <div class="select-bar-actions">
-    <button id="bulkParcelBtn" class="select-bar-btn" disabled title="Добавить в посылку">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    <button id="bulkParcelBtn" class="select-bar-btn" disabled>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      <span>Посылка</span>
     </button>
-    <button id="bulkDeliveryBtn" class="select-bar-btn" disabled title="Стоимость доставки">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 4v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
+    <button id="bulkDeliveryBtn" class="select-bar-btn" disabled>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 4v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
+      <span>Доставка</span>
     </button>
-    <button id="bulkOwnerBtn" class="select-bar-btn" disabled title="Сменить владельца">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <button id="bulkOwnerBtn" class="select-bar-btn" disabled>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Владелец</span>
     </button>
-    <button id="bulkFlagsBtn" class="select-bar-btn" disabled title="Флаги">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+    <button id="bulkFlagsBtn" class="select-bar-btn" disabled>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      <span>Флаги</span>
     </button>
   </div>
-  <button id="deliveryBarCancel" class="delivery-bar-cancel">✕</button>
 </div>
 
 <!-- Bulk: смена владельца -->
@@ -1074,6 +1090,6 @@
 
 <script src="js/db.js?v=49"></script>
 <script src="js/backup.js?v=44"></script>
-<script src="js/app.js?v=105"></script>
+<script src="js/app.js?v=106"></script>
 </body>
 </html>

@@ -99,6 +99,17 @@ function sectionCat(sec) {
   return CATS.find(c => !c.parentId && (c.name || '').trim().toLowerCase() === n) || null;
 }
 
+// Товары раздела шапки: поле «Пол» (m/w/uni из панели) + одноимённая категория.
+// Унисекс попадает и в Мужское, и в Женское.
+function sectionItemsOf(sec) {
+  const cat = sectionCat(sec);
+  const ids = cat ? catSubtree(cat.id) : null;
+  const sx  = sec.id === 'm' ? 'm' : sec.id === 'w' ? 'w' : null;
+  return ITEMS.filter(i =>
+    (ids && ids.has(i.categoryId)) ||
+    (sx && (i.sex === sx || i.sex === 'uni')));
+}
+
 // Навигация в шапке — точно как у Gurbich: Мужское · Женское · Аксессуары · Другое
 function renderHeaderNav() {
   const nav = document.getElementById('siteNav');
@@ -112,16 +123,17 @@ function renderHeaderNav() {
 
   let html = HDR_SECTIONS.map(sec => {
     const cat = sectionCat(sec);
-    const dataCat = cat ? cat.id : `__sec-${sec.id}__`;
-    const secActive = cat ? topActive === cat.id : activeCat === dataCat;
+    // Виртуальный раздел: собирает товары по полу и одноимённой категории
+    const dataCat = `__sec-${sec.id}__`;
+    const secActive = activeCat === dataCat || (cat ? topActive === cat.id : false);
 
     // Колонка категорий: подкатегории раздела; если одноимённая категория
     // не заведена — показываем все верхние категории с товарами
     let catsCol = cat ? (kids[cat.id] || []).filter(s => inUse(s.id)).sort(byOrder) : [];
     if (!cat) catsCol = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
 
-    // Типы одежды: встречающиеся в товарах раздела (или во всех товарах)
-    const scope = cat ? (ids => ITEMS.filter(i => ids.has(i.categoryId)))(catSubtree(cat.id)) : ITEMS;
+    // Типы одежды: встречающиеся в товарах раздела
+    const scope = sectionItemsOf(sec);
     const gUsed = new Set(scope.map(i => i.garment).filter(Boolean));
     const gList = GARMENTS.filter(g => gUsed.has(g.id));
 
@@ -129,8 +141,7 @@ function renderHeaderNav() {
     if (!catsCol.length && !gList.length)
       return `<a class="hnav${secActive ? ' active' : ''}" data-cat="${esc(dataCat)}" href="#">${esc(sec.label)}</a>`;
 
-    // У типов одежды раздел ставится вместе с типом только если раздел заведён
-    const gCat = cat ? ` data-cat="${esc(cat.id)}"` : '';
+    const gCat = ` data-cat="${esc(dataCat)}"`;
     return `<div class="hnav-group${secActive ? ' active' : ''}">
       <a class="hnav${secActive ? ' active' : ''}" href="#">${esc(sec.label)}<span class="hnav-caret" aria-hidden="true">▾</span></a>
       <div class="hnav-drop">
@@ -138,7 +149,7 @@ function renderHeaderNav() {
           <div class="mega-head">
             <p class="mega-kicker">Раздел</p>
             <div class="mega-title">${esc(sec.label)}</div>
-            <a class="mega-all" ${cat ? `data-cat="${esc(cat.id)}"` : 'data-all'} data-garment="" href="#">Смотреть все →</a>
+            <a class="mega-all" data-cat="${esc(dataCat)}" data-garment="" href="#">Смотреть все →</a>
           </div>
           ${catsCol.length ? `<div class="mega-col">
             <p class="mega-col-title">Категории</p>
@@ -149,7 +160,7 @@ function renderHeaderNav() {
           ${gList.length ? `<div class="mega-col">
             <p class="mega-col-title">Тип одежды</p>
             <div class="mega-links">
-              ${gList.map(g => `<a class="hnav-sub${activeGarment === g.id && (!cat || activeCat === cat.id) ? ' active' : ''}"${gCat} data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
+              ${gList.map(g => `<a class="hnav-sub${activeGarment === g.id && activeCat === dataCat ? ' active' : ''}"${gCat} data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
             </div>
           </div>` : ''}
         </div>
@@ -290,13 +301,13 @@ function renderMobileMenu() {
 
   let html = HDR_SECTIONS.map(sec => {
     const cat = sectionCat(sec);
-    const dataCat = cat ? cat.id : `__sec-${sec.id}__`;
+    const dataCat = `__sec-${sec.id}__`;   // виртуальный раздел: пол + категория
     let catsCol = cat ? (kids[cat.id] || []).filter(s => inUse(s.id)).sort(byOrder) : [];
     if (!cat) catsCol = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
-    const scope = cat ? (ids => ITEMS.filter(i => ids.has(i.categoryId)))(catSubtree(cat.id)) : ITEMS;
+    const scope = sectionItemsOf(sec);
     const gUsed = new Set(scope.map(i => i.garment).filter(Boolean));
     const gList = GARMENTS.filter(g => gUsed.has(g.id));
-    const gCat  = cat ? ` data-cat="${esc(cat.id)}"` : '';
+    const gCat  = ` data-cat="${esc(dataCat)}"`;
 
     // Нечего раскрывать — обычный пункт-ссылка
     if (!catsCol.length && !gList.length)
@@ -305,9 +316,9 @@ function renderMobileMenu() {
     return `<div class="mob-acc${_mobOpenSec === sec.id ? ' open' : ''}" data-sec="${esc(sec.id)}">
       <button class="mob-acc-head" type="button">${esc(sec.label)}${caret}</button>
       <div class="mob-acc-body">
-        <a class="mob-sub mob-sub-all" ${cat ? `data-cat="${esc(cat.id)}"` : 'data-all'} data-garment="" href="#">Смотреть все →</a>
+        <a class="mob-sub mob-sub-all" data-cat="${esc(dataCat)}" data-garment="" href="#">Смотреть все →</a>
         ${catsCol.map(s => `<a class="mob-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
-        ${gList.map(g => `<a class="mob-sub${activeGarment === g.id && (!cat || activeCat === cat.id) ? ' active' : ''}"${gCat} data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
+        ${gList.map(g => `<a class="mob-sub${activeGarment === g.id && activeCat === dataCat ? ' active' : ''}"${gCat} data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
       </div>
     </div>`;
   }).join('');
@@ -625,12 +636,17 @@ function renderGrid() {
   let items;
   if (activeCat === '__archive__') items = ARCHIVE;                                    // проданные вещи
   else if (activeCat === '__other__') {
-    // «Другое» — товары вне разделов Мужское/Женское/Аксессуары
+    // «Другое» — товары вне разделов Мужское/Женское/Аксессуары (и без пола)
     const inSec = new Set();
     HDR_SECTIONS.map(sectionCat).filter(Boolean).forEach(c => catSubtree(c.id).forEach(id => inSec.add(id)));
-    items = ITEMS.filter(i => !inSec.has(i.categoryId));
+    items = ITEMS.filter(i => !inSec.has(i.categoryId) && !i.sex);
   }
-  else if (activeCat && activeCat.startsWith('__')) items = [];                        // раздел ещё не заведён
+  else if (activeCat && activeCat.startsWith('__sec-')) {
+    // Виртуальный раздел шапки: пол товара + одноимённая категория
+    const sec = HDR_SECTIONS.find(x => `__sec-${x.id}__` === activeCat);
+    items = sec ? sectionItemsOf(sec) : [];
+  }
+  else if (activeCat && activeCat.startsWith('__')) items = [];
   else if (activeCat) { const ids = catSubtree(activeCat); items = ITEMS.filter(i => ids.has(i.categoryId)); }
   else items = ITEMS;
   if (activeGarment) items = items.filter(i => i.garment === activeGarment);

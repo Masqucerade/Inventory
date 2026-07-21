@@ -372,6 +372,16 @@ class App {
         <div class="menu-acc-body"><div id="menuCatList"></div></div>
       </div>
 
+      <div class="menu-acc" data-acc="brands">
+        <button class="menu-acc-head">
+          <span class="menu-acc-title">Бренды</span>
+          <span class="menu-acc-count">${(this.brands || []).length}</span>
+          <span class="menu-acc-add" id="mAddBrandBtn" title="Добавить бренд">${plus}</span>
+          ${chevron}
+        </button>
+        <div class="menu-acc-body"><div id="menuBrandList"></div></div>
+      </div>
+
       <div class="menu-foot">
         <span>Авто-бэкап каждые 24 ч · последний: ${lastBk}</span>
         <span>Masqucerade INC. · v1.2</span>
@@ -436,6 +446,7 @@ class App {
       this.openOwnerModal();
     });
     document.getElementById('mAddCatBtn').addEventListener('click', () => this._openCatPrompt());
+    document.getElementById('mAddBrandBtn').addEventListener('click', () => this._openBrandPrompt());
 
     document.getElementById('mLogoutBtn').addEventListener('click', async () => {
       const ok = await this.confirm('Выйти из аккаунта?');
@@ -457,6 +468,7 @@ class App {
 
     this.renderOwners('menuOwnersList');
     this._renderMenuCats();
+    this._renderMenuBrands();
     if (this.currentUser?.role === 'root') this.renderUsersList();
   }
 
@@ -743,6 +755,54 @@ class App {
     this.toast(parentId ? 'Подкатегория добавлена ✓' : 'Категория добавлена ✓');
   }
 
+  /* ── Шаблонные бренды: список в меню, подсказки в форме товара ── */
+  async _renderMenuBrands() {
+    const el = document.getElementById('menuBrandList');
+    if (!el) return;
+    const brands = await this.db.getBrands();
+    this.brands = brands;
+    if (!brands.length) { el.innerHTML = ''; return; }
+    const svgDel = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+    const svgEd  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    const brandIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/></svg>`;
+    const sorted = [...brands].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    el.innerHTML = `<div class="settings-section">${sorted.map(b => `
+      <div class="settings-row cat-row-adm" style="cursor:default">
+        <div class="settings-row-icon" style="background:rgba(96,165,250,.12)">${brandIcon}</div>
+        <div class="settings-row-info"><div class="settings-row-title">${this.esc(b.name)}</div></div>
+        <div class="cat-row-actions">
+          <button class="cat-mini brand-rename-btn" data-id="${b.id}" title="Переименовать">${svgEd}</button>
+          <button class="cat-mini brand-del-btn" data-id="${b.id}" title="Удалить">${svgDel}</button>
+        </div>
+      </div>`).join('')}</div>`;
+    el.querySelectorAll('.brand-del-btn').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const ok = await this.confirm('Удалить бренд из шаблонов? У товаров бренд останется.');
+        if (!ok) return;
+        await this.db.deleteBrand(btn.dataset.id);
+        this._renderMenuBrands();
+      }));
+    el.querySelectorAll('.brand-rename-btn').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const b = (this.brands || []).find(x => x.id === btn.dataset.id);
+        if (!b) return;
+        const name = await this._prompt('Переименовать бренд', b.name, '');
+        if (!name || name === b.name) return;
+        await this.db.updateBrand(b.id, { name });   // сервер обновит и товары с этим брендом
+        await this.loadData();
+        this._renderMenuBrands();
+        this.toast('Переименовано ✓');
+      }));
+  }
+
+  async _openBrandPrompt() {
+    const name = await this._prompt('Название бренда', '', 'Rick Owens, Chrome Hearts…');
+    if (!name) return;
+    await this.db.addBrand(name);
+    this._renderMenuBrands();
+    this.toast('Бренд добавлен ✓');
+  }
+
   _prompt(title, defaultVal = '', placeholder = '') {
     return new Promise(resolve => {
       const val = window.prompt(title, defaultVal);
@@ -752,11 +812,12 @@ class App {
 
   async loadData() {
     const isRoot = this.currentUser?.role === 'root';
-    [this.items, this.owners, this.categories, this.users] = await Promise.all([
+    [this.items, this.owners, this.categories, this.users, this.brands] = await Promise.all([
       this.db.getItems(),
       this.db.getOwners(),
       this.db.getCategories(),
       isRoot ? this.db.getUsers() : Promise.resolve([]),
+      this.db.getBrands(),
     ]);
   }
 
@@ -1850,7 +1911,7 @@ class App {
     this._sizes        = [{ size: '', qty: 1 }];
 
     /* Reset */
-    ['fieldName','fieldNotes','fieldPrice','fieldOldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements','fieldGarment','fieldBrand','fieldCondition'].forEach(k => document.getElementById(k).value = '');
+    ['fieldName','fieldNotes','fieldPrice','fieldOldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements','fieldGarment','fieldBrand','fieldCondition','fieldSex'].forEach(k => document.getElementById(k).value = '');
     this._garmentManual = false;   // автоподбор типа одежды снова разрешён
     document.getElementById('fieldIsMonarc').checked   = false;
     document.getElementById('fieldShowOnSite').checked = false;
@@ -1876,9 +1937,11 @@ class App {
     }).join('');
     catSel.innerHTML = `<option value="">— Без категории —</option>` + catOpts;
 
-    /* Подсказки брендов — из уже заведённых товаров */
-    const brands = [...new Set(this.items.map(i => (i.brand || '').trim()).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b, 'ru'));
+    /* Подсказки брендов: шаблоны из меню + бренды уже заведённых товаров */
+    const brands = [...new Set([
+      ...(this.brands || []).map(b => b.name),
+      ...this.items.map(i => (i.brand || '').trim()),
+    ].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
     document.getElementById('brandsList').innerHTML =
       brands.map(b => `<option value="${this.esc(b)}">`).join('');
     const hasCats = this.categories.length > 0;
@@ -1905,6 +1968,7 @@ class App {
         document.getElementById('fieldGarment').value   = item.garment   || '';
         document.getElementById('fieldBrand').value     = item.brand     || '';
         document.getElementById('fieldCondition').value = item.condition || '';
+        document.getElementById('fieldSex').value       = item.sex       || '';
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'ordered';
         this._sizes = item.sizes?.length > 0
@@ -2002,6 +2066,7 @@ class App {
   enterSelectMode() {
     this._selectMode  = true;
     this._selectedIds = new Set();
+    document.body.classList.add('select-mode');   // нижнее меню уступает место панели
     document.getElementById('deliveryBar').classList.remove('hidden');
     // hideCosts-сотрудник не может менять доставку — сервер её всё равно не примет
     const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
@@ -2015,6 +2080,7 @@ class App {
   exitSelectMode() {
     this._selectMode  = false;
     this._selectedIds = new Set();
+    document.body.classList.remove('select-mode');
     document.getElementById('deliveryBar').classList.add('hidden');
     document.getElementById('selectModeBtn')?.classList.remove('active');
     this.renderInventoryList();
@@ -2044,13 +2110,14 @@ class App {
     return `Применить к ${n} ${n === 1 ? 'товару' : 'товарам'}`;
   }
 
-  /* Общий проход: патч по всем выбранным товарам */
+  /* Патч по всем выбранным товарам — одним запросом (bulk API) */
   async applyBulk(patch, logDesc, toastMsg) {
     const ids = [...this._selectedIds];
-    for (const id of ids) {
-      const item = this.items.find(i => i.id === id);
-      if (!item) continue;
-      await this.db.saveItem({ ...item, ...patch });
+    try {
+      await this.db.bulkPatchItems(ids, patch);
+    } catch (e) {
+      this.toast('Ошибка — проверьте соединение');
+      return;
     }
     await this.db.logAction('item_edit', `${logDesc} (${ids.length} тов.)`);
     await this.loadData();
@@ -2198,6 +2265,7 @@ class App {
                      name) || null,
       brand:       document.getElementById('fieldBrand').value.trim() || null,
       condition:   document.getElementById('fieldCondition').value || null,
+      sex:         document.getElementById('fieldSex').value || null,
       _updatedBy:  null,
     };
 

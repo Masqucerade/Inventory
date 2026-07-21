@@ -425,6 +425,7 @@ function publicItem(i) {
     garment:      i.garment || null,
     brand:        i.brand || null,
     condition:    i.condition || null,   // new | excellent | good — износ вещи
+    sex:          i.sex || null,         // m | w | uni — раздел Мужское/Женское
     quantity:     i.quantity ?? null,
     createdAt:    i.createdAt || null,
     section:      i.isMonarc ? 'monarc' : 'type',
@@ -709,6 +710,38 @@ app.get('/api/items', (req, res) => {
 app.get('/api/items/:id', (req, res) => {
   const item = (load().items || []).find(i => i.id === req.params.id);
   item ? res.json(stripCosts(item, req.user)) : res.status(404).json({ error: 'Not found' });
+});
+
+/* Массовое изменение выбранных товаров: один запрос и одна запись на диск
+   вместо N последовательных PUT (режим выделения в панели). */
+app.post('/api/items/bulk', (req, res) => {
+  const { ids, patch } = req.body || {};
+  if (!Array.isArray(ids) || !ids.length || !patch || typeof patch !== 'object')
+    return res.status(400).json({ error: 'ids and patch required' });
+  const p = { ...patch };
+  // hideCosts-пользователь не может менять закупочные поля
+  if (req.user?.hideCosts && req.user.role !== 'root') { delete p.buyPrice; delete p.deliveryCost; }
+  delete p.id;   // патч не должен переписывать идентификаторы
+  const db  = load();
+  const now = new Date().toISOString();
+  const TRACKED = ['orderStatus', 'ownerId', 'name', 'price', 'buyPrice', 'categoryId'];
+  let updated = 0;
+  for (const id of ids) {
+    const idx = (db.items || []).findIndex(i => i.id === id);
+    if (idx < 0) continue;
+    const old = db.items[idx];
+    const changes = {};
+    TRACKED.forEach(f => {
+      if (f in p && String(old[f] ?? '') !== String(p[f] ?? '')) changes[f] = { from: old[f], to: p[f] };
+    });
+    const item = { ...old, ...p, updatedAt: now };
+    if (Object.keys(changes).length)
+      item.history = [...(old.history || []), { ts: now, by: null, byName: req.user?.name || null, changes }].slice(-30);
+    db.items[idx] = item;
+    updated++;
+  }
+  save(db);
+  res.json({ ok: true, updated });
 });
 
 app.put('/api/items', async (req, res) => {
@@ -1148,6 +1181,41 @@ app.delete('/api/sales/:id', (req, res) => {
   if (sale && sale.itemId) adjustStock(db, sale.itemId, sale.size, Math.max(1, parseInt(sale.qty) || 1));
   db.sales = (db.sales || []).filter(s => s.id !== req.params.id);
   save(db);
+  res.json({ ok: true });
+});
+
+/* ─── BRANDS (шаблонные бренды для карточек товара) ─── */
+app.get('/api/brands', (req, res) => res.json(load().brands || []));
+app.post('/api/brands', (req, res) => {
+  const name = String(req.body?.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const db = load();
+  if (!db.brands) db.brands = [];
+  // Дубликаты не плодим — просто возвращаем существующий
+  const dup = db.brands.find(b => b.name.toLowerCase() === name.toLowerCase());
+  if (dup) return res.json(dup);
+  const brand = { id: uid(), name };
+  db.brands.push(brand);
+  save(db);
+  res.json(brand);
+});
+app.patch('/api/brands/:id', (req, res) => {
+  const db  = load();
+  const b   = (db.brands || []).find(x => x.id === req.params.id);
+  if (!b) return res.status(404).json({ error: 'Not found' });
+  const name = String(req.body?.name || '').trim();
+  if (name) {
+    // Переименование бренда обновляет и товары с прежним названием
+    (db.items || []).forEach(i => { if ((i.brand || '') === b.name) i.brand = name; });
+    b.name = name;
+  }
+  save(db);
+  res.json(b);
+});
+app.delete('/api/brands/:id', (req, res) => {
+  const db = load();
+  db.brands = (db.brands || []).filter(b => b.id !== req.params.id);
+  save(db);   // у товаров бренд остаётся текстом — удаление шаблона их не трогает
   res.json({ ok: true });
 });
 

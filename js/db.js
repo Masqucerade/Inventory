@@ -255,6 +255,28 @@ class InventoryDB {
     await fetch(`/api/plans/${id}`, { method: 'DELETE' });
   }
 
+  /* ─── BULK: патч нескольких товаров одним запросом ─── */
+  async bulkPatchItems(ids, patch) {
+    const r = await fetch('/api/items/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ids, patch }) });
+    if (!r.ok) throw new Error('bulk failed');
+    return r.json();
+  }
+
+  /* ─── BRANDS (шаблоны брендов) ─── */
+  async getBrands() {
+    try { const r = await fetch('/api/brands'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async addBrand(name) {
+    const r = await fetch('/api/brands', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name }) });
+    return r.json();
+  }
+  async updateBrand(id, patch) {
+    const r = await fetch(`/api/brands/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) });
+    return r.json();
+  }
+  async deleteBrand(id) { await fetch(`/api/brands/${id}`, { method:'DELETE' }); }
+
   /* ─── CATEGORIES ─── */
   async getCategories() {
     try { const r = await fetch('/api/categories'); return r.ok ? r.json() : []; }

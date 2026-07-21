@@ -882,35 +882,43 @@ html, body {
 /* =============================================
    DELIVERY SELECTION BAR
    ============================================= */
+/* Нижний лист на месте нижнего меню: счётчик + подписанные действия */
 .delivery-bar {
   position: fixed;
-  bottom: calc(var(--nav-h) + var(--safe-bot) + 22px);
-  left: 12px; right: 12px;
+  bottom: 0; left: 0; right: 0;
   z-index: 150;
   background: rgba(18,18,18,0.97);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255,255,255,0.13);
-  border-radius: 18px;
-  padding: 10px 10px 10px 16px;
-  display: flex; align-items: center; gap: 8px;
-  box-shadow: 0 4px 32px rgba(0,0,0,.6);
+  border-top: 1px solid rgba(255,255,255,0.13);
+  border-radius: 20px 20px 0 0;
+  padding: 12px 14px calc(12px + var(--safe-bot));
+  display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 -6px 32px rgba(0,0,0,.6);
   animation: slideUp .22s cubic-bezier(.32,.72,0,1);
 }
 .delivery-bar.hidden { display: none; }
-.delivery-bar-count { font-size: 13px; color: var(--text2); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Нижнее меню в режиме выделения прячется — панель занимает его место */
+body.select-mode .bottom-nav { display: none; }
+.delivery-bar-top { display: flex; align-items: center; gap: 8px; }
+.delivery-bar-count { font-size: 13.5px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.select-bar-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.select-bar-actions { display: flex; gap: 8px; }
 .select-bar-btn {
-  width: 38px; height: 38px; border-radius: 12px;
+  flex: 1; min-width: 0; padding: 9px 4px 8px; border-radius: 13px;
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(255,255,255,0.07);
   color: var(--text); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
   transition: all .15s;
 }
+.select-bar-btn span {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .02em; color: var(--text2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
 .select-bar-btn:disabled { opacity: .3; pointer-events: none; }
-.select-bar-btn:active { background: #fff; color: #000; transform: scale(.94); }
+.select-bar-btn:active { background: #fff; color: #000; transform: scale(.96); }
+.select-bar-btn:active span { color: #000; }
 .delivery-bar-cancel {
   flex-shrink: 0; background: none; border: none;
   color: var(--text3); font-size: 22px; line-height: 1;
