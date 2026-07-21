@@ -1376,7 +1376,10 @@ class App {
      TERMINAL — журнал всех действий в проекте
      ────────────────────────────────────────── */
   async renderTerminal() {
-    const el = document.getElementById('terminalContent');
+    await this._renderTerminalInto(document.getElementById('terminalContent'));
+  }
+
+  async _renderTerminalInto(el) {
     if (!el) return;
     const logs = (await this.db.getLogs(300)).slice().reverse();   // старые сверху, как в терминале
     const me   = (this.currentUser?.name || this.currentUser?.login || 'user').toLowerCase();
@@ -1429,7 +1432,7 @@ class App {
       </div>`;
 
     // Как в настоящем терминале — курсор внизу, скроллим к последней записи
-    const body = document.getElementById('termBody');
+    const body = el.querySelector('#termBody');
     if (body) body.scrollTop = body.scrollHeight;
   }
 
@@ -3827,7 +3830,7 @@ class App {
       <div class="quick-item note-item" data-note-id="${n.id}">
         <div class="quick-head">
           <div class="quick-type-icon" style="background:color-mix(in srgb, ${color} 24%, transparent)">📝</div>
-          <span class="note-title">${this.esc(title)}</span>
+          <span class="note-title">${this.esc(title)}${this._visBadge(n)}</span>
           <div class="quick-actions">
             <button class="quick-edit note-edit" title="Изменить">${svgEdit}</button>
             <button class="quick-del note-del" title="Удалить">${svgDel}</button>
@@ -3877,6 +3880,11 @@ class App {
     document.getElementById('noteTitle').value            = note?.title || '';
     document.getElementById('noteText').value             = note?.text || '';
 
+    // Область видимости — настраивает только root (все / только я / выбранные)
+    const isRoot = this.currentUser?.role === 'root';
+    document.getElementById('noteVisGroup').style.display = isRoot ? '' : 'none';
+    if (isRoot) this._renderVisChips('noteVisChips', note?.visibility || []);
+
     const COLORS = ['#7c6dfa', '#38bdf8', '#4ade80', '#fbbf24', '#f87171', '#f472b6'];
     document.getElementById('noteColorPicker').innerHTML = COLORS.map(c =>
       `<div class="color-dot ${c === this._noteColor ? 'selected' : ''}" data-color="${c}" style="background:${c}"></div>`
@@ -3890,11 +3898,16 @@ class App {
     const title = document.getElementById('noteTitle').value.trim();
     const text  = document.getElementById('noteText').value.trim();
     if (!title && !text) { this.toast('Введите заголовок или текст'); return; }
+    const isRoot = this.currentUser?.role === 'root';
+    const vis    = isRoot ? this._readVis('noteVisChips') : undefined;
     if (this._editingNoteId) {
-      await this.db.patchProjectNote(this._editingNoteId, { title, text, color: this._noteColor });
+      const patch = { title, text, color: this._noteColor };
+      if (vis !== undefined) patch.visibility = vis;
+      await this.db.patchProjectNote(this._editingNoteId, patch);
       this.toast('Заметка обновлена ✓');
     } else {
-      await this.db.addProjectNote({ title, text, color: this._noteColor });
+      await this.db.addProjectNote({ title, text, color: this._noteColor,
+        ...(vis !== undefined ? { visibility: vis } : {}) });
       this.toast('Заметка добавлена ✓');
     }
     this._editingNoteId = null;
@@ -4051,8 +4064,17 @@ class App {
   /* ──────────────────────────────────────────
      ГАЙДЫ (внутренняя база для сотрудников, Markdown)
      ────────────────────────────────────────── */
+  /* Вкладка «FAQ» = консоль (журнал) сверху + гайды ниже */
   async renderGuides() {
-    const el = document.getElementById('settingsContent');
+    const wrap = document.getElementById('settingsContent');
+    if (!wrap) return;
+    const showTerm = this.hasAccess('terminal');
+    wrap.innerHTML = `${showTerm ? '<div class="term-half" id="termHalf"></div>' : ''}<div id="guidesList"></div>`;
+    if (showTerm) this._renderTerminalInto(document.getElementById('termHalf'));   // параллельно с гайдами
+    await this._renderGuidesInto(document.getElementById('guidesList'));
+  }
+
+  async _renderGuidesInto(el) {
     if (!el) return;
     const isRoot = this.currentUser?.role === 'root';
     const guides = await this.db.getGuides();
@@ -4245,7 +4267,14 @@ class App {
     const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
     const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 
-    el.innerHTML = `<div class="faq-list">${items.map(item => {
+    this._faqCache = items;
+    const ids    = new Set(items.map(i => i.id));
+    const kidsOf = id => items.filter(i => i.parentId === id);
+    // Вкладыш без видимой группы показываем на верхнем уровне
+    const tops   = items.filter(i => !i.parentId || !ids.has(i.parentId));
+
+    // isSub: вкладыш внутри топика-группы (вкладыши не вкладываются глубже)
+    const itemHtml = (item, isSub = false) => {
       const lines = (item.lines || []).filter(l => l.text?.trim());
       const linesHtml = lines.length ? `
         <div class="faq-script">
@@ -4264,10 +4293,11 @@ class App {
           <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
           <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
         </svg></span>` : '';
+      const kids = isSub ? [] : kidsOf(item.id);
       return `
-      <div class="faq-item${item.showOnSite ? ' faq-on-site' : ''}" data-faq-id="${item.id}">
+      <div class="faq-item${item.showOnSite ? ' faq-on-site' : ''}${isSub ? ' faq-subitem-adm' : ''}" data-faq-id="${item.id}">
         <div class="faq-head">
-          <span class="faq-title">${this.esc(item.title)}${siteBadge}${this._visBadge(item)}</span>
+          <span class="faq-title">${this.esc(item.title)}${siteBadge}${this._visBadge(item)}${kids.length ? `<span class="faq-kids-count">${kids.length}</span>` : ''}</span>
           <svg class="faq-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
@@ -4275,17 +4305,27 @@ class App {
         <div class="faq-body">
           ${item.body ? `<div class="faq-text">${this.esc(item.body).replace(/\n/g, '<br>')}</div>` : ''}
           ${linesHtml}
+          ${kids.length ? `<div class="faq-sublist">${kids.map(k => itemHtml(k, true)).join('')}</div>` : ''}
           <div class="faq-actions">
+            ${isSub ? '' : `<button class="faq-addsub" data-faq-id="${item.id}">＋ Вкладыш</button>`}
             <button class="faq-edit" data-faq-id="${item.id}">${svgEdit} Изменить</button>
             <button class="faq-delete" data-faq-id="${item.id}">${svgDel} Удалить</button>
           </div>
         </div>
       </div>`;
-    }).join('')}
-    </div>`;
+    };
+
+    el.innerHTML = `<div class="faq-list">${tops.map(t => itemHtml(t)).join('')}</div>`;
 
     el.querySelectorAll('.faq-head').forEach(head => {
       head.addEventListener('click', () => head.closest('.faq-item').classList.toggle('open'));
+    });
+
+    el.querySelectorAll('.faq-addsub').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        this.openFaqModal(null, btn.dataset.faqId);
+      });
     });
 
     el.querySelectorAll('.faq-copy-btn').forEach(btn => {
@@ -4359,9 +4399,12 @@ class App {
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   }
 
-  openFaqModal(item = null) {
+  openFaqModal(item = null, parentId = null) {
     this._editingFaqId = item?.id || null;
-    document.querySelector('#faqModal .modal-title').textContent = item ? 'Редактировать' : 'Новый топик';
+    // Вкладыш: parentId либо от существующей записи, либо от кнопки «＋ Вкладыш»
+    this._faqParentId  = item ? (item.parentId || null) : (parentId || null);
+    document.querySelector('#faqModal .modal-title').textContent =
+      item ? 'Редактировать' : (this._faqParentId ? 'Новый вкладыш' : 'Новый топик');
     document.getElementById('faqTitle').value = item?.title || '';
     document.getElementById('faqBody').value  = item?.body  || '';
     document.getElementById('faqShowOnSite').checked = !!item?.showOnSite;
@@ -4397,8 +4440,10 @@ class App {
       await this.db.patchFaqItem(this._editingFaqId, patch);
       this.toast('Топик обновлён ✓');
     } else {
-      await this.db.addFaqItem({ title, body, lines, showOnSite, ...(vis !== undefined ? { visibility: vis } : {}) });
-      this.toast('Топик добавлен ✓');
+      await this.db.addFaqItem({ title, body, lines, showOnSite,
+        ...(this._faqParentId ? { parentId: this._faqParentId } : {}),
+        ...(vis !== undefined ? { visibility: vis } : {}) });
+      this.toast(this._faqParentId ? 'Вкладыш добавлен ✓' : 'Топик добавлен ✓');
     }
     this.db.logAction('site_faq', `FAQ-топик «${title}» ${isNewFaq ? 'добавлен' : 'изменён'}${showOnSite ? ' · виден на сайте' : ''}`);
     this._editingFaqId = null;

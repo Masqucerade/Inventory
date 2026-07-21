@@ -946,24 +946,43 @@ function faqBody(f) {
 function renderFaq(faq) {
   if (!faq.length) return;
   document.getElementById('faqSection').hidden = false;
-  document.getElementById('faqAcc').innerHTML = faq.map(f => `
-    <div class="faq-item">
-      <button class="faq-q">
-        ${esc(f.title)}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+
+  // Топик может быть группой: вкладыши (parentId) раскрываются внутри него
+  const plus = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-      </button>
-      <div class="faq-a"><div class="faq-a-inner">${faqBody(f)}</div></div>
-    </div>`).join('');
+        </svg>`;
+  const ids    = new Set(faq.map(f => f.id));
+  const kidsOf = id => faq.filter(f => f.parentId === id);
+  // Вкладыш без видимой группы показываем как обычный топик
+  const tops   = faq.filter(f => !f.parentId || !ids.has(f.parentId));
+
+  const itemHtml = (f, isSub) => {
+    const kids  = isSub ? [] : kidsOf(f.id);
+    const inner = kids.length
+      ? `<div class="faq-subacc">${kids.map(k => itemHtml(k, true)).join('')}</div>` : '';
+    return `
+    <div class="faq-item${isSub ? ' faq-subitem' : ''}">
+      <button class="faq-q">${esc(f.title)}${plus}</button>
+      <div class="faq-a"><div class="faq-a-inner">${faqBody(f)}${inner}</div></div>
+    </div>`;
+  };
+  document.getElementById('faqAcc').innerHTML = tops.map(f => itemHtml(f, false)).join('');
 
   document.getElementById('faqAcc').addEventListener('click', (e) => {
     const q = e.target.closest('.faq-q');
     if (!q) return;
     const item = q.parentElement;
-    const ans  = item.querySelector('.faq-a');
+    const ans  = item.querySelector(':scope > .faq-a');
     const open = item.classList.toggle('open');
-    ans.style.maxHeight = open ? ans.scrollHeight + 'px' : '0';
+    if (open) {
+      ans.style.maxHeight = ans.scrollHeight + 'px';
+      // После анимации — без ограничения, чтобы вкладыши раскрывались свободно
+      setTimeout(() => { if (item.classList.contains('open')) ans.style.maxHeight = 'none'; }, 420);
+    } else {
+      // Из 'none' анимация не стартует — сначала фиксируем текущую высоту
+      ans.style.maxHeight = ans.scrollHeight + 'px';
+      requestAnimationFrame(() => { ans.style.maxHeight = '0'; });
+    }
   });
   revealScan();
 }

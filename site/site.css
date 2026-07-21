@@ -554,7 +554,8 @@ body.theme-type .photo-ribbon.reserved { background: var(--pink); color: #17150f
   letter-spacing: .02em; text-align: left;
 }
 .faq-q svg { flex-shrink: 0; color: var(--gold); transition: transform .3s; }
-.faq-item.open .faq-q svg { transform: rotate(45deg); }
+/* > — чтобы открытая группа не поворачивала плюсы своих вкладышей */
+.faq-item.open > .faq-q svg { transform: rotate(45deg); }
 .faq-a {
   max-height: 0; overflow: hidden; transition: max-height .35s ease;
   color: var(--text2); font-size: 14px; line-height: 1.65;
@@ -562,6 +563,14 @@ body.theme-type .photo-ribbon.reserved { background: var(--pink); color: #17150f
 .faq-a-inner { padding: 0 4px 20px; white-space: pre-wrap; }
 .faq-a-inner b { color: var(--text); font-weight: 500; }
 .faq-a-label { color: var(--gold); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; margin: 10px 0 4px; }
+
+/* Вкладыши внутри топика-группы */
+.faq-subacc { margin: 2px 0 6px; padding-left: 16px; border-left: 1px solid var(--line2); }
+.faq-subitem { border-bottom: 1px solid var(--line); }
+.faq-subitem:last-child { border-bottom: none; }
+.faq-subitem:first-child { border-top: none; }
+.faq-subitem .faq-q { padding: 14px 4px; font-size: 14px; }
+.faq-subitem .faq-q svg { width: 14px; height: 14px; }
 
 /* ─── Футер ─── */
 .site-foot {

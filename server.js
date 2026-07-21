@@ -551,9 +551,10 @@ app.get('/api/public/blocks', (req, res) => {
 app.get('/api/public/faq', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.json((load().faq || []).filter(f => f.showOnSite).map(f => ({
-    id:    f.id,
-    title: f.title,
-    body:  f.body || '',
+    id:       f.id,
+    title:    f.title,
+    body:     f.body || '',
+    parentId: f.parentId || null,   // вкладыш внутри топика-группы
     lines: Array.isArray(f.lines) ? f.lines.map(l => ({ label: l.label || '', text: l.text || '' })) : [],
   })));
 });
@@ -1506,7 +1507,8 @@ app.delete('/api/quickaccess/:id', (req, res) => {
 
 /* ─── PROJECT NOTES ─── */
 app.get('/api/project', (req, res) => {
-  res.json((load().project || []));
+  // Заметки с ограниченной видимостью отдаём только своим (root видит все)
+  res.json((load().project || []).filter(p => visibleTo(p, req.user)));
 });
 
 app.post('/api/project', (req, res) => {
@@ -1522,6 +1524,7 @@ app.patch('/api/project/:id', (req, res) => {
   const db  = load();
   const idx = (db.project || []).findIndex(p => p.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
+  if (!visibleTo(db.project[idx], req.user)) return res.status(404).json({ error: 'not found' });
   db.project[idx] = { ...db.project[idx], ...req.body, id: req.params.id };
   save(db);
   res.json(db.project[idx]);
@@ -1529,7 +1532,9 @@ app.patch('/api/project/:id', (req, res) => {
 
 app.delete('/api/project/:id', (req, res) => {
   const db = load();
-  db.project = (db.project || []).filter(p => p.id !== req.params.id);
+  const p  = (db.project || []).find(x => x.id === req.params.id);
+  if (p && !visibleTo(p, req.user)) return res.status(404).json({ error: 'not found' });
+  db.project = (db.project || []).filter(x => x.id !== req.params.id);
   save(db);
   res.json({ ok: true });
 });
@@ -1563,7 +1568,9 @@ app.delete('/api/faq/:id', (req, res) => {
   const db = load();
   const f  = (db.faq || []).find(x => x.id === req.params.id);
   if (f && !visibleTo(f, req.user)) return res.status(404).json({ error: 'not found' });
-  db.faq = (db.faq || []).filter(x => x.id !== req.params.id);
+  // Вкладыши удалённой группы становятся самостоятельными топиками
+  db.faq = (db.faq || []).filter(x => x.id !== req.params.id)
+    .map(x => x.parentId === req.params.id ? { ...x, parentId: null } : x);
   save(db);
   res.json({ ok: true });
 });
