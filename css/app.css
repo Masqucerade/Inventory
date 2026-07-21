@@ -3404,6 +3404,45 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 }
 #view-project .proj-hero:empty { display: none; }
 .ph-main { flex: 1 1 auto; min-width: 0; padding: 16px 18px 15px; }
+
+/* Компактная шапка «Проекта»: одна строка + прогресс, задачи видны сразу */
+.ph-compact {
+  flex: 1 1 auto; min-width: 0;   /* hero — flex-контейнер: растягиваемся на всю ширину */
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  row-gap: 9px; column-gap: 14px;
+  padding: 12px 15px 11px;
+}
+.ph-c-left { min-width: 0; }
+.ph-c-title { margin-top: 3px; font-size: 16.5px; font-weight: 700; letter-spacing: -.4px; color: var(--text); }
+.ph-c-sub { margin-top: 2px; font-size: 11.5px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-c-right { text-align: right; }
+.ph-c-pct { font-size: 17px; font-weight: 800; letter-spacing: -.5px; color: var(--text); }
+.ph-c-frac { font-size: 10.5px; color: var(--text3); }
+.ph-compact .ph-bar { grid-column: 1 / -1; margin-top: 0; }
+#view-project .ph-c-sub  { color: rgba(255,255,255,.6); }
+#view-project .ph-c-frac { color: rgba(255,255,255,.5); }
+[data-theme="light"] #view-project .ph-c-sub,
+[data-theme="light"] #view-project .ph-c-frac { color: #6d685c; }
+
+/* Задача «ждёт подтверждения» */
+#view-project #projectContent .task-item.pending::before { background: #fbbf24; }
+.task-check.pending { border-color: rgba(251,191,36,.7) !important; color: #fbbf24; }
+.task-pending-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 99px;
+  background: rgba(251,191,36,.14); color: #fbbf24;
+  font-size: 10.5px; font-weight: 600;
+}
+.task-confirm-row { display: flex; gap: 8px; margin-top: 8px; }
+.task-confirm-btn, .task-reject-btn {
+  padding: 7px 13px; border-radius: 9px; cursor: pointer;
+  font-size: 12px; font-weight: 600;
+  border: 1px solid transparent; transition: opacity .15s, transform .15s;
+}
+.task-confirm-btn { background: #4ade80; color: #052e12; }
+.task-reject-btn  { background: transparent; color: var(--text2); border-color: var(--sep); }
+#view-project .task-reject-btn { color: rgba(255,255,255,.7); border-color: rgba(255,255,255,.2); }
+.task-confirm-btn:active, .task-reject-btn:active { transform: scale(.96); opacity: .85; }
 .ph-label {
   font-family: var(--mono); font-size: 9.5px; font-weight: 700;
   letter-spacing: .24em; text-transform: uppercase; color: var(--text3);
@@ -3462,6 +3501,8 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 .ptask-head.duty i { background: var(--text3); }
 .ptask-head.goal i { background: transparent; border: 1.5px solid var(--text3); }
 .ptask-head.personal i { background: transparent; border: 1.5px dashed var(--text3); }
+.ptask-head.pending i { background: #fbbf24; box-shadow: 0 0 0 3px rgba(251,191,36,.18); }
+.ptask-head.pending span { color: #fbbf24; }
 .ptask-head em { font-style: normal; font-size: 10px; color: var(--text3); opacity: .8; }
 .ptask-empty {
   padding: 20px 14px; text-align: center; font-size: 12.5px; color: var(--text3);
@@ -3604,20 +3645,32 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 .ip-tabbar i.on { background: linear-gradient(180deg, #d8d7d1, #c9c8c2); border-color: rgba(29,28,25,.3); }
 
 /* Дашборд участников: выдать задачу в один тап */
+/* Компактная лента людей: чипы в один ряд с горизонтальным скроллом */
 .team-dash {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 10px; margin: 2px 0 6px;
+  display: flex; gap: 8px; margin: 2px 0 10px;
+  overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
+  padding-bottom: 2px;
 }
+.team-dash::-webkit-scrollbar { display: none; }
 .td-card {
-  display: flex; align-items: center; gap: 11px;
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 8px;
   background: var(--card); border: 1px solid var(--card-b);
-  border-radius: 14px; padding: 11px 12px;
+  border-radius: 99px; padding: 6px 10px 6px 7px;
 }
+.td-name { font-size: 12.5px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; }
+.td-cnt {
+  min-width: 19px; height: 19px; padding: 0 5px; border-radius: 99px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--fill); color: var(--text2);
+  font-size: 11px; font-weight: 700;
+}
+.td-cnt.urg { background: rgba(248,113,113,.18); color: #f87171; }
 .td-av {
-  width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0; font-style: normal;
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; font-style: normal;
   background: var(--fill); border: 1px solid var(--sep);
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700; color: var(--text);
+  font-size: 12px; font-weight: 700; color: var(--text);
 }
 .td-info { min-width: 0; }
 .td-info b { display: block; font-size: 13.5px; font-weight: 600; color: var(--text); letter-spacing: -.2px; }

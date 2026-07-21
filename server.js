@@ -1331,6 +1331,31 @@ async function notifyTaskAssigned(task, byUser) {
   } catch (_) {}
 }
 
+// Сотрудник отметил задачу выполненной → всем root в Telegram: подтвердить
+async function notifyTaskDoneRequest(task, byUser) {
+  try {
+    const token = process.env.TG_LOG_TOKEN;
+    if (!token) return;
+    const db = load();
+    const text =
+      `<b>MASQUCERADE INC.</b>\n` +
+      `<i>Задача ждёт подтверждения</i>\n\n` +
+      `<b>${escAttr(task.title || task.text || 'Без названия')}</b>` +
+      (task.description ? `\n${escAttr(task.description)}` : '') +
+      `\n\nВыполнил: ${escAttr(byUser?.name || '—')}` +
+      `\nПодтвердите в панели: Проект → Задачи`;
+    const sent = new Set();
+    if (process.env.TG_LOG_CHAT) { tgSend(token, process.env.TG_LOG_CHAT, text); sent.add(String(process.env.TG_LOG_CHAT)); }
+    for (const u of (db.users || [])) {
+      if (u.role !== 'root' || !u.tgChatId) continue;
+      const chatId = await resolveTgChat(token, u.tgChatId);
+      if (!chatId || sent.has(String(chatId))) continue;
+      sent.add(String(chatId));
+      tgSend(token, chatId, text);
+    }
+  } catch (_) {}
+}
+
 /* ─── TASKS ─── */
 /* Личная задача видна только своему создателю (даже root чужие не видит).
    Сотрудник видит только СВОИ задачи: назначенные ему (в т.ч. legacy —
@@ -1368,9 +1393,24 @@ app.patch('/api/tasks/:id', (req, res) => {
   const idx = (db.tasks || []).findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
   if (!taskVisible(db.tasks[idx], req.user, db)) return res.status(404).json({ error: 'not found' });
-  const prevAssignee = db.tasks[idx].assigneeId || null;
-  db.tasks[idx] = { ...db.tasks[idx], ...req.body, id: req.params.id, createdBy: db.tasks[idx].createdBy };
+  const old = db.tasks[idx];
+  const prevAssignee = old.assigneeId || null;
+  const isRoot = req.user.role === 'root';
+  const patch  = { ...req.body };
+  // Сотрудник «выполнил» рабочую задачу → не done, а запрос на подтверждение root'у.
+  // Личные задачи сотрудника подтверждения не требуют.
+  if (!isRoot && patch.done === true && !old.done && !old.personal) {
+    delete patch.done;
+    patch.doneRequested   = true;
+    patch.doneRequestedBy = req.user.id;
+    patch.doneRequestedAt = new Date().toISOString();
+  }
+  // done выставлен/снят — запрос на подтверждение в любом случае закрыт
+  if (patch.done === true || patch.done === false) patch.doneRequested = false;
+  db.tasks[idx] = { ...old, ...patch, id: req.params.id, createdBy: old.createdBy };
   save(db);
+  if (!old.doneRequested && db.tasks[idx].doneRequested)
+    notifyTaskDoneRequest(db.tasks[idx], req.user);
   // Переназначили на другого человека — уведомляем нового исполнителя
   if (db.tasks[idx].assigneeId && db.tasks[idx].assigneeId !== prevAssignee && !db.tasks[idx].done)
     notifyTaskAssigned(db.tasks[idx], req.user);

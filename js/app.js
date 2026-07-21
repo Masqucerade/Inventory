@@ -3224,62 +3224,41 @@ class App {
 
     const pct    = total ? done / total : 0;
     const urgent = tasks.filter(t => !t.done && (t.kind || 'duty') === 'urgent').length;
+    const goals  = tasks.filter(t => !t.done && (t.kind || 'duty') === 'goal').length;
+    const pendingN = tasks.filter(t => !t.done && t.doneRequested && !t.personal).length;
 
-    /* Смартфон-моделька в стиле «.solutions ID» — живая сводка проекта */
-    const goals = tasks.filter(t => !t.done && (t.kind || 'duty') === 'goal').length;
-    const nowHM = new Date().toTimeString().slice(0, 5);
-    const phoneHtml = `
-      <div class="ph-phone" aria-hidden="true">
-        <div class="iphone">
-          <div class="iphone-screen">
-            <div class="ip-status">
-              <span class="ip-time">${nowHM}</span>
-              <i class="ip-island"></i>
-              <span class="ip-sig"><i></i><i></i><i></i></span>
-            </div>
-            <div class="ip-title">MASQUCERADE&nbsp;ID</div>
-            <div class="ip-profile">
-              <i class="ip-ava"></i>
-              <span class="ip-prof-info">
-                <b>${isRoot ? 'MONARC' : this.esc((this.currentUser?.name || 'TEAM').toUpperCase())}</b>
-                <span>ROLE: ${isRoot ? 'ROOT' : 'TEAM'}</span>
-              </span>
-            </div>
-            <div class="ip-row"><b>Срочные</b><span>${urgent} ${plural(urgent)}</span></div>
-            <div class="ip-row"><b>Цели и планы</b><span>${goals} в работе</span></div>
-            <div class="ip-row"><b>Готово</b><span>${done} из ${total}</span></div>
-            <div class="ip-tabbar"><i class="on"></i><i></i><i></i><i></i><i></i></div>
-          </div>
-        </div>
-      </div>`;
-
+    /* Компактная шапка: одна строка + прогресс — задачи видны сразу */
+    let heroTitle, heroSub;
     if (isRoot) {
-      /* ── Root: строгая сводка (без счётчиков «в работе») ── */
-      if (hero) hero.innerHTML = `
-        ${phoneHtml}
-        <div class="ph-main">
-          <div class="ph-label">Проект · Masqucerade</div>
-          <div class="ph-num" style="font-size:26px">Панель управления</div>
-          <div class="ph-sub">${urgent ? `Срочных: ${urgent} · ` : ''}целей: ${goals} · выполнено ${done} из ${total}</div>
-          <div class="ph-bar"><i style="width:${Math.round(pct * 100)}%"></i></div>
-        </div>`;
+      heroTitle = 'Панель управления';
+      heroSub = [
+        pendingN ? `⏳ на подтверждении: ${pendingN}` : '',
+        urgent ? `срочных: ${urgent}` : '',
+        goals ? `целей: ${goals}` : '',
+        `готово ${done} из ${total}`,
+      ].filter(Boolean).join(' · ');
     } else {
-      /* ── Сотрудник: личное приветствие ── */
       const name  = this.currentUser?.name || '';
       const h     = new Date().getHours();
       const greet = h >= 5 && h < 12 ? 'Доброе утро' : h >= 12 && h < 17 ? 'Добрый день' : h >= 17 && h < 23 ? 'Добрый вечер' : 'Доброй ночи';
       const mine       = tasks.filter(t => !t.done && isMineTask(t)).length;
       const mineUrgent = tasks.filter(t => !t.done && isMineTask(t) && (t.kind || 'duty') === 'urgent').length;
-
-      if (hero) hero.innerHTML = `
-        ${phoneHtml}
-        <div class="ph-main">
-          <div class="ph-label">Проект · Masqucerade</div>
-          <div class="ph-num" style="font-size:26px">${greet}, ${this.esc(name)}</div>
-          <div class="ph-sub">${mine ? `Для тебя: ${mine} ${plural(mine)}${mineUrgent ? ` · срочных: ${mineUrgent}` : ''}` : 'Для тебя задач нет'}</div>
-          <div class="ph-bar"><i style="width:${Math.round(pct * 100)}%"></i></div>
-        </div>`;
+      heroTitle = `${greet}, ${this.esc(name)}`;
+      heroSub = mine ? `Для тебя: ${mine} ${plural(mine)}${mineUrgent ? ` · срочных: ${mineUrgent}` : ''}` : 'Для тебя задач нет';
     }
+    if (hero) hero.innerHTML = `
+      <div class="proj-hero-inner ph-compact">
+        <div class="ph-c-left">
+          <div class="ph-label">Проект · Masqucerade</div>
+          <div class="ph-c-title">${heroTitle}</div>
+          <div class="ph-c-sub">${heroSub}</div>
+        </div>
+        <div class="ph-c-right">
+          <div class="ph-c-pct">${Math.round(pct * 100)}%</div>
+          <div class="ph-c-frac">${done}/${total}</div>
+        </div>
+        <div class="ph-bar"><i style="width:${Math.round(pct * 100)}%"></i></div>
+      </div>`;
 
     /* ── Счётчики на вкладках ── */
     const setCnt = (id, n) => {
@@ -3383,9 +3362,12 @@ class App {
       : (t.assigneeId === selPerson || (selLegacy && t.assigneeId === selLegacy));
 
     const kindOf   = t => t.kind || 'duty';
+    const isPend   = t => !t.done && !!t.doneRequested;
+    // Ждущие подтверждения — отдельным блоком сверху (не зависят от выбранного человека)
+    const pending  = tasks.filter(t => !t.personal && isPend(t));
     const personal = tasks.filter(t => t.personal && !t.done);
     const doneP    = tasks.filter(t => t.personal && t.done);
-    const byKind   = k => tasks.filter(t => !t.personal && !t.done && kindOf(t) === k && belongsSel(t));
+    const byKind   = k => tasks.filter(t => !t.personal && !t.done && !isPend(t) && kindOf(t) === k && belongsSel(t));
     const doneBy   = k => tasks.filter(t => !t.personal &&  t.done && kindOf(t) === k && belongsSel(t));
     const lists = { urgent: byKind('urgent'), duty: byKind('duty'), goal: byKind('goal') };
 
@@ -3396,16 +3378,26 @@ class App {
       const title = t.title || t.text || '';
       const desc  = t.description || '';
       const mine  = isMine(t) && !t.done;
+      const pend  = isPend(t);
+      const checkTitle = t.done ? 'Вернуть'
+        : pend ? (isRoot ? 'Подтвердить выполнение' : 'Снять отметку')
+        : 'Выполнено';
+      const doneBy = pend && t.doneRequestedBy ? ownerName(t.doneRequestedBy) : '';
       return `
-      <div class="task-item${t.done ? ' done' : ''}${mine ? ' task-mine' : ''}${t.personal ? ' task-personal' : ''}" data-task-id="${t.id}">
-        <button class="task-check" data-task-id="${t.id}" title="${t.done ? 'Вернуть' : 'Выполнено'}">
-          ${t.done ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+      <div class="task-item${t.done ? ' done' : ''}${pend ? ' pending' : ''}${mine ? ' task-mine' : ''}${t.personal ? ' task-personal' : ''}" data-task-id="${t.id}">
+        <button class="task-check${pend ? ' pending' : ''}" data-task-id="${t.id}" title="${checkTitle}">
+          ${t.done ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
+            : pend ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>` : ''}
         </button>
         <div class="task-body">
           <span class="task-text">${this.esc(title)}</span>
           ${desc ? `<span class="task-desc">${this.esc(desc)}</span>` : ''}
           ${t.photo ? `<img class="task-photo-thumb" src="${t.photo}" alt="фото задачи">` : ''}
-          <span class="task-meta-row">${t.personal ? `<span class="task-personal-badge">${svgLock} Личная</span>` : ''}${mine ? `<span class="task-mine-badge">Для тебя</span>` : ''}${assignee && !mine ? `<span class="task-assignee"><i>${this.esc(assignee.trim()[0].toUpperCase())}</i>${this.esc(assignee)}</span>` : ''}${t.createdAt ? `<span class="task-date">${this.fmtDate(t.createdAt)}</span>` : ''}${this._visBadge(t)}</span>
+          <span class="task-meta-row">${pend ? `<span class="task-pending-badge">⏳ ${doneBy ? `${this.esc(doneBy)}: выполнено` : 'Выполнено'} · ждёт подтверждения</span>` : ''}${t.personal ? `<span class="task-personal-badge">${svgLock} Личная</span>` : ''}${mine ? `<span class="task-mine-badge">Для тебя</span>` : ''}${assignee && !mine ? `<span class="task-assignee"><i>${this.esc(assignee.trim()[0].toUpperCase())}</i>${this.esc(assignee)}</span>` : ''}${t.createdAt ? `<span class="task-date">${this.fmtDate(t.createdAt)}</span>` : ''}${this._visBadge(t)}</span>
+          ${pend && isRoot ? `<span class="task-confirm-row">
+            <button class="task-confirm-btn" data-task-id="${t.id}">Подтвердить ✓</button>
+            <button class="task-reject-btn" data-task-id="${t.id}">Вернуть в работу</button>
+          </span>` : ''}
         </div>
         <div class="task-btns">
           <button class="task-edit" data-task-id="${t.id}" title="Изменить">${svgEdit}</button>
@@ -3414,15 +3406,14 @@ class App {
       </div>`;
     }).join('');
 
-    /* Мини-дашборд: «Общие» + сотрудники; клик выбирает, чьи задачи показывать */
+    /* Мини-дашборд: компактные чипы «Общие» + сотрудники (горизонтальная лента).
+       Клик выбирает, чьи задачи показывать; бейдж — активные (красный при срочных). */
     const dashCard = (pid, avatar, name, my) => {
       const urg = my.filter(t => (t.kind || 'duty') === 'urgent').length;
       return `<div class="td-card${selPerson === pid ? ' sel' : ''}" data-person="${pid}">
         <i class="td-av">${avatar}</i>
-        <div class="td-info">
-          <b>${this.esc(name)}</b>
-          <span>${my.length ? `${urg ? `срочных: ${urg} · ` : ''}активных: ${my.length}` : 'задач нет'}</span>
-        </div>
+        <b class="td-name">${this.esc(name)}</b>
+        ${my.length ? `<span class="td-cnt${urg ? ' urg' : ''}">${my.length}</span>` : ''}
         ${isRoot ? `<button class="td-add" data-owner-id="${pid === '__common__' ? '' : pid}" title="Выдать задачу">＋</button>` : ''}
       </div>`;
     };
@@ -3452,6 +3443,10 @@ class App {
 
     el.innerHTML = `
       ${teamDash}
+      ${pending.length ? `<div class="proj-pending">
+        <div class="ptask-head pending"><i></i><span>Ждут подтверждения</span><em>${pending.length}</em></div>
+        <div class="task-list">${renderList(pending)}</div>
+      </div>` : ''}
       ${personal.length ? `<div class="proj-personal">
         <div class="ptask-head personal"><i></i><span>Личное</span><em>${personal.length}</em></div>
         <div class="task-list">${renderList(personal)}</div>
@@ -3491,11 +3486,37 @@ class App {
         this.renderProjectTasks();
       }));
 
+    /* Чекбокс: root закрывает сразу; сотрудник отправляет на подтверждение.
+       У задачи «в ожидании»: root — подтверждает, сотрудник — снимает отметку. */
+    const toggleTask = async (t) => {
+      if (t.done) {
+        await this.db.patchTask(t.id, { done: false });
+      } else if (isPend(t)) {
+        if (isRoot) { await this.db.patchTask(t.id, { done: true }); this.toast('Выполнение подтверждено ✓'); }
+        else        { await this.db.patchTask(t.id, { doneRequested: false }); this.toast('Отметка снята'); }
+      } else {
+        await this.db.patchTask(t.id, { done: true });
+        if (!isRoot && !t.personal) this.toast('Отправлено на подтверждение ⏳');
+      }
+      this.renderProject();
+    };
     el.querySelectorAll('.task-check').forEach(btn =>
       btn.addEventListener('click', async () => {
         const t = tasks.find(x => x.id === btn.dataset.taskId);
-        if (!t) return;
-        await this.db.patchTask(t.id, { done: !t.done });
+        if (t) await toggleTask(t);
+      })
+    );
+    el.querySelectorAll('.task-confirm-btn').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        await this.db.patchTask(btn.dataset.taskId, { done: true });
+        this.toast('Выполнение подтверждено ✓');
+        this.renderProject();
+      })
+    );
+    el.querySelectorAll('.task-reject-btn').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        await this.db.patchTask(btn.dataset.taskId, { doneRequested: false });
+        this.toast('Задача возвращена в работу');
         this.renderProject();
       })
     );
