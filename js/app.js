@@ -3016,9 +3016,12 @@ class App {
      ────────────────────────────────────────── */
   async renderStats() {
     const el    = document.getElementById('statsContent');
-    const [items, sales] = await Promise.all([this.db.getItems(), this.db.getSales()]);
+    const [allItems, sales] = await Promise.all([this.db.getItems(), this.db.getSales()]);
+    // Завершённые (проданные) товары не учитываются в деньгах и складе —
+    // их выручка живёт в «Продажах». В статистике остаются только активные.
+    const items = allItems.filter(i => i.orderStatus !== 'done');
 
-    if (!items.length) {
+    if (!allItems.length) {
       el.innerHTML = `
         <div class="empty-state">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".9">
@@ -3035,9 +3038,12 @@ class App {
 
     const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
     const byStatus = {}, byOwner = {}, byType = {};
+    // Бар «по статусам» — по всем товарам (штуки, «Завершено» отдельной строкой)
+    allItems.forEach(i => {
+      byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + (i.quantity || 0);
+    });
     items.forEach(i => {
       const qty = i.quantity || 0;
-      byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + qty;
       // Товары бренда Monarc без владельца — отдельной строкой «Monarc»
       const k = i.ownerId || (i.isMonarc ? '__monarc__' : '__none__');
       if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0, share: 0 };
@@ -3116,8 +3122,9 @@ class App {
       </div>`
     ).join('');
 
-    /* ── Продажи в разрезах: категория и владелец (снимок из продажи, иначе — по товару) ── */
-    const itemById = Object.fromEntries(items.map(i => [i.id, i]));
+    /* ── Продажи в разрезах: категория и владелец (снимок из продажи, иначе — по товару) ──
+       Ищем и среди завершённых: старые продажи ссылаются на проданные товары */
+    const itemById = Object.fromEntries(allItems.map(i => [i.id, i]));
     const saleCat  = s => s.categoryId !== undefined ? s.categoryId : (itemById[s.itemId]?.categoryId ?? null);
     const saleOwn  = s => s.ownerId    !== undefined ? s.ownerId    : (itemById[s.itemId]?.ownerId    ?? null);
     const group = (keyFn, nameFn, pctFn = null) => {
@@ -3175,8 +3182,9 @@ class App {
           <div class="stat-label">В наличии, шт</div>
         </div>
         ${(() => {
-          const views  = items.reduce((s, i) => s + (i.views || 0), 0);
-          const clicks = items.reduce((s, i) => s + (i.tgClicks || 0), 0);
+          // Воронка сайта — по всем товарам: у проданных просмотры тоже копятся (архив)
+          const views  = allItems.reduce((s, i) => s + (i.views || 0), 0);
+          const clicks = allItems.reduce((s, i) => s + (i.tgClicks || 0), 0);
           const conv   = views ? Math.round(clicks / views * 1000) / 10 : 0;
           return `
         <div class="stat-card">
