@@ -59,6 +59,11 @@ const monarcFavicon = html => html
 
 /* Яндекс.Метрика: включается env-переменной YM_ID (номер счётчика) в Railway —
    без правок кода. Пусто = сниппет не вставляется. */
+/* Подтверждение прав на сайт для поисковиков — коды из env (Railway):
+   GOOGLE_VERIFICATION (Search Console) и YANDEX_VERIFICATION (Вебмастер). */
+const GSV = (process.env.GOOGLE_VERIFICATION || '').trim();
+const YSV = (process.env.YANDEX_VERIFICATION || '').trim();
+
 const YM_ID = /^\d+$/.test(process.env.YM_ID || '') ? process.env.YM_ID : '';
 const ymSnippet = () => !YM_ID ? '' : `
   <script>(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,"script","https://mc.yandex.ru/metrika/tag.js?id=${YM_ID}","ym");ym(${YM_ID},"init",{ssr:true,webvisor:true,clickmap:true,ecommerce:"dataLayer",referrer:document.referrer,url:location.href,accurateTrackBounce:true,trackLinks:true});</script>
@@ -83,6 +88,8 @@ function headTags({ title, description, url, image, type = 'website', section = 
   // Маркеры для клиента: какой раздел рендерить и где живёт Type
   (section ? `\n  <meta name="mq-section" content="${escAttr(section)}">` : '') +
   (TYPE_HOST ? `\n  <meta name="mq-type-host" content="${escAttr(TYPE_HOST)}">` : '') +
+  (GSV ? `\n  <meta name="google-site-verification" content="${escAttr(GSV)}">` : '') +
+  (YSV ? `\n  <meta name="yandex-verification" content="${escAttr(YSV)}">` : '') +
   ymSnippet();
 }
 
@@ -1878,6 +1885,48 @@ async function migratePhotos() {
   else console.log('Photo migration: nothing to do');
 }
 
+/* Разовая миграция: старые фото (jpg/png) → WebP q92. Конвертируем файл,
+   переписываем все ссылки в базе (товары, блоки, обложки), оригиналы
+   оставляем на диске как страховку. Если WebP не даёт выигрыша ≥5% —
+   файл остаётся как есть. Флаг в meta защищает от повторных прогонов. */
+async function migratePhotosToWebp() {
+  if (!sharp) return;
+  const db = load();
+  if (db.meta?.webpMigrated) return;
+  let files = [];
+  try { files = fs.readdirSync(PHOTOS_DIR).filter(f => /\.(jpe?g|png)$/i.test(f)); } catch (_) {}
+  const renames = [];
+  let savedBytes = 0;
+  for (const f of files) {
+    const src = path.join(PHOTOS_DIR, f);
+    const outName = f.replace(/\.(jpe?g|png)$/i, '') + '.webp';
+    const out = path.join(PHOTOS_DIR, outName);
+    try {
+      if (!fs.existsSync(out)) {
+        const buf  = fs.readFileSync(src);
+        const webp = await sharp(buf).rotate().webp({ quality: 92, effort: 5 }).toBuffer();
+        if (webp.length >= buf.length * 0.95) continue;   // выигрыша нет — не трогаем
+        fs.writeFileSync(out, webp);
+        savedBytes += buf.length - webp.length;
+      }
+      renames.push([`/photos/${f}`, `/photos/${outName}`]);
+    } catch (e) { console.error('webp migrate failed:', f, e.message); }
+  }
+  // Ссылки переписываем по всей базе разом (товары, блоки, thumbs, обложки)
+  let db2 = db;
+  if (renames.length) {
+    let s = JSON.stringify(db);
+    for (const [a, b] of renames) s = s.split(a).join(b);
+    db2 = JSON.parse(s);
+  }
+  if (!db2.meta) db2.meta = {};
+  db2.meta.webpMigrated = true;
+  save(db2);
+  console.log(renames.length
+    ? `WebP migration: ${renames.length} photo(s), −${Math.round(savedBytes / 1024)} КБ`
+    : 'WebP migration: nothing to convert');
+}
+
 // Разовая миграция: у существующих участников с настроенным access добавить
 // раздел 'site' (появился позже) — чтобы вкладка «Сайт» осталась доступной,
 // но теперь её можно снять галочкой. Root и «полный доступ» (access=null) — мимо.
@@ -1999,7 +2048,7 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Masqucerade INC. v2 on :${PORT}`);
-  migratePhotos();
+  migratePhotos().then(() => migratePhotosToWebp()).catch(e => console.error('migration error:', e.message));
   migrateSiteAccess();
   migratePanelGuide();
   scheduleBackup();
