@@ -65,8 +65,8 @@ async function boot() {
         <p class="m-price">${fmtPrice(i.price)}${i.oldPrice ? ` <s class="old-price">${fmtPrice(i.oldPrice)}</s><em class="disc-badge">−${Math.round((1 - i.price / i.oldPrice) * 100)}%</em>` : ''}</p>
         ${i.sold
           ? `<span class="good-tag sold p-sold-tag">Продано</span>`
-          : `<div class="m-sizes">${(i.sizes || []).filter(s => s.size).map(s =>
-              `<span class="m-size">${esc(s.size)}</span>`).join('')}</div>`}
+          : `<div class="m-sizes" id="pSizes">${(i.sizes || []).filter(s => s.size).map(s =>
+              `<button type="button" class="m-size m-size-pick" data-size="${esc(s.size)}">${esc(s.size)}</button>`).join('')}</div>`}
         ${i.description ? `<p class="m-desc">${esc(i.description)}</p>` : ''}
         ${i.measurements ? `
         <div class="m-fit" id="mFit">
@@ -85,7 +85,13 @@ async function boot() {
         ${i.sold
           ? `<p class="p-sold-note">Эта вещь уже нашла владельца. Напишите нам — подберём похожую.</p>
              <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}" target="_blank" rel="noopener">Написать в Telegram</a>`
-          : `<a class="tg-btn" href="https://t.me/${TG_USERNAME}?text=${msg}" target="_blank" rel="noopener">
+          : `<button class="tg-btn cart-add-btn" id="addCartBtn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+              </svg>
+              В корзину
+            </button>
+            <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}?text=${msg}" target="_blank" rel="noopener">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M21.4 4.1 2.9 11.3c-1 .4-1 1.8.1 2.1l4.6 1.4 1.8 5.5c.3.9 1.4 1.1 2 .4l2.6-2.7 4.8 3.5c.8.6 1.9.2 2.1-.8l3-14.9c.2-1.1-.8-2-1.5-1.7zM8.5 14.4l9.4-6.9c.3-.2.6.2.4.4l-7.6 7.5-.3 3-1.9-4z"/>
               </svg>
@@ -114,8 +120,34 @@ async function boot() {
     </section>` : ''}
   `;
 
-  /* Клик по «Написать в Telegram» — счётчик заявок (fire-and-forget) */
-  document.querySelectorAll('.tg-btn').forEach(a =>
+  /* ── «В корзину»: размер выбирается чипом (если он один — сам) ── */
+  const sizeChips = [...document.querySelectorAll('.m-size-pick')];
+  let pickedSize = sizeChips.length === 1 ? sizeChips[0].dataset.size : '';
+  if (sizeChips.length === 1) sizeChips[0].classList.add('picked');
+  sizeChips.forEach(ch => ch.addEventListener('click', () => {
+    pickedSize = ch.dataset.size;
+    sizeChips.forEach(x => x.classList.toggle('picked', x === ch));
+    document.getElementById('pSizes')?.classList.remove('need-size');
+  }));
+  document.getElementById('addCartBtn')?.addEventListener('click', () => {
+    if (sizeChips.length > 1 && !pickedSize) {
+      // Просим выбрать размер — подсветкой чипов
+      const wrap = document.getElementById('pSizes');
+      wrap.classList.remove('need-size'); void wrap.offsetWidth;
+      wrap.classList.add('need-size');
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    window.mqCart.add(i.id, pickedSize);
+    const btn = document.getElementById('addCartBtn');
+    btn.classList.add('in-cart');
+    btn.innerHTML = 'В корзине ✓ — открыть';
+    btn.onclick = () => window.mqCart.open();
+    window.mqCart.open();
+  });
+
+  /* Клик по «Написать в Telegram» — счётчик заявок (только ссылки, не корзина) */
+  document.querySelectorAll('a.tg-btn').forEach(a =>
     a.addEventListener('click', () => {
       const url = `/api/public/items/${encodeURIComponent(i.id)}/click`;
       try { navigator.sendBeacon(url); }

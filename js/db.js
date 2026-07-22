@@ -267,6 +267,17 @@ class InventoryDB {
     return r.json();
   }
 
+  /* ─── ЗАЯВКИ С САЙТА (корзина) ─── */
+  async getOrders() {
+    try { const r = await fetch('/api/orders'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async patchOrder(id, patch) {
+    const r = await fetch(`/api/orders/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) });
+    return r.json();
+  }
+  async deleteOrder(id) { await fetch(`/api/orders/${id}`, { method:'DELETE' }); }
+
   /* ─── BRANDS (шаблоны брендов) ─── */
   async getBrands() {
     try { const r = await fetch('/api/brands'); return r.ok ? r.json() : []; }

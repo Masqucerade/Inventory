@@ -57,6 +57,13 @@ const monarcFavicon = html => html
            '<link rel="icon" href="/site/monarc-logo.jpg" type="image/jpeg">')
   .replace('<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">', '');
 
+/* Яндекс.Метрика: включается env-переменной YM_ID (номер счётчика) в Railway —
+   без правок кода. Пусто = сниппет не вставляется. */
+const YM_ID = /^\d+$/.test(process.env.YM_ID || '') ? process.env.YM_ID : '';
+const ymSnippet = () => !YM_ID ? '' : `
+  <script>(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");ym(${YM_ID},"init",{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true});</script>
+  <noscript><div><img src="https://mc.yandex.ru/watch/${YM_ID}" style="position:absolute;left:-9999px" alt=""></div></noscript>`;
+
 function headTags({ title, description, url, image, type = 'website', section = '' }) {
   const t = escAttr(title), d = escAttr(description), u = escAttr(url), i = escAttr(image);
   return `<title>${t}</title>
@@ -75,7 +82,8 @@ function headTags({ title, description, url, image, type = 'website', section = 
   <meta name="twitter:image" content="${i}">` +
   // Маркеры для клиента: какой раздел рендерить и где живёт Type
   (section ? `\n  <meta name="mq-section" content="${escAttr(section)}">` : '') +
-  (TYPE_HOST ? `\n  <meta name="mq-type-host" content="${escAttr(TYPE_HOST)}">` : '');
+  (TYPE_HOST ? `\n  <meta name="mq-type-host" content="${escAttr(TYPE_HOST)}">` : '') +
+  ymSnippet();
 }
 
 /* Каталог раздела: главная страница каждого бренд-домена */
@@ -559,6 +567,75 @@ app.get('/api/public/faq', (req, res) => {
   })));
 });
 
+// Состав корзины: публичные данные товаров БЕЗ накрутки счётчика просмотров
+app.post('/api/public/cart-info', (req, res) => {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.slice(0, 50) : [];
+  const db  = load();
+  res.json(ids
+    .map(id => (db.items || []).find(i => i.id === id && i.showOnSite))
+    .filter(Boolean).map(publicItem));
+});
+
+/* Заявка с сайта (корзина → оформление). Лимит: 5 заявок в час с IP. */
+const _orderRate = new Map();
+app.post('/api/public/order', (req, res) => {
+  const ip  = req.ip || 'x';
+  const now = Date.now();
+  const hits = (_orderRate.get(ip) || []).filter(t => now - t < 3600_000);
+  if (hits.length >= 5) return res.status(429).json({ error: 'Слишком много заявок — попробуйте позже' });
+  hits.push(now); _orderRate.set(ip, hits);
+
+  const b = req.body || {};
+  const name    = String(b.name    || '').trim().slice(0, 100);
+  const contact = String(b.contact || '').trim().slice(0, 150);
+  const comment = String(b.comment || '').trim().slice(0, 500);
+  const reqItems = Array.isArray(b.items) ? b.items.slice(0, 30) : [];
+  if (!contact || !reqItems.length) return res.status(400).json({ error: 'Укажите контакт и товары' });
+
+  const db = load();
+  // Цены и названия берём из базы — данным клиента не доверяем
+  const items = reqItems.map(x => {
+    const it = (db.items || []).find(i => i.id === x?.id && i.showOnSite);
+    return it ? { id: it.id, name: it.name, price: it.price ?? null, size: String(x.size || '').slice(0, 20) } : null;
+  }).filter(Boolean);
+  if (!items.length) return res.status(400).json({ error: 'Товары не найдены' });
+
+  if (!db.orders) db.orders = [];
+  const order = { id: uid(), createdAt: new Date().toISOString(), name, contact, comment, items, status: 'new' };
+  db.orders.push(order);
+  // Журнал панели
+  if (!db.logs) db.logs = [];
+  db.logs.push({ id: uid(), ts: order.createdAt, type: 'site_order', user: 'site',
+    desc: `Заявка с сайта: ${items.length} тов. · ${contact}`, meta: { level: 'warn' } });
+  if (db.logs.length > 300) db.logs = db.logs.slice(-300);
+  save(db);
+
+  // Telegram: в общий чат и лично каждому root
+  const fmtR = n => new Intl.NumberFormat('ru-RU').format(n);
+  const total = items.reduce((s, i) => s + (i.price || 0), 0);
+  const text =
+    `<b>MASQUCERADE INC.</b>\n<i>🛍 Новая заявка с сайта</i>\n\n` +
+    items.map(i => `• ${escAttr(i.name)}${i.size ? ` · ${escAttr(i.size)}` : ''} — ${i.price != null ? fmtR(i.price) + ' ₽' : '—'}`).join('\n') +
+    `\n\nИтого: <b>${fmtR(total)} ₽</b>` +
+    `\nИмя: ${escAttr(name || '—')}\nКонтакт: ${escAttr(contact)}` +
+    (comment ? `\nКомментарий: ${escAttr(comment)}` : '');
+  const token = process.env.TG_LOG_TOKEN;
+  if (token) {
+    const sent = new Set();
+    if (process.env.TG_LOG_CHAT) { tgSend(token, process.env.TG_LOG_CHAT, text); sent.add(String(process.env.TG_LOG_CHAT)); }
+    (async () => {
+      for (const u of (db.users || [])) {
+        if (u.role !== 'root' || !u.tgChatId) continue;
+        const chatId = await resolveTgChat(token, u.tgChatId);
+        if (!chatId || sent.has(String(chatId))) continue;
+        sent.add(String(chatId));
+        tgSend(token, chatId, text);
+      }
+    })().catch(() => {});
+  }
+  res.json({ ok: true });
+});
+
 // Всё остальное под /api требует валидный токен
 app.use('/api', (req, res, next) => {
   // private+no-cache: браузер всегда сверяется с сервером (ETag), но если
@@ -580,6 +657,25 @@ app.use('/api/faq',         (req, res, next) => requireAccess('site')(req, res, 
 // Внутренние гайды для сотрудников живут во вкладке «Гайды» (раздел 'faq')
 app.use('/api/guides',      (req, res, next) => requireAccess('faq')(req, res, next));
 app.use(['/api/blocks', '/api/collections'], (req, res, next) => requireAccess('site')(req, res, next));
+app.use('/api/orders',      (req, res, next) => requireAccess('site')(req, res, next));
+
+/* ─── ЗАЯВКИ С САЙТА (корзина) ─── */
+app.get('/api/orders', (req, res) =>
+  res.json((load().orders || []).slice().reverse()));   // свежие сверху
+app.patch('/api/orders/:id', (req, res) => {
+  const db = load();
+  const o  = (db.orders || []).find(x => x.id === req.params.id);
+  if (!o) return res.status(404).json({ error: 'not found' });
+  if (req.body.status !== undefined) o.status = req.body.status === 'done' ? 'done' : 'new';
+  save(db);
+  res.json(o);
+});
+app.delete('/api/orders/:id', (req, res) => {
+  const db = load();
+  db.orders = (db.orders || []).filter(x => x.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
 
 app.get('/api/me', (req, res) => {
   const u = req.user;

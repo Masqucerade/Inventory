@@ -38,6 +38,44 @@ const GARMENTS = [
   { id: 'outerwear', name: 'Верхняя одежда' },
 ];
 
+/* ─── Фильтры ↔ URL: ссылками на раздел/бренд/фильтры можно делиться ─── */
+function stateToUrl() {
+  const p = new URLSearchParams();
+  if (activeCat) {
+    const m = /^__sec-(\w+)__$/.exec(activeCat);
+    if (m) p.set('sec', m[1]);
+    else if (activeCat === '__archive__') p.set('sec', 'archive');
+    else if (activeCat === '__other__')   p.set('sec', 'other');
+    else p.set('cat', activeCat);
+  }
+  if (activeGarment) p.set('type', activeGarment);
+  if (activeBrand)   p.set('brand', activeBrand);
+  if (activeCond)    p.set('cond', activeCond);
+  if (activeSort !== 'new') p.set('sort', activeSort);
+  if (priceMin != null) p.set('pmin', priceMin);
+  if (priceMax != null) p.set('pmax', priceMax);
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? `${location.pathname}?${qs}` : location.pathname);
+}
+
+function stateFromUrl() {
+  const p = new URLSearchParams(location.search);
+  const sec = p.get('sec');
+  if (sec === 'archive')    activeCat = '__archive__';
+  else if (sec === 'other') activeCat = '__other__';
+  else if (sec)             activeCat = `__sec-${sec}__`;
+  else if (p.get('cat'))    activeCat = p.get('cat');
+  if (p.get('type'))  activeGarment = p.get('type');
+  if (p.get('brand')) activeBrand   = p.get('brand');
+  if (p.get('cond') && CONDITIONS[p.get('cond')]) activeCond = p.get('cond');
+  if (['asc', 'desc'].includes(p.get('sort'))) activeSort = p.get('sort');
+  if (p.get('pmin') && +p.get('pmin') > 0) priceMin = +p.get('pmin');
+  if (p.get('pmax') && +p.get('pmax') > 0) priceMax = +p.get('pmax');
+  // Пришли по ссылке с фильтрами — панель сразу раскрыта
+  if (activeGarment || activeBrand || activeCond || priceMin != null || priceMax != null)
+    _filtersOpen = true;
+}
+
 async function boot() {
   document.getElementById('sectionKicker').textContent = TITLES[SECTION].kicker;
   document.getElementById('sectionTitle').textContent  = TITLES[SECTION].title;
@@ -61,6 +99,7 @@ async function boot() {
     ITEMS   = items.filter(i => !i.sold);
     ARCHIVE = items.filter(i => i.sold);
     CATS = cats;
+    stateFromUrl();   // фильтры из ссылки — до первого рендера
     renderStream(blocks, collections);
     renderHeaderNav();
     renderFilters();
@@ -375,6 +414,7 @@ function applyNavFilter(link) {
   renderFilters();
   renderGrid();
   updateCatalogChrome();
+  stateToUrl();
   if (activeCat || activeGarment) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -470,6 +510,7 @@ function renderFilters() {
     if (btn) btn.classList.toggle('on', filtersActive());
     renderGrid();
     updateCatalogChrome();
+    stateToUrl();
   };
   ['priceMin', 'priceMax'].forEach(id =>
     document.getElementById(id).addEventListener('input', () => { clearTimeout(t); t = setTimeout(applyPrice, 350); }));
@@ -494,6 +535,7 @@ if (_catChips) _catChips.addEventListener('click', (e) => {
   renderFilters();
   renderGrid();
   updateCatalogChrome();
+  stateToUrl();
   if (activeCat || activeGarment || activeBrand) document.getElementById('gridHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
@@ -532,6 +574,7 @@ document.getElementById('sortMenu')?.addEventListener('click', (e) => {
   toggleSortMenu(false);
   renderSortUI();
   renderGrid();
+  stateToUrl();
 });
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.sort-wrap')) toggleSortMenu(false);

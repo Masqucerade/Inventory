@@ -3731,6 +3731,40 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 .td-card.sel .td-av { background: var(--text); color: var(--bg); border-color: var(--text); }
 
 /* =============================================
+   ЗАЯВКИ С САЙТА (корзина)
+   ============================================= */
+.orders-list { display: flex; flex-direction: column; gap: 10px; }
+.order-card {
+  background: var(--card); border: 1px solid var(--card-b);
+  border-radius: 16px; padding: 13px 14px;
+}
+.order-card.done { opacity: .55; }
+.order-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; }
+.order-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; flex-shrink: 0; }
+.order-status-dot.ok { background: #4ade80; }
+.order-contact a { color: var(--accent); text-decoration: none; }
+.order-contact { color: var(--text2); font-size: 12.5px; }
+.order-date { margin-left: auto; color: var(--text3); font-size: 11.5px; }
+.order-items { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+.order-item { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--text2); }
+.order-item em { font-style: normal; color: var(--text3); }
+.order-item b { flex-shrink: 0; color: var(--text); font-weight: 600; }
+.order-total { border-top: 1px solid var(--sep); padding-top: 6px; margin-top: 3px; font-weight: 600; color: var(--text); }
+.order-comment {
+  margin-top: 9px; padding: 8px 11px; border-radius: 10px;
+  background: var(--fill); font-size: 12.5px; color: var(--text2); line-height: 1.5;
+}
+.order-actions { display: flex; gap: 8px; margin-top: 11px; }
+.order-toggle, .order-del {
+  padding: 7px 13px; border-radius: 9px; cursor: pointer;
+  font-size: 12px; font-weight: 600; border: 1px solid var(--sep);
+  background: transparent; color: var(--text2);
+}
+.order-toggle { background: rgba(74,222,128,.12); border-color: rgba(74,222,128,.3); color: #4ade80; }
+.order-card.done .order-toggle { background: transparent; border-color: var(--sep); color: var(--text2); }
+.order-del:active, .order-toggle:active { transform: scale(.96); }
+
+/* =============================================
    TERMINAL — журнал действий в виде командной строки
    ============================================= */
 .term-window {

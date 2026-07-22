@@ -4986,12 +4986,13 @@ class App {
     const el = document.getElementById('siteContent');
     if (!this._siteSubTab) this._siteSubTab = 'showcase';
 
-    const [blocks, cols, faq] = await Promise.all([
-      this.db.getBlocks(), this.db.getCollections(), this.db.getFaqItems(),
+    const [blocks, cols, faq, orders] = await Promise.all([
+      this.db.getBlocks(), this.db.getCollections(), this.db.getFaqItems(), this.db.getOrders(),
     ]);
     this._blocks = blocks;
     this._collections = cols;
     this._faqCache = faq;
+    this._orders = orders;
 
     // Единый порядок: блоки и подборки в одной последовательности, чтобы их
     // можно было чередовать. Старые независимые нумерации могли пересекаться —
@@ -5038,6 +5039,7 @@ class App {
         <div class="proj-tabs-glider"></div>
         ${tabBtn('showcase', 'Витрина', stream.length)}
         ${tabBtn('items', 'Товары', onSite.length)}
+        ${tabBtn('orders', 'Заявки', orders.filter(o => o.status === 'new').length)}
         ${tabBtn('faq', 'FAQ', faq.length)}
       </div>`;
 
@@ -5074,9 +5076,10 @@ class App {
   _renderSitePane(animate = false) {
     const pane = document.getElementById('sitePane');
     if (!pane) return;
-    if (this._siteSubTab === 'items')    this._renderSiteItems(pane);
-    else if (this._siteSubTab === 'faq') this._renderSiteFaq(pane);
-    else                                 this._renderSiteShowcase(pane);
+    if (this._siteSubTab === 'items')       this._renderSiteItems(pane);
+    else if (this._siteSubTab === 'faq')    this._renderSiteFaq(pane);
+    else if (this._siteSubTab === 'orders') this._renderSiteOrders(pane);
+    else                                    this._renderSiteShowcase(pane);
     if (animate) { pane.classList.remove('pane-in'); void pane.offsetWidth; pane.classList.add('pane-in'); }
   }
 
@@ -5123,6 +5126,58 @@ class App {
         <div class="site-item-price">${it.price ? fmtMoney(it.price) : '—'}</div>
       </button>`;
     }).join('')}</div>`;
+  }
+
+  /* ── Вкладка «Заявки»: корзина с сайта ── */
+  _renderSiteOrders(pane) {
+    const orders = this._orders || [];
+    if (!orders.length) {
+      pane.innerHTML = `<div class="site-mgmt-empty"><span>🛍</span>Заявок пока нет — они появятся здесь и придут в Telegram</div>`;
+      return;
+    }
+    const fmtD = ts => new Date(ts).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const isTg = c => /^@|t\.me/i.test(c);
+    pane.innerHTML = `<div class="orders-list">${orders.map(o => {
+      const total = (o.items || []).reduce((s, i) => s + (i.price || 0), 0);
+      const contactLink = isTg(o.contact)
+        ? `<a href="https://t.me/${this.esc(o.contact.replace(/^@/, '').replace(/^.*t\.me\//i, ''))}" target="_blank" rel="noopener">${this.esc(o.contact)}</a>`
+        : this.esc(o.contact);
+      return `
+      <div class="order-card${o.status === 'done' ? ' done' : ''}" data-order-id="${o.id}">
+        <div class="order-head">
+          <span class="order-status-dot${o.status === 'done' ? ' ok' : ''}"></span>
+          <b>${this.esc(o.name || 'Без имени')}</b>
+          <span class="order-contact">${contactLink}</span>
+          <span class="order-date">${fmtD(o.createdAt)}</span>
+        </div>
+        <div class="order-items">
+          ${(o.items || []).map(i => `<div class="order-item">
+            <span>${this.esc(i.name)}${i.size ? ` <em>· ${this.esc(i.size)}</em>` : ''}</span>
+            <b>${i.price != null ? fmtMoney(i.price) : '—'}</b>
+          </div>`).join('')}
+          <div class="order-item order-total"><span>Итого</span><b>${fmtMoney(total)}</b></div>
+        </div>
+        ${o.comment ? `<div class="order-comment">${this.esc(o.comment)}</div>` : ''}
+        <div class="order-actions">
+          <button class="order-toggle" data-id="${o.id}">${o.status === 'done' ? 'Вернуть в новые' : 'Обработано ✓'}</button>
+          <button class="order-del" data-id="${o.id}">Удалить</button>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+
+    pane.querySelectorAll('.order-toggle').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const o = orders.find(x => x.id === btn.dataset.id);
+        await this.db.patchOrder(o.id, { status: o.status === 'done' ? 'new' : 'done' });
+        this.renderSiteView();
+      }));
+    pane.querySelectorAll('.order-del').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const ok = await this.confirm('Удалить заявку?');
+        if (!ok) return;
+        await this.db.deleteOrder(btn.dataset.id);
+        this.renderSiteView();
+      }));
   }
 
   /* ── Вкладка «FAQ» ── */
