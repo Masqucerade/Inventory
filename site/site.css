@@ -1004,6 +1004,17 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
 /* Режим «Фото целиком»: во всю ширину экрана, высота по самому фото */
 .site-cover.fit-auto { height: auto; min-height: 0; }
 .site-cover.fit-auto img { height: auto; }
+/* Большие экраны: фото короче вьюпорта — дотягиваем секцию до полной высоты
+   (фото по центру, фон вокруг), чтобы первый экран оставался чистым и каталог
+   не выглядывал из-под обложки. На мобильных не применяем — там пустота хуже. */
+@media (min-width: 900px) {
+  .site-cover.fit-auto {
+    min-height: calc(100vh - var(--header-h, 56px));
+    min-height: calc(100svh - var(--header-h, 56px));
+    display: flex; align-items: center;
+  }
+  .site-cover.fit-auto img { width: 100%; }
+}
 /* Есть обложка → заголовок раздела не дублируем, а кнопка «Фильтры»
    переезжает в строку заголовка «Все товары» (как у Gurbich) */
 body.has-cover .catalog-hero { display: none; }
