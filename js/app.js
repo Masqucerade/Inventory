@@ -953,6 +953,39 @@ class App {
     });
     document.getElementById('bulkDeliveryBtn').addEventListener('click', () => this.openDeliveryModal());
     document.getElementById('bulkOwnerBtn').addEventListener('click', () => this.openBulkOwnerModal());
+    document.getElementById('bulkStatusBtn').addEventListener('click', () => {
+      if (!this._selectedIds.size) return;
+      document.getElementById('bulkStatusDesc').textContent = this._bulkDesc();
+      document.getElementById('bulkStatusList').innerHTML = STATUSES.map(s => `
+        <div class="settings-row bulk-status-row" data-status="${s.id}">
+          <div class="settings-row-icon" style="background:color-mix(in srgb, ${s.color} 22%, transparent)">${s.icon}</div>
+          <div class="settings-row-info"><div class="settings-row-title">${s.label}</div></div>
+        </div>`).join('');
+      this.openModal('bulkStatusModal');
+    });
+    document.getElementById('bulkStatusClose').addEventListener('click', () => this.closeModal('bulkStatusModal'));
+    document.getElementById('bulkStatusList').addEventListener('click', async (e) => {
+      const row = e.target.closest('.bulk-status-row');
+      if (!row) return;
+      const s = STATUSES.find(x => x.id === row.dataset.status);
+      this.closeModal('bulkStatusModal');
+      await this.applyBulk({ orderStatus: s.id },
+        `Статус «${s.label}» установлен`, `Статус: ${s.label} ✓`);
+    });
+
+    document.getElementById('bulkDeleteBtn').addEventListener('click', () => this.bulkDelete());
+
+    // «Выбрать все» — все товары текущего списка (с учётом фильтров и поиска)
+    document.getElementById('selectAllBtn').addEventListener('click', async () => {
+      const ids = [...document.querySelectorAll('#inventoryList .item-card')]
+        .map(c => c.dataset.id).filter(Boolean);
+      const allSelected = ids.length && ids.every(id => this._selectedIds.has(id));
+      if (allSelected) ids.forEach(id => this._selectedIds.delete(id));
+      else ids.forEach(id => this._selectedIds.add(id));
+      await this.renderInventoryList();   // список перерисовывается асинхронно
+      this.updateDeliveryBar();
+    });
+
     document.getElementById('bulkParamsBtn').addEventListener('click', () => {
       if (!this._selectedIds.size) return;
       document.getElementById('bulkParamsDesc').textContent = this._bulkDesc();
@@ -2117,10 +2150,37 @@ class App {
     const word = n === 1 ? 'товар' : n > 1 && n < 5 ? 'товара' : 'товаров';
     document.getElementById('deliveryBarCount').textContent =
       n === 0 ? 'Выберите товары' : `${n} ${word}`;
-    ['bulkParcelBtn', 'bulkDeliveryBtn', 'bulkOwnerBtn', 'bulkParamsBtn', 'bulkFlagsBtn'].forEach(id => {
+    ['bulkStatusBtn', 'bulkParcelBtn', 'bulkDeliveryBtn', 'bulkOwnerBtn', 'bulkParamsBtn', 'bulkFlagsBtn', 'bulkDeleteBtn'].forEach(id => {
       const b = document.getElementById(id);
       if (b) b.disabled = n === 0;
     });
+    // «Выбрать все» ↔ «Снять всё» — по состоянию текущего списка.
+    // Пока список перерисовывается (скелетон, карточек нет) — подпись не трогаем.
+    const saBtn = document.getElementById('selectAllBtn');
+    if (saBtn) {
+      const ids = [...document.querySelectorAll('#inventoryList .item-card')]
+        .map(c => c.dataset.id).filter(Boolean);
+      if (ids.length) saBtn.textContent =
+        ids.every(id => this._selectedIds.has(id)) ? 'Снять всё' : 'Выбрать все';
+    }
+  }
+
+  /* Bulk: удаление выбранных — одним запросом, с подтверждением */
+  async bulkDelete() {
+    const ids = [...this._selectedIds];
+    if (!ids.length) return;
+    const ok = await this.confirm(`Удалить выбранные товары (${ids.length} шт.)? Это действие нельзя отменить.`);
+    if (!ok) return;
+    try {
+      await this.db.bulkDeleteItems(ids);
+    } catch (e) {
+      this.toast('Ошибка — проверьте соединение');
+      return;
+    }
+    await this.db.logAction('item_delete', `Удалено товаров: ${ids.length}`, { level: 'danger' });
+    await this.loadData();
+    this.exitSelectMode();
+    this.toast(`Удалено: ${ids.length} ✓`);
   }
 
   _bulkDesc() {
@@ -5258,11 +5318,17 @@ class App {
      ────────────────────────────────────────── */
   openModal(id) {
     const el = document.getElementById(id);
-    requestAnimationFrame(() => el.classList.add('open'));
+    // Флаг гасит гонку: если closeModal успел раньше отложенного rAF,
+    // класс 'open' уже не добавляем — иначе модалка «залипает» открытой
+    el._closing = false;
+    requestAnimationFrame(() => { if (!el._closing) el.classList.add('open'); });
   }
 
   closeModal(id) {
-    document.getElementById(id)?.classList.remove('open');
+    const el = document.getElementById(id);
+    if (!el) return;
+    el._closing = true;
+    el.classList.remove('open');
   }
 
   /* ──────────────────────────────────────────

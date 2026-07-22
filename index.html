@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=96">
+  <link rel="stylesheet" href="css/app.css?v=97">
 </head>
 <body>
 
@@ -477,9 +477,14 @@
 <div class="delivery-bar hidden" id="deliveryBar">
   <div class="delivery-bar-top">
     <span id="deliveryBarCount" class="delivery-bar-count">Выберите товары</span>
+    <button id="selectAllBtn" class="select-all-btn" type="button">Выбрать все</button>
     <button id="deliveryBarCancel" class="delivery-bar-cancel">✕</button>
   </div>
   <div class="select-bar-actions">
+    <button id="bulkStatusBtn" class="select-bar-btn" disabled>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <span>Статус</span>
+    </button>
     <button id="bulkParcelBtn" class="select-bar-btn" disabled>
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       <span>Посылка</span>
@@ -500,6 +505,29 @@
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       <span>Флаги</span>
     </button>
+    <button id="bulkDeleteBtn" class="select-bar-btn danger" disabled>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      <span>Удалить</span>
+    </button>
+  </div>
+</div>
+
+<!-- Bulk: смена статуса выбранных товаров -->
+<div class="modal" id="bulkStatusModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="bulkStatusClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title">Статус товаров</span>
+      <span style="width:28px"></span>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <span id="bulkStatusDesc" style="font-size:13px;color:var(--text2)"></span>
+      </div>
+      <div class="settings-section" id="bulkStatusList"></div>
+    </div>
   </div>
 </div>
 
@@ -1133,8 +1161,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=50"></script>
+<script src="js/db.js?v=51"></script>
 <script src="js/backup.js?v=44"></script>
-<script src="js/app.js?v=110"></script>
+<script src="js/app.js?v=113"></script>
 </body>
 </html>

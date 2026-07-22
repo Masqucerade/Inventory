@@ -792,6 +792,18 @@ app.delete('/api/items/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// Массовое удаление выбранных товаров — одним запросом (режим выделения)
+app.post('/api/items/bulk-delete', (req, res) => {
+  const ids = req.body?.ids;
+  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids required' });
+  const db  = load();
+  const set = new Set(ids);
+  const before = (db.items || []).length;
+  db.items = (db.items || []).filter(i => !set.has(i.id));
+  save(db);
+  res.json({ ok: true, deleted: before - db.items.length });
+});
+
 /* ─── OWNERS ─── */
 app.get('/api/owners', (req, res) => res.json(load().owners || []));
 

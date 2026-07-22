@@ -255,10 +255,15 @@ class InventoryDB {
     await fetch(`/api/plans/${id}`, { method: 'DELETE' });
   }
 
-  /* ─── BULK: патч нескольких товаров одним запросом ─── */
+  /* ─── BULK: патч/удаление нескольких товаров одним запросом ─── */
   async bulkPatchItems(ids, patch) {
     const r = await fetch('/api/items/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ids, patch }) });
     if (!r.ok) throw new Error('bulk failed');
+    return r.json();
+  }
+  async bulkDeleteItems(ids) {
+    const r = await fetch('/api/items/bulk-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ids }) });
+    if (!r.ok) throw new Error('bulk delete failed');
     return r.json();
   }
 
