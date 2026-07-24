@@ -1144,14 +1144,22 @@ class App {
       document.getElementById('siteDescGroup').style.display = e.target.checked ? '' : 'none';
     });
 
-    /* Тип одежды сам подставляется из категории/названия (пока не выбран вручную) */
-    document.getElementById('fieldCategory').addEventListener('change', () => this._autoGarment());
+    /* Автоподбор по названию: категория, бренд и тип одежды —
+       пока поле пустое и не заполнялось вручную */
+    document.getElementById('fieldCategory').addEventListener('change', () => {
+      this._catManual = true;   // событие change прилетает только от пользователя
+      this._autoGarment();
+    });
     let _agT;
     document.getElementById('fieldName').addEventListener('input', () => {
-      clearTimeout(_agT); _agT = setTimeout(() => this._autoGarment(), 400);
+      clearTimeout(_agT);
+      _agT = setTimeout(() => { this._autoCategory(); this._autoBrand(); this._autoGarment(); }, 400);
     });
     document.getElementById('fieldGarment').addEventListener('change', () => {
       this._garmentManual = true;   // выбрал руками — больше не трогаем
+    });
+    document.getElementById('fieldBrand').addEventListener('input', () => {
+      this._brandManual = true;
     });
 
     /* Photo.
@@ -1963,7 +1971,9 @@ class App {
 
     /* Reset */
     ['fieldName','fieldNotes','fieldPrice','fieldOldPrice','fieldBuyPrice','fieldDeliveryCost','fieldSiteDesc','fieldMeasurements','fieldGarment','fieldBrand','fieldCondition','fieldSex'].forEach(k => document.getElementById(k).value = '');
-    this._garmentManual = false;   // автоподбор типа одежды снова разрешён
+    this._garmentManual = false;   // автоподбор снова разрешён
+    this._brandManual   = false;
+    this._catManual     = false;
     document.getElementById('fieldIsMonarc').checked   = false;
     document.getElementById('fieldShowOnSite').checked = false;
     document.getElementById('siteDescGroup').style.display = 'none';
@@ -2303,6 +2313,119 @@ class App {
     for (const [g, keys] of App.GARMENT_RULES)
       if (keys.some(k => s.includes(k))) return g;
     return '';
+  }
+
+  /* ── Бренд по названию: свои шаблоны + известные бренды + алиасы ── */
+  static BRAND_LIST = [
+    'Balenciaga', 'Vetements', 'Rick Owens', 'Chrome Hearts', 'MM6 Maison Margiela', 'Maison Margiela',
+    'Raf Simons', 'Undercover', 'Yohji Yamamoto', 'Y-3', 'Comme des Garçons', 'Junya Watanabe',
+    'Issey Miyake', 'Helmut Lang', 'Number (N)ine', 'Enfants Riches Déprimés', 'Saint Laurent',
+    'Y/Project', 'Jean Paul Gaultier', 'Dries Van Noten', 'Ann Demeulemeester', 'Kiko Kostadinov',
+    'Martine Rose', 'JW Anderson', 'Boris Bidjan Saberi', 'Julius', 'Guidi',
+    'Stone Island', 'C.P. Company', 'Off-White', 'Supreme', 'Palace', 'Stussy', 'Stüssy',
+    'A Bathing Ape', 'Bape', 'Kapital', 'Needles', 'Visvim', 'Acne Studios', 'Our Legacy',
+    "Arc'teryx", 'Salomon', 'Diesel', 'Amiri', 'Gallery Dept', 'Denim Tears', 'Cactus Jack',
+    'Corteiz', 'Trapstar', 'Represent', 'Cole Buxton', 'Fear of God', 'Essentials',
+    'Prada', 'Gucci', 'Dior', 'Givenchy', 'Celine', 'Bottega Veneta', 'Louis Vuitton',
+    'Burberry', 'Versace', 'Fendi', 'Loewe', 'Miu Miu', 'Moncler', 'Canada Goose',
+    'Nike', 'Jordan', 'Adidas', 'New Balance', 'Asics', 'Converse', 'Vans', 'Carhartt', 'The North Face',
+  ];
+  static BRAND_ALIASES = {
+    'drkshdw':    'Rick Owens',
+    'рик оуэнс':  'Rick Owens',
+    'баленсиага': 'Balenciaga',
+    'ветементс':  'Vetements',
+    'марджела':   'Maison Margiela',
+    'cdg':        'Comme des Garçons',
+    'erd':        'Enfants Riches Déprimés',
+    'ysl':        'Saint Laurent',
+    'tnf':        'The North Face',
+    'nb':         'New Balance',
+    'mm6':        'MM6 Maison Margiela',
+    'fog':        'Fear of God',
+  };
+
+  _autoBrand() {
+    const el = document.getElementById('fieldBrand');
+    if (!el || el.value.trim() || this._brandManual) return;
+    const name = ' ' + (document.getElementById('fieldName')?.value || '').toLowerCase() + ' ';
+    if (!name.trim()) return;
+    const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const bound = kw => new RegExp(`(^|[^a-zа-яё0-9])${escRe(kw.toLowerCase())}([^a-zа-яё0-9]|$)`, 'i');
+    // Свои шаблоны и бренды товаров — приоритетнее общего списка;
+    // длинные раньше коротких («MM6 Maison Margiela» прежде «Maison Margiela»)
+    const known = [...new Set([
+      ...(this.brands || []).map(b => b.name),
+      ...this.items.map(i => (i.brand || '').trim()).filter(Boolean),
+      ...App.BRAND_LIST,
+    ])].sort((a, b) => b.length - a.length);
+    let hit = known.find(b => bound(b).test(name));
+    if (!hit) {
+      for (const [alias, brand] of Object.entries(App.BRAND_ALIASES))
+        if (bound(alias).test(name)) { hit = brand; break; }
+    }
+    if (hit) el.value = hit;
+  }
+
+  /* ── Категория по названию: ключевые слова (en+ru) ↔ имя заведённой категории ── */
+  static CAT_KEYWORDS = {
+    'зип':      ['zip', 'зип'],
+    'худи':     ['hoodie', 'hoody', 'худи'],
+    'свитшот':  ['sweatshirt', 'crewneck', 'свитшот'],
+    'футболк':  ['tee', 't-shirt', 'tshirt', 'футболк'],
+    'лонгслив': ['longsleeve', 'long sleeve', 'лонгслив'],
+    'рубашк':   ['shirt', 'рубашк'],
+    'поло':     ['polo', 'поло'],
+    'свитер':   ['sweater', 'knit', 'свитер'],
+    'джемпер':  ['jumper', 'джемпер'],
+    'штан':     ['pants', 'trousers', 'sweatpants', 'штан'],
+    'брюк':     ['pants', 'trousers', 'брюк'],
+    'джинс':    ['jeans', 'denim', 'джинс'],
+    'шорт':     ['shorts', 'шорт'],
+    'юбк':      ['skirt', 'юбк'],
+    'курт':     ['jacket', 'курт'],
+    'бомбер':   ['bomber', 'бомбер'],
+    'пухов':    ['puffer', 'пухов'],
+    'пальто':   ['coat', 'пальто'],
+    'ветровк':  ['windbreaker', 'ветровк'],
+    'жилет':    ['vest', 'жилет'],
+    'кроссовк': ['sneaker', 'runner', 'кроссовк'],
+    'ботинк':   ['boot', 'ботинк'],
+    'кед':      ['кед'],
+    'кепк':     ['cap', 'кепк'],
+    'шапк':     ['beanie', 'шапк'],
+    'носк':     ['socks', 'носк'],
+    'сумк':     ['bag', 'сумк'],
+    'рюкзак':   ['backpack', 'рюкзак'],
+    'ремен':    ['belt', 'ремен'],
+    'ремн':     ['belt', 'ремн'],
+    'очк':      ['sunglasses', 'очк'],
+    'цеп':      ['chain', 'цеп'],
+    'кольц':    ['кольц'],
+  };
+
+  _autoCategory() {
+    const sel = document.getElementById('fieldCategory');
+    if (!sel || sel.value || this._catManual) return;
+    const name = ' ' + (document.getElementById('fieldName')?.value || '').toLowerCase() + ' ';
+    if (!name.trim()) return;
+    let best = null, bestScore = 0;
+    for (const c of this.categories || []) {
+      const cn = (c.name || '').toLowerCase();
+      if (!cn) continue;
+      let score = 0;
+      if (name.includes(cn)) score += 100 + cn.length;   // имя категории прямо в названии
+      for (const [stem, kws] of Object.entries(App.CAT_KEYWORDS)) {
+        if (!cn.includes(stem)) continue;
+        if (kws.some(k => name.includes(k))) score += 10 + stem.length;
+      }
+      if (c.parentId) score += 1;   // «Зип-худи» точнее, чем родительская «Худи»
+      if (score > bestScore) { bestScore = score; best = c; }
+    }
+    if (best && bestScore >= 10) {
+      sel.value = best.id;
+      this._autoGarment();   // выбранная категория уточняет и тип одежды
+    }
   }
 
   /* Автопроставление в форме: только пока тип пуст и не выбирался вручную */
