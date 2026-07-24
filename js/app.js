@@ -1976,6 +1976,7 @@ class App {
     this._catManual     = false;
     document.getElementById('fieldIsMonarc').checked   = false;
     document.getElementById('fieldShowOnSite').checked = false;
+    document.getElementById('fieldShowOnAvito').checked = false;
     document.getElementById('siteDescGroup').style.display = 'none';
 
     /* hideCosts: скрываем закупочные поля в форме */
@@ -2022,6 +2023,7 @@ class App {
         document.getElementById('fieldNotes').value = item.notes || '';
         document.getElementById('fieldIsMonarc').checked   = !!item.isMonarc;
         document.getElementById('fieldShowOnSite').checked = !!item.showOnSite;
+        document.getElementById('fieldShowOnAvito').checked = !!item.showOnAvito;
         document.getElementById('fieldSiteDesc').value      = item.description || '';
         document.getElementById('fieldMeasurements').value  = item.measurements || '';
         document.getElementById('siteDescGroup').style.display = item.showOnSite ? '' : 'none';
@@ -2470,6 +2472,7 @@ class App {
       orderStatus: this._selStatus || 'ordered',
       isMonarc:    document.getElementById('fieldIsMonarc').checked,
       showOnSite:   document.getElementById('fieldShowOnSite').checked,
+      showOnAvito:  document.getElementById('fieldShowOnAvito').checked,
       description:  document.getElementById('fieldSiteDesc').value.trim(),
       measurements: document.getElementById('fieldMeasurements').value.trim(),
       photos:       this._photos.map(p => p.full),
@@ -5164,6 +5167,7 @@ class App {
         ${tabBtn('showcase', 'Витрина', stream.length)}
         ${tabBtn('items', 'Товары', onSite.length)}
         ${tabBtn('orders', 'Заявки', orders.filter(o => o.status === 'new').length)}
+        ${tabBtn('avito', 'Авито', (this.items || []).filter(i => i.showOnAvito).length)}
         ${tabBtn('faq', 'FAQ', faq.length)}
       </div>`;
 
@@ -5203,6 +5207,7 @@ class App {
     if (this._siteSubTab === 'items')       this._renderSiteItems(pane);
     else if (this._siteSubTab === 'faq')    this._renderSiteFaq(pane);
     else if (this._siteSubTab === 'orders') this._renderSiteOrders(pane);
+    else if (this._siteSubTab === 'avito')  this._renderSiteAvito(pane);
     else                                    this._renderSiteShowcase(pane);
     if (animate) { pane.classList.remove('pane-in'); void pane.offsetWidth; pane.classList.add('pane-in'); }
   }
@@ -5250,6 +5255,103 @@ class App {
         <div class="site-item-price">${it.price ? fmtMoney(it.price) : '—'}</div>
       </button>`;
     }).join('')}</div>`;
+  }
+
+  /* ── Вкладка «Авито»: статус связки, заказы, объявления со статистикой ── */
+  async _renderSiteAvito(pane) {
+    pane.innerHTML = `<div class="site-mgmt-empty"><span>🅰️</span>Подключаемся к Авито…</div>`;
+    const status = await this.db.getAvitoStatus();
+
+    if (!status.configured) {
+      pane.innerHTML = `
+        <div class="avito-setup">
+          <div class="site-sec-title">Авито не подключено</div>
+          <div class="site-sec-hint" style="margin-top:8px;line-height:1.6">
+            1. Получите ключи API: avito.ru → Личный кабинет → Настройки → Интеграции<br>
+            2. В Railway добавьте переменные <b>AVITO_CLIENT_ID</b> и <b>AVITO_CLIENT_SECRET</b><br>
+            3. Через минуту эта вкладка оживёт: заказы, объявления, фид Автозагрузки
+          </div>
+        </div>`;
+      return;
+    }
+    if (status.error) {
+      pane.innerHTML = `<div class="avito-setup">
+        <div class="site-sec-title">Авито: ошибка подключения</div>
+        <div class="site-sec-hint" style="margin-top:8px">${this.esc(status.error)} — проверьте ключи в Railway</div>
+      </div>`;
+      return;
+    }
+
+    const AV_ORDER_ST = {
+      on_confirmation: ['Ждёт подтверждения', '#fbbf24'], ready_to_ship: ['Собрать и отправить', '#fb923c'],
+      in_transit: ['В пути', '#93c5fd'], delivered: ['Доставлен', '#4ade80'], canceled: ['Отменён', '#f87171'],
+      on_return: ['Возврат', '#f87171'], in_dispute: ['Спор', '#f87171'], closed: ['Закрыт', '#9ca3af'],
+    };
+    const AV_ITEM_ST = { active: ['Активно', '#4ade80'], old: ['Завершено', '#9ca3af'],
+      blocked: ['Заблокировано', '#f87171'], rejected: ['Отклонено', '#f87171'], removed: ['Удалено', '#9ca3af'] };
+
+    pane.innerHTML = `
+      <div class="site-sec-head">
+        <div>
+          <div class="site-sec-title">Авито · ${this.esc(status.account?.name || '')}</div>
+          <div class="site-sec-hint">В фиде: ${(this.items || []).filter(i => i.showOnAvito).length} тов. — включается тумблером «На Авито» в карточке</div>
+        </div>
+        <button class="site-mini-add" id="avitoFeedCopy">Скопировать URL фида</button>
+      </div>
+      <div id="avitoOrdersWrap"><div class="site-mgmt-empty"><span>📦</span>Загружаем заказы…</div></div>
+      <div id="avitoItemsWrap" style="margin-top:14px"><div class="site-mgmt-empty"><span>📋</span>Загружаем объявления…</div></div>`;
+
+    document.getElementById('avitoFeedCopy')?.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(status.feedUrl); this.toast('URL фида скопирован ✓ — вставьте в Авито → Автозагрузка'); }
+      catch { this.toast(status.feedUrl); }
+    });
+
+    /* Заказы и объявления грузим параллельно и независимо */
+    this.db.getAvitoOrders().then(d => {
+      const orders = d.orders || d.result || [];
+      const el = document.getElementById('avitoOrdersWrap');
+      if (!el) return;
+      if (!orders.length) { el.innerHTML = `<div class="site-mgmt-empty"><span>📦</span>Заказов Авито Доставки пока нет</div>`; return; }
+      el.innerHTML = `<div class="settings-section">${orders.map(o => {
+        const st = AV_ORDER_ST[o.status] || [o.status || '—', '#9ca3af'];
+        const title = (o.items || []).map(x => x.title || x.name).filter(Boolean).join(', ') || `Заказ ${o.id ?? ''}`;
+        const price = o.prices?.total ?? o.price ?? o.totalPrice ?? null;
+        const when  = o.createdAt ? new Date((o.createdAt < 1e12 ? o.createdAt * 1000 : o.createdAt)).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+        return `<div class="settings-row" style="cursor:default">
+          <div class="settings-row-icon" style="background:color-mix(in srgb, ${st[1]} 22%, transparent)">📦</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">${this.esc(title)}</div>
+            <div class="settings-row-sub" style="color:${st[1]}">${st[0]}${when ? ` · ${when}` : ''}</div>
+          </div>
+          ${price != null ? `<b style="flex-shrink:0;font-size:13px">${fmtMoney(price)}</b>` : ''}
+        </div>`;
+      }).join('')}</div>`;
+    }).catch(e => {
+      const el = document.getElementById('avitoOrdersWrap');
+      if (el) el.innerHTML = `<div class="site-mgmt-empty"><span>📦</span>Заказы: ${this.esc(e.message)}</div>`;
+    });
+
+    this.db.getAvitoItems().then(d => {
+      const el = document.getElementById('avitoItemsWrap');
+      if (!el) return;
+      const items = d.items || [];
+      if (!items.length) { el.innerHTML = `<div class="site-mgmt-empty"><span>📋</span>Объявлений нет — включите товары в фид и настройте Автозагрузку</div>`; return; }
+      el.innerHTML = `<div class="site-sec-title" style="margin-bottom:8px">Объявления · ${items.length} <span style="font-weight:400;font-size:11px;color:var(--text3)">просмотры/контакты/избранное за 30 дней</span></div>
+      <div class="settings-section">${items.map(it => {
+        const st = AV_ITEM_ST[it.status] || [it.status || '—', '#9ca3af'];
+        const s = d.stats?.[it.id];
+        return `<div class="settings-row" style="cursor:default">
+          <div class="settings-row-icon" style="background:color-mix(in srgb, ${st[1]} 22%, transparent)">🅰️</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">${it.url ? `<a href="${this.esc(it.url)}" target="_blank" rel="noopener" style="color:inherit">${this.esc(it.title || '—')}</a>` : this.esc(it.title || '—')}</div>
+            <div class="settings-row-sub"><span style="color:${st[1]}">${st[0]}</span>${it.price ? ` · ${fmtMoney(it.price)}` : ''}${s ? ` · 👁 ${s.views} · 💬 ${s.contacts} · ❤️ ${s.favorites}` : ''}</div>
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+    }).catch(e => {
+      const el = document.getElementById('avitoItemsWrap');
+      if (el) el.innerHTML = `<div class="site-mgmt-empty"><span>📋</span>Объявления: ${this.esc(e.message)}</div>`;
+    });
   }
 
   /* ── Вкладка «Заявки»: корзина с сайта ── */

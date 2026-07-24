@@ -3730,6 +3730,12 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 .td-card.sel { background: var(--fill); border-color: color-mix(in srgb, var(--text) 38%, transparent); }
 .td-card.sel .td-av { background: var(--text); color: var(--bg); border-color: var(--text); }
 
+/* ── Авито: карточка настройки ── */
+.avito-setup {
+  background: var(--card); border: 1px solid var(--card-b);
+  border-radius: 16px; padding: 16px;
+}
+
 /* =============================================
    ЗАЯВКИ С САЙТА (корзина)
    ============================================= */

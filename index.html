@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=98">
+  <link rel="stylesheet" href="css/app.css?v=99">
 </head>
 <body>
 
@@ -393,6 +393,17 @@
               <span class="monarc-toggle-slider"></span>
             </label>
           </div>
+          <div class="form-divider"></div>
+          <div class="form-group monarc-form-row">
+            <div>
+              <span class="form-label" style="margin:0">На Авито</span>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">Включить в фид Автозагрузки Авито</div>
+            </div>
+            <label class="monarc-toggle site-toggle">
+              <input type="checkbox" id="fieldShowOnAvito">
+              <span class="monarc-toggle-slider"></span>
+            </label>
+          </div>
           <div class="form-group" id="siteDescGroup" style="display:none">
             <label class="form-label">Описание для сайта</label>
             <textarea id="fieldSiteDesc" class="form-input form-textarea" placeholder="Описание, которое увидят клиенты…" rows="3"></textarea>
@@ -626,6 +637,14 @@
         <div class="settings-row bulk-flag-btn" data-patch='{"showOnSite":false}'>
           <div class="settings-row-icon gray">🌐</div>
           <div class="settings-row-info"><div class="settings-row-title">Убрать с сайта</div></div>
+        </div>
+        <div class="settings-row bulk-flag-btn" data-patch='{"showOnAvito":true}'>
+          <div class="settings-row-icon green">🅰️</div>
+          <div class="settings-row-info"><div class="settings-row-title">Выставить на Авито</div></div>
+        </div>
+        <div class="settings-row bulk-flag-btn" data-patch='{"showOnAvito":false}'>
+          <div class="settings-row-icon gray">🅰️</div>
+          <div class="settings-row-info"><div class="settings-row-title">Убрать с Авито</div></div>
         </div>
       </div>
     </div>
@@ -1161,8 +1180,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=52"></script>
+<script src="js/db.js?v=53"></script>
 <script src="js/backup.js?v=45"></script>
-<script src="js/app.js?v=116"></script>
+<script src="js/app.js?v=117"></script>
 </body>
 </html>

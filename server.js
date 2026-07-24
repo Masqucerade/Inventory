@@ -643,6 +643,146 @@ app.post('/api/public/order', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ═══ AVITO: API-клиент, фид Автозагрузки, вебхук сообщений ═══
+   Ключи — env AVITO_CLIENT_ID / AVITO_CLIENT_SECRET (Railway). Без них все
+   авито-функции просто выключены. Секрет фида/вебхука выводится из client_secret. */
+const AVITO_ID     = (process.env.AVITO_CLIENT_ID || '').trim();
+const AVITO_SECRET = (process.env.AVITO_CLIENT_SECRET || '').trim();
+const AVITO_ON     = !!(AVITO_ID && AVITO_SECRET);
+const AVITO_KEY    = AVITO_ON ? crypto.createHash('sha1').update('mq-avito:' + AVITO_SECRET).digest('hex').slice(0, 20) : '';
+
+let _avitoTok = { t: null, exp: 0 };
+async function avitoToken() {
+  if (_avitoTok.t && Date.now() < _avitoTok.exp - 60_000) return _avitoTok.t;
+  const r = await fetch('https://api.avito.ru/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: AVITO_ID, client_secret: AVITO_SECRET }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!d.access_token) throw new Error(d.error_description || d.error || 'Авито: не удалось получить токен');
+  _avitoTok = { t: d.access_token, exp: Date.now() + (d.expires_in || 3600) * 1000 };
+  return _avitoTok.t;
+}
+
+async function avitoApi(pathPart, opts = {}) {
+  const tok = await avitoToken();
+  const r = await fetch('https://api.avito.ru' + pathPart, {
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    signal: AbortSignal.timeout(15_000),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error?.message || d.message || d.error_description || `Авито: HTTP ${r.status}`);
+  return d;
+}
+
+let _avitoSelf = null;
+async function avitoSelf() {
+  if (!_avitoSelf) _avitoSelf = await avitoApi('/core/v1/accounts/self');
+  return _avitoSelf;
+}
+
+// Регистрация вебхука сообщений (прод; Авито требует ответ ≤2с и HTTPS)
+async function avitoRegisterWebhook() {
+  if (!AVITO_ON) return;
+  try {
+    await avitoApi('/messenger/v3/webhook', {
+      method: 'POST',
+      body: JSON.stringify({ url: `https://${CANONICAL_HOST}/avito/webhook/${AVITO_KEY}` }),
+    });
+    console.log('Avito: вебхук сообщений зарегистрирован');
+  } catch (e) { console.error('Avito webhook:', e.message); }
+}
+
+/* Вебхук: входящее сообщение с Авито → Telegram root'ам. Отвечаем 200 сразу. */
+app.post('/avito/webhook/:token', (req, res) => {
+  if (!AVITO_ON || req.params.token !== AVITO_KEY) return res.status(404).end();
+  res.json({ ok: true });
+  try {
+    const p = req.body?.payload;
+    if (p?.type !== 'message') return;
+    const v = p.value || {};
+    if (_avitoSelf && v.author_id === _avitoSelf.id) return;   // свои исходящие не шумят
+    const text = v.content?.text || '[вложение]';
+    const msg =
+      `<b>MASQUCERADE INC.</b>\n<i>💬 Сообщение с Авито</i>\n\n` +
+      `${escAttr(String(text).slice(0, 500))}` +
+      `\n\nОтветить: avito.ru → Сообщения`;
+    const token = process.env.TG_LOG_TOKEN;
+    if (!token) return;
+    const sent = new Set();
+    if (process.env.TG_LOG_CHAT) { tgSend(token, process.env.TG_LOG_CHAT, msg); sent.add(String(process.env.TG_LOG_CHAT)); }
+    (async () => {
+      for (const u of (load().users || [])) {
+        if (u.role !== 'root' || !u.tgChatId) continue;
+        const chatId = await resolveTgChat(token, u.tgChatId);
+        if (!chatId || sent.has(String(chatId))) continue;
+        sent.add(String(chatId));
+        tgSend(token, chatId, msg);
+      }
+    })().catch(() => {});
+  } catch (_) {}
+});
+
+/* Фид Автозагрузки: Авито периодически забирает XML и сам создаёт/обновляет/
+   закрывает объявления. В фиде — товары с галочкой «На Авито», не проданные. */
+const AVITO_GOODS_TYPE = { m: 'Мужская одежда', w: 'Женская одежда', uni: 'Мужская одежда' };
+const AVITO_COND = { new: 'Новое с биркой', excellent: 'Отличное', good: 'Хорошее' };
+
+app.get('/avito/feed.xml', (req, res) => {
+  if (!AVITO_ON || req.query.key !== AVITO_KEY) return res.status(404).end();
+  const db = load();
+  const o  = `https://${CANONICAL_HOST}`;
+  const escX = s => String(s ?? '').replace(/[<>&'"]/g, c =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+  const items = (db.items || []).filter(i => i.showOnAvito && !isSoldOut(i));
+  const ads = items.map(i => {
+    const photos  = (Array.isArray(i.photos) && i.photos.length ? i.photos : (i.photo ? [i.photo] : [])).slice(0, 10);
+    const catName = (db.categories || []).find(c => c.id === i.categoryId)?.name || '';
+    const sizes   = Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0).map(s => s.size).filter(Boolean) : [];
+    const desc = [
+      i.description || '',
+      i.condition ? `Состояние: ${AVITO_COND[i.condition]}.` : '',
+      sizes.length ? `Размеры в наличии: ${sizes.join(', ')}.` : '',
+      'Только оригинал. Отправка по России и всему миру.',
+    ].filter(Boolean).join('\n\n');
+    // Фото — через конвертер в JPEG: Авито не принимает WebP
+    const imgs = photos.map(p =>
+      `<Image url="${escX(o + '/avito-img/' + path.basename(String(p)).replace(/\.\w+$/, '') + '.jpg')}"/>`).join('');
+    return `  <Ad>
+    <Id>${escX(i.id)}</Id>
+    <Title>${escX(i.name)}</Title>
+    <Description><![CDATA[${desc}]]></Description>
+    <Price>${Math.max(1, Math.round(i.price || 0))}</Price>
+    <Category>Одежда, обувь, аксессуары</Category>
+    ${i.sex && AVITO_GOODS_TYPE[i.sex] ? `<GoodsType>${AVITO_GOODS_TYPE[i.sex]}</GoodsType>` : ''}
+    ${catName ? `<GoodsSubType>${escX(catName)}</GoodsSubType>` : ''}
+    <Condition>${AVITO_COND[i.condition] || 'Отличное'}</Condition>
+    ${i.brand ? `<Brand>${escX(i.brand)}</Brand>` : ''}
+    ${sizes.length ? `<Size>${escX(sizes[0])}</Size>` : ''}
+    <Images>${imgs}</Images>
+  </Ad>`;
+  });
+  res.type('application/xml').send(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<Ads formatVersion="3" target="Avito.ru">\n${ads.join('\n')}\n</Ads>\n`);
+});
+
+/* Фото для Авито: webp → jpeg на лету, кэш на диске (Авито не ест webp) */
+app.get('/avito-img/:name', async (req, res) => {
+  const base = path.basename(req.params.name).replace(/\.jpg$/i, '');
+  const src = ['.webp', '.jpg', '.jpeg', '.png'].map(e => path.join(PHOTOS_DIR, base + e)).find(p => fs.existsSync(p));
+  if (!src) return res.status(404).end();
+  if (/\.jpe?g$/i.test(src)) return res.sendFile(src, { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } });
+  if (!sharp) return res.status(404).end();
+  const cache = path.join(PHOTOS_DIR, base + '-avito.jpg');
+  try {
+    if (!fs.existsSync(cache)) fs.writeFileSync(cache, await sharp(src).jpeg({ quality: 90 }).toBuffer());
+    res.sendFile(cache, { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } });
+  } catch (e) { res.status(500).end(); }
+});
+
 // Всё остальное под /api требует валидный токен
 app.use('/api', (req, res, next) => {
   // private+no-cache: браузер всегда сверяется с сервером (ETag), но если
@@ -665,6 +805,57 @@ app.use('/api/faq',         (req, res, next) => requireAccess('site')(req, res, 
 app.use('/api/guides',      (req, res, next) => requireAccess('faq')(req, res, next));
 app.use(['/api/blocks', '/api/collections'], (req, res, next) => requireAccess('site')(req, res, next));
 app.use('/api/orders',      (req, res, next) => requireAccess('site')(req, res, next));
+app.use('/api/avito',       (req, res, next) => requireAccess('site')(req, res, next));
+
+/* ─── АВИТО: данные для вкладки в панели ─── */
+app.get('/api/avito/status', async (req, res) => {
+  if (!AVITO_ON) return res.json({ configured: false });
+  let account = null;
+  try { const s = await avitoSelf(); account = { id: s.id, name: s.name || s.email || '' }; }
+  catch (e) { return res.json({ configured: true, error: e.message }); }
+  res.json({
+    configured: true,
+    account,
+    feedUrl: `https://${CANONICAL_HOST}/avito/feed.xml?key=${AVITO_KEY}`,
+  });
+});
+
+app.get('/api/avito/items', async (req, res) => {
+  if (!AVITO_ON) return res.status(400).json({ error: 'Ключи Авито не настроены' });
+  try {
+    const list = await avitoApi('/core/v1/items?per_page=100&status=active,old,blocked,rejected,removed');
+    const items = list.resources || list.items || [];
+    const stats = {};
+    // Статистика за 30 дней — опциональна: её отказ не роняет список
+    try {
+      const self = await avitoSelf();
+      const ids = items.map(i => i.id).filter(Boolean).slice(0, 200);
+      if (ids.length) {
+        const day = d => d.toISOString().slice(0, 10);
+        const st = await avitoApi(`/stats/v1/accounts/${self.id}/items`, {
+          method: 'POST',
+          body: JSON.stringify({
+            itemIds: ids,
+            dateFrom: day(new Date(Date.now() - 30 * 86400_000)), dateTo: day(new Date()),
+            fields: ['uniqViews', 'uniqContacts', 'uniqFavorites'],
+            periodGrouping: 'month',
+          }),
+        });
+        (st.result?.items || []).forEach(s => {
+          const sum = f => (s.stats || []).reduce((a, x) => a + (x[f] || 0), 0);
+          stats[s.itemId] = { views: sum('uniqViews'), contacts: sum('uniqContacts'), favorites: sum('uniqFavorites') };
+        });
+      }
+    } catch (_) {}
+    res.json({ items, stats });
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
+app.get('/api/avito/orders', async (req, res) => {
+  if (!AVITO_ON) return res.status(400).json({ error: 'Ключи Авито не настроены' });
+  try { res.json(await avitoApi('/order-management/1/orders?limit=50&offset=0')); }
+  catch (e) { res.status(502).json({ error: e.message }); }
+});
 
 /* ─── ЗАЯВКИ С САЙТА (корзина) ─── */
 app.get('/api/orders', (req, res) =>
@@ -2113,6 +2304,7 @@ app.listen(PORT, () => {
   migrateCreatedAt();
   migratePhotos().then(() => migratePhotosToWebp()).then(() => migrateThumbs())
     .catch(e => console.error('migration error:', e.message));
+  avitoRegisterWebhook();
   migrateSiteAccess();
   migratePanelGuide();
   scheduleBackup();

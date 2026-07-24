@@ -278,6 +278,24 @@ class InventoryDB {
   }
   async deleteOrder(id) { await fetch(`/api/orders/${id}`, { method:'DELETE' }); }
 
+  /* ─── АВИТО ─── */
+  async getAvitoStatus() {
+    try { const r = await fetch('/api/avito/status'); return r.ok ? r.json() : { configured: false }; }
+    catch { return { configured: false }; }
+  }
+  async getAvitoItems() {
+    const r = await fetch('/api/avito/items');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка Авито');
+    return d;
+  }
+  async getAvitoOrders() {
+    const r = await fetch('/api/avito/orders');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка Авито');
+    return d;
+  }
+
   /* ─── BRANDS (шаблоны брендов) ─── */
   async getBrands() {
     try { const r = await fetch('/api/brands'); return r.ok ? r.json() : []; }
