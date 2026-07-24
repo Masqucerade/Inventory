@@ -674,7 +674,11 @@ async function avitoApi(pathPart, opts = {}) {
     signal: AbortSignal.timeout(15_000),
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error?.message || d.message || d.error_description || `Авито: HTTP ${r.status}`);
+  if (!r.ok) {
+    const raw = d.error?.message || d.message || d.error_description ||
+      (typeof d.error === 'string' ? d.error : '') || JSON.stringify(d).slice(0, 200);
+    throw new Error(`Авито HTTP ${r.status}: ${raw}`);
+  }
   return d;
 }
 
@@ -854,7 +858,13 @@ app.get('/api/avito/items', async (req, res) => {
 app.get('/api/avito/orders', async (req, res) => {
   if (!AVITO_ON) return res.status(400).json({ error: 'Ключи Авито не настроены' });
   try { res.json(await avitoApi('/order-management/1/orders?limit=50&offset=0')); }
-  catch (e) { res.status(502).json({ error: e.message }); }
+  catch (e) {
+    console.error('avito orders:', e.message);   // полный текст — в логах Railway
+    const msg = /403|forbidden|permission|access/i.test(e.message)
+      ? 'нужна подключённая Авито Доставка для продавца (B2C) — заказы отдаются только по ней'
+      : e.message;
+    res.status(502).json({ error: msg });
+  }
 });
 
 /* ─── ЗАЯВКИ С САЙТА (корзина) ─── */
