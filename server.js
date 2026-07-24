@@ -872,6 +872,11 @@ app.put('/api/items', async (req, res) => {
   const idx = db.items.findIndex(i => i.id === item.id);
   if (idx >= 0) {
     const old = db.items[idx];
+    // Служебные поля сервера клиент не присылает — не терять при редактировании
+    // (потерянный createdAt ломал сортировку «новые сверху» на сайте и в панели)
+    item.createdAt = old.createdAt || item.createdAt || now;
+    if (item.views    === undefined) item.views    = old.views;
+    if (item.tgClicks === undefined) item.tgClicks = old.tgClicks;
     const TRACKED = ['orderStatus','ownerId','name','price','buyPrice','categoryId'];
     const changes = {};
     TRACKED.forEach(f => { if (String(old[f]??'') !== String(item[f]??'')) changes[f] = { from: old[f], to: item[f] }; });
@@ -1967,6 +1972,23 @@ async function migrateThumbs() {
   console.log(`Thumb migration: ${n} thumb(s) → 520px webp`);
 }
 
+/* Миграция: восстановить потерянный createdAt (старый PUT затирал его при
+   каждом редактировании). id = Date.now().toString(36) + 5 случайных символов,
+   так что точное время создания восстановимо из самого id. Идемпотентна. */
+function migrateCreatedAt() {
+  const db = load();
+  let n = 0;
+  for (const it of db.items || []) {
+    if (it.createdAt) continue;
+    let ts = null;
+    const t = parseInt(String(it.id || '').slice(0, -5), 36);
+    if (t > Date.parse('2020-01-01') && t < Date.now() + 86400_000) ts = new Date(t).toISOString();
+    it.createdAt = ts || it.history?.[0]?.ts || it.updatedAt || new Date().toISOString();
+    n++;
+  }
+  if (n) { save(db); console.log(`createdAt migration: ${n} item(s) restored`); }
+}
+
 // Разовая миграция: у существующих участников с настроенным access добавить
 // раздел 'site' (появился позже) — чтобы вкладка «Сайт» осталась доступной,
 // но теперь её можно снять галочкой. Root и «полный доступ» (access=null) — мимо.
@@ -2088,6 +2110,7 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Masqucerade INC. v2 on :${PORT}`);
+  migrateCreatedAt();
   migratePhotos().then(() => migratePhotosToWebp()).then(() => migrateThumbs())
     .catch(e => console.error('migration error:', e.message));
   migrateSiteAccess();
