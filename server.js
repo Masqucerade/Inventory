@@ -857,7 +857,7 @@ app.get('/api/avito/items', async (req, res) => {
 
 app.get('/api/avito/orders', async (req, res) => {
   if (!AVITO_ON) return res.status(400).json({ error: 'Ключи Авито не настроены' });
-  try { res.json(await avitoApi('/order-management/1/orders?limit=50&offset=0')); }
+  try { res.json(await avitoApi('/order-management/1/orders?limit=20&offset=0')); }
   catch (e) {
     console.error('avito orders:', e.message);   // полный текст — в логах Railway
     const msg = /403|forbidden|permission|access/i.test(e.message)
