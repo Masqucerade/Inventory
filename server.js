@@ -852,7 +852,7 @@ app.get('/api/avito/items', async (req, res) => {
       }
     } catch (_) {}
     res.json({ items, stats });
-  } catch (e) { res.status(502).json({ error: e.message }); }
+  } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 app.get('/api/avito/orders', async (req, res) => {
@@ -863,7 +863,7 @@ app.get('/api/avito/orders', async (req, res) => {
     const msg = /403|forbidden|permission|access/i.test(e.message)
       ? 'нужна подключённая Авито Доставка для продавца (B2C) — заказы отдаются только по ней'
       : e.message;
-    res.status(502).json({ error: msg });
+    res.status(400).json({ error: msg });
   }
 });
 
