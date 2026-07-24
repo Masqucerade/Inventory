@@ -4311,13 +4311,18 @@ class App {
   /* ──────────────────────────────────────────
      ГАЙДЫ (внутренняя база для сотрудников, Markdown)
      ────────────────────────────────────────── */
-  /* Вкладка «FAQ» = консоль (журнал) сверху + гайды ниже */
+  /* Вкладка «Терминал» = консоль (журнал) + блок Авито + гайды ниже */
   async renderGuides() {
     const wrap = document.getElementById('settingsContent');
     if (!wrap) return;
-    const showTerm = this.hasAccess('terminal');
-    wrap.innerHTML = `${showTerm ? '<div class="term-half" id="termHalf"></div>' : ''}<div id="guidesList"></div>`;
-    if (showTerm) this._renderTerminalInto(document.getElementById('termHalf'));   // параллельно с гайдами
+    const showTerm  = this.hasAccess('terminal');
+    const showAvito = this.hasAccess('site');
+    wrap.innerHTML =
+      `${showTerm ? '<div class="term-half" id="termHalf"></div>' : ''}` +
+      `${showAvito ? '<div id="avitoPane" style="margin-bottom:16px"></div>' : ''}` +
+      `<div id="guidesList"></div>`;
+    if (showTerm)  this._renderTerminalInto(document.getElementById('termHalf'));   // параллельно
+    if (showAvito) this._renderSiteAvito(document.getElementById('avitoPane'));
     await this._renderGuidesInto(document.getElementById('guidesList'));
   }
 
@@ -5167,7 +5172,6 @@ class App {
         ${tabBtn('showcase', 'Витрина', stream.length)}
         ${tabBtn('items', 'Товары', onSite.length)}
         ${tabBtn('orders', 'Заявки', orders.filter(o => o.status === 'new').length)}
-        ${tabBtn('avito', 'Авито', (this.items || []).filter(i => i.showOnAvito).length)}
         ${tabBtn('faq', 'FAQ', faq.length)}
       </div>`;
 
@@ -5207,7 +5211,6 @@ class App {
     if (this._siteSubTab === 'items')       this._renderSiteItems(pane);
     else if (this._siteSubTab === 'faq')    this._renderSiteFaq(pane);
     else if (this._siteSubTab === 'orders') this._renderSiteOrders(pane);
-    else if (this._siteSubTab === 'avito')  this._renderSiteAvito(pane);
     else                                    this._renderSiteShowcase(pane);
     if (animate) { pane.classList.remove('pane-in'); void pane.offsetWidth; pane.classList.add('pane-in'); }
   }
