@@ -105,7 +105,7 @@ async function boot() {
       <h2>Похожие товары</h2>
       <div class="goods-grid related-grid">
         ${data.related.map(r => {
-          const cover = (r.photos && r.photos[0]) || (r.thumbs && r.thumbs[0]) || null;
+          const cover = (r.thumbs && r.thumbs[0]) || (r.photos && r.photos[0]) || null;
           return `<a class="good-card" href="/product/${encodeURIComponent(r.id)}">
             <div class="good-photo">${cover
               ? `<img src="${esc(cover)}" alt="${esc(r.name)}" loading="lazy" draggable="false">`

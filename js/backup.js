@@ -154,17 +154,21 @@ class BackupManager {
 
 /* ── Image resize ── */
 // Масштабирует уже загруженный <img> в JPEG data-URL со стороной ≤ max.
+// imageSmoothingQuality 'high' — иначе canvas ресайзит грубо (лесенки).
 function _scaleToDataUrl(img, max, q) {
   let { width: w, height: h } = img;
   if (w > max) { h = Math.round(h * max / w); w = max; }
   if (h > max) { w = Math.round(w * max / h); h = max; }
   const c = Object.assign(document.createElement('canvas'), { width: w, height: h });
-  c.getContext('2d').drawImage(img, 0, 0, w, h);
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, w, h);
   return c.toDataURL('image/jpeg', q);
 }
 
-// Из файла делаем две версии: full (≤900px) для просмотра и thumb (≤300px,
-// ~15 КБ) для списков и карточек. Декодируем файл один раз.
+// Из файла делаем две версии: full (≤1600px — чётко на retina и десктопе)
+// и thumb (≤520px) для сеток. Вес держит серверная конвертация в WebP.
 function makePhotoVariants(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -173,8 +177,8 @@ function makePhotoVariants(file) {
       const img = new Image();
       img.onerror = reject;
       img.onload  = () => resolve({
-        full:  _scaleToDataUrl(img, 900, 0.82),
-        thumb: _scaleToDataUrl(img, 300, 0.7),
+        full:  _scaleToDataUrl(img, 1600, 0.9),
+        thumb: _scaleToDataUrl(img, 520, 0.8),
       });
       img.src = e.target.result;
     };
@@ -182,7 +186,7 @@ function makePhotoVariants(file) {
   });
 }
 
-function resizeImage(file, maxW = 900, maxH = 900, q = 0.82) {
+function resizeImage(file, maxW = 1600, maxH = 1600, q = 0.88) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
@@ -194,7 +198,10 @@ function resizeImage(file, maxW = 900, maxH = 900, q = 0.82) {
         if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
         if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
         const c = Object.assign(document.createElement('canvas'), { width: w, height: h });
-        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        const ctx = c.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, w, h);
         resolve(c.toDataURL('image/jpeg', q));
       };
       img.src = e.target.result;

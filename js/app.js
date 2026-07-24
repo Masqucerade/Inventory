@@ -4935,8 +4935,9 @@ class App {
     if (e.target.classList.contains('blk-img-input')) {
       const field = e.target.closest('[data-imgfield]').dataset.imgfield;
       const f = e.target.files[0];
-      const maxSide = this._block?.type === 'cover' ? 1920 : 1400;
-      if (f) resizeImage(f, maxSide, maxSide, 0.85)
+      // Обложка тянется на всю ширину больших мониторов — ей нужен запас
+      const maxSide = this._block?.type === 'cover' ? 2560 : 1920;
+      if (f) resizeImage(f, maxSide, maxSide, 0.88)
         .then(url => { this._readBlockForm(); this._block[field] = url; this._renderBlockForm(); })
         .catch(() => this.toast('Ошибка загрузки фото'));
       return;

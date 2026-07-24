@@ -1927,6 +1927,46 @@ async function migratePhotosToWebp() {
     : 'WebP migration: nothing to convert');
 }
 
+/* Разовая миграция: миниатюры товаров пересоздаются из полных фото в 520px
+   WebP — старые 300px мылились в сетке на retina. Работает после WebP-миграции
+   (full уже .webp). Файлы вида <base>-t520.webp, дедуп по существованию. */
+async function migrateThumbs() {
+  if (!sharp) return;
+  const db = load();
+  if (db.meta?.thumbs520) return;
+  let n = 0;
+  for (const it of db.items || []) {
+    const fulls = Array.isArray(it.photos) && it.photos.length ? it.photos : (it.photo ? [it.photo] : []);
+    if (!fulls.length) continue;
+    const thumbs = [];
+    for (const ref of fulls) {
+      let t = ref;
+      try {
+        const base = path.basename(String(ref));
+        const src  = path.join(PHOTOS_DIR, base);
+        if (String(ref).startsWith('/photos/') && fs.existsSync(src)) {
+          const outName = base.replace(/\.\w+$/, '') + '-t520.webp';
+          const out = path.join(PHOTOS_DIR, outName);
+          if (!fs.existsSync(out)) {
+            const webp = await sharp(src).rotate()
+              .resize({ width: 520, height: 520, fit: 'inside', withoutEnlargement: true })
+              .webp({ quality: 82 }).toBuffer();
+            fs.writeFileSync(out, webp);
+          }
+          t = '/photos/' + outName;
+          n++;
+        }
+      } catch (e) { console.error('thumb migrate failed:', e.message); }
+      thumbs.push(t);
+    }
+    it.thumbs = thumbs;
+  }
+  if (!db.meta) db.meta = {};
+  db.meta.thumbs520 = true;
+  save(db);
+  console.log(`Thumb migration: ${n} thumb(s) → 520px webp`);
+}
+
 // Разовая миграция: у существующих участников с настроенным access добавить
 // раздел 'site' (появился позже) — чтобы вкладка «Сайт» осталась доступной,
 // но теперь её можно снять галочкой. Root и «полный доступ» (access=null) — мимо.
@@ -2048,7 +2088,8 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Masqucerade INC. v2 on :${PORT}`);
-  migratePhotos().then(() => migratePhotosToWebp()).catch(e => console.error('migration error:', e.message));
+  migratePhotos().then(() => migratePhotosToWebp()).then(() => migrateThumbs())
+    .catch(e => console.error('migration error:', e.message));
   migrateSiteAccess();
   migratePanelGuide();
   scheduleBackup();

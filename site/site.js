@@ -647,9 +647,9 @@ function sizesLabel(sizes) {
 }
 
 function cardHTML(i) {
-  // Полное фото (≤900px) — чёткое даже на retina; браузер лениво подгружает.
-  // Карточка — обычная ссылка на страницу товара /product/:id.
-  const cover = (i.photos && i.photos[0]) || (i.thumbs && i.thumbs[0]) || null;
+  // Сетке хватает миниатюры (≤520px — чётко на retina), полное фото — на
+  // странице товара. Карточка — обычная ссылка на /product/:id.
+  const cover = (i.thumbs && i.thumbs[0]) || (i.photos && i.photos[0]) || null;
   // Лента на фото заменяет текстовый тег для проданных и зарезервированных
   const ribbon = i.sold ? '<span class="photo-ribbon">Продано</span>'
     : i.reserved ? '<span class="photo-ribbon reserved">Зарезервировано</span>' : '';
