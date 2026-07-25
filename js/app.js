@@ -1181,6 +1181,7 @@ class App {
       }
       const thumb = e.target.closest('.photo-thumb');
       if (thumb) {
+        if (document.getElementById('photoStrip')._justDragged) return;   // это было перетаскивание
         const i = +thumb.dataset.idx;
         if (i > 0) {
           // Тап по фото делает его главным (обложкой)
@@ -1201,6 +1202,7 @@ class App {
       this._renderPhotoStrip();
       e.target.value = '';
     });
+    this._bindPhotoDrag();
 
     /* Paste image from clipboard (Ctrl+V) when item modal is open */
     document.addEventListener('paste', async (e) => {
@@ -2048,6 +2050,74 @@ class App {
     this.refreshStatusChips();
     this.renderSizes();
     this.openModal('itemModal');
+  }
+
+  /* ── Перетаскивание фото в ленте: мышью сразу, на таче — long-press.
+     Порядок в ленте = порядок фото на сайте; тап без движения по-прежнему
+     делает фото главным. ── */
+  _bindPhotoDrag() {
+    const strip = document.getElementById('photoStrip');
+    if (!strip || strip._dragBound) return;
+    strip._dragBound = true;
+    strip._justDragged = false;
+
+    let el = null, pid = null, startX = 0, startY = 0, dragging = false, longT = null;
+    const thumbs = () => [...strip.querySelectorAll('.photo-thumb')];
+
+    const startDrag = () => {
+      if (!el) return;
+      dragging = true;
+      el.classList.add('drag');
+      strip.classList.add('dragging');
+      try { el.setPointerCapture(pid); } catch (_) {}
+      if (navigator.vibrate) navigator.vibrate(10);   // лёгкий отклик на таче
+    };
+
+    const stop = (commit) => {
+      clearTimeout(longT); longT = null;
+      if (dragging && el) {
+        strip.classList.remove('dragging');
+        // Новый порядок — из DOM (data-idx хранят исходные индексы)
+        if (commit) this._photos = thumbs().map(t => this._photos[+t.dataset.idx]);
+        this._renderPhotoStrip();
+        strip._justDragged = true;                     // подавить click-«сделать главным»
+        setTimeout(() => { strip._justDragged = false; }, 50);
+      }
+      dragging = false; el = null; pid = null;
+    };
+
+    strip.addEventListener('pointerdown', (e) => {
+      const t = e.target.closest('.photo-thumb');
+      if (!t || e.target.closest('.photo-thumb-remove')) return;
+      el = t; pid = e.pointerId; startX = e.clientX; startY = e.clientY;
+      if (e.pointerType === 'mouse') return;           // мышь: drag начнётся от движения
+      longT = setTimeout(startDrag, 260);              // тач: удержание, чтобы не мешать скроллу
+    });
+
+    strip.addEventListener('pointermove', (e) => {
+      if (!el) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (!dragging) {
+        if (e.pointerType === 'mouse' && Math.hypot(dx, dy) > 6) startDrag();
+        else if (Math.hypot(dx, dy) > 10) { clearTimeout(longT); longT = null; el = null; return; }   // это скролл ленты
+        if (!dragging) return;
+      }
+      e.preventDefault();
+      el.style.transform = `translate(${dx}px, ${dy}px) scale(1.05)`;
+      // Пересечение с соседом — переставляем в DOM на лету
+      for (const t of thumbs()) {
+        if (t === el) continue;
+        const r = t.getBoundingClientRect();
+        if (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top - 20 && e.clientY < r.bottom + 20) {
+          strip.insertBefore(el, e.clientX < r.left + r.width / 2 ? t : t.nextSibling);
+          startX = e.clientX; startY = e.clientY;      // transform заново от новой позиции
+          el.style.transform = 'scale(1.05)';
+          break;
+        }
+      }
+    });
+    strip.addEventListener('pointerup',     () => stop(true));
+    strip.addEventListener('pointercancel', () => stop(false));
   }
 
   _renderPhotoStrip() {
