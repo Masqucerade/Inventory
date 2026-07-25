@@ -21,7 +21,7 @@ const fmtPrice = (p) => p == null || p === '' ? '' :
   new Intl.NumberFormat('ru-RU').format(p) + ' ₽';
 
 let ITEMS = [], ARCHIVE = [], CATS = [], activeCat = null, activeGarment = null;
-let activeSort = 'new', priceMin = null, priceMax = null, activeBrand = null, activeCond = null;
+let activeSort = 'default', priceMin = null, priceMax = null, activeBrand = null, activeCond = null;
 
 // Износ вещи — подпись в карточке и на странице товара
 const CONDITIONS = {
@@ -51,7 +51,7 @@ function stateToUrl() {
   if (activeGarment) p.set('type', activeGarment);
   if (activeBrand)   p.set('brand', activeBrand);
   if (activeCond)    p.set('cond', activeCond);
-  if (activeSort !== 'new') p.set('sort', activeSort);
+  if (activeSort !== 'default') p.set('sort', activeSort);
   if (priceMin != null) p.set('pmin', priceMin);
   if (priceMax != null) p.set('pmax', priceMax);
   const qs = p.toString();
@@ -68,7 +68,7 @@ function stateFromUrl() {
   if (p.get('type'))  activeGarment = p.get('type');
   if (p.get('brand')) activeBrand   = p.get('brand');
   if (p.get('cond') && CONDITIONS[p.get('cond')]) activeCond = p.get('cond');
-  if (['asc', 'desc'].includes(p.get('sort'))) activeSort = p.get('sort');
+  if (['asc', 'desc', 'new'].includes(p.get('sort'))) activeSort = p.get('sort');
   if (p.get('pmin') && +p.get('pmin') > 0) priceMin = +p.get('pmin');
   if (p.get('pmax') && +p.get('pmax') > 0) priceMax = +p.get('pmax');
   // Пришли по ссылке с фильтрами — панель сразу раскрыта
@@ -98,6 +98,9 @@ async function boot() {
     // Проданное уходит в «Архив» — в основном каталоге только живые товары
     ITEMS   = items.filter(i => !i.sold);
     ARCHIVE = items.filter(i => i.sold);
+    // Случайный ключ для сортировки «По умолчанию»: перетасовка стабильна
+    // в рамках визита — сетка не прыгает при фильтрации
+    [...ITEMS, ...ARCHIVE].forEach(i => { i._rnd = Math.random(); });
     CATS = cats;
     stateFromUrl();   // фильтры из ссылки — до первого рендера
     renderStream(blocks, collections);
@@ -540,7 +543,7 @@ if (_catChips) _catChips.addEventListener('click', (e) => {
 });
 
 /* ─── Мини-кнопка сортировки (три палочки) с выпадающим меню ─── */
-const SORTS = [['new', 'Сначала новые'], ['asc', 'Сначала дешевле'], ['desc', 'Сначала дороже']];
+const SORTS = [['default', 'По умолчанию'], ['new', 'Сначала новые'], ['asc', 'Сначала дешевле'], ['desc', 'Сначала дороже']];
 
 function renderSortUI() {
   const wrap = document.getElementById('sortWrap');
@@ -548,7 +551,7 @@ function renderSortUI() {
   const menu = document.getElementById('sortMenu');
   if (!wrap || !btn || !menu) return;
   wrap.hidden = !ITEMS.length;
-  btn.classList.toggle('on', activeSort !== 'new');
+  btn.classList.toggle('on', activeSort !== 'default');
   menu.innerHTML = SORTS.map(([v, t]) =>
     `<button class="sort-item${activeSort === v ? ' active' : ''}" data-sort="${v}">${t}</button>`).join('');
 }
@@ -702,7 +705,8 @@ function renderGrid() {
   items = [...items];
   if (activeSort === 'asc')       items.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
   else if (activeSort === 'desc') items.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
-  else items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  else if (activeSort === 'new')  items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  else items.sort((a, b) => (a._rnd || 0) - (b._rnd || 0));   // «По умолчанию» — случайный порядок визита
 
   if (!items.length) {
     el.innerHTML = '<div class="goods-empty">Пока пусто — загляните позже</div>';
