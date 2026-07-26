@@ -111,6 +111,50 @@ app.get('/', (req, res) => {
   serveCatalog(req, res, isTypeHost(req) ? 'type' : 'monarc');
 });
 
+/* ─── Страницы брендов /brand/<slug>: SEO-посадочные ───
+   Тот же каталог, но с мета-тегами бренда и включённым фильтром (meta mq-brand). */
+const brandSlug = s => String(s).toLowerCase()
+  .replace(/['’]/g, '').replace(/[^a-z0-9а-яё]+/gi, '-').replace(/^-+|-+$/g, '');
+
+function siteBrands(db, typeSite) {
+  return [...new Set((db.items || [])
+    .filter(i => i.showOnSite && (i.brand || '').trim() &&
+      (!TYPE_HOST || (!!i.isMonarc !== typeSite)))
+    .map(i => i.brand.trim()))];
+}
+
+app.get('/brand/:slug', (req, res) => {
+  const db = load();
+  const typeSite = isTypeHost(req);
+  const brand = siteBrands(db, typeSite).find(b => brandSlug(b) === req.params.slug);
+  if (!brand) return res.status(404).type('html').send(SITE_404);
+  const o = originOf(req);
+  const count = (db.items || []).filter(i =>
+    i.showOnSite && (i.brand || '').trim() === brand && !isSoldOut(i)).length;
+  const section = typeSite ? 'type' : 'monarc';
+  let html = SITE_CATALOG.replace('<!--META-->', headTags({
+    title: `${brand} — оригинал с доставкой | Masqucerade`,
+    description: `Оригинальные вещи ${brand} в Masqucerade${count ? `: ${count} в наличии и под заказ` : ''}. Проверка подлинности, отправка по России и всему миру.`,
+    url: `${o}/brand/${req.params.slug}`,
+    image: o + OG_FALLBACK,
+    section,
+  }) + `\n  <meta name="mq-brand" content="${escAttr(brand)}">`);
+  if (section === 'monarc') html = monarcFavicon(html);
+  res.set('Cache-Control', 'no-cache').send(html);
+});
+
+/* QR-код (SVG) — для этикеток склада; публичный, содержимое ограничено */
+let QRCode = null;
+try { QRCode = require('qrcode'); } catch (_) { console.warn('qrcode недоступен — этикетки без QR'); }
+app.get('/qr.svg', async (req, res) => {
+  const d = String(req.query.d || '').slice(0, 300);
+  if (!d || !QRCode) return res.status(404).end();
+  try {
+    res.type('image/svg+xml').set('Cache-Control', 'public, max-age=86400')
+      .send(await QRCode.toString(d, { type: 'svg', margin: 1, width: 240 }));
+  } catch (_) { res.status(500).end(); }
+});
+
 // Старые адреса разделов: /monarc теперь главная, /brands — совсем старый алиас
 app.get(['/monarc', '/brands'], (req, res) => {
   if (req.query.item) return res.redirect(301, `/product/${encodeURIComponent(req.query.item)}`);
@@ -177,6 +221,8 @@ app.get('/sitemap.xml', (req, res) => {
   const typeSite = isTypeHost(req);
   const urls = [{ loc: `${o}/` }];
   if (!TYPE_HOST && !typeSite) urls.push({ loc: `${o}/type` });   // переходный период
+  // Страницы брендов
+  siteBrands(load(), typeSite).forEach(b => urls.push({ loc: `${o}/brand/${brandSlug(b)}` }));
   for (const it of (load().items || [])) {
     if (!it.showOnSite) continue;
     // На бренд-домене — только свои товары (пока Type-домена нет — все на общем)

@@ -55,10 +55,15 @@ function stateToUrl() {
   if (priceMin != null) p.set('pmin', priceMin);
   if (priceMax != null) p.set('pmax', priceMax);
   const qs = p.toString();
-  history.replaceState(null, '', qs ? `${location.pathname}?${qs}` : location.pathname);
+  // Со страницы бренда (/brand/…) смена фильтров уводит на обычный каталог
+  const base = location.pathname.startsWith('/brand/') ? '/' : location.pathname;
+  history.replaceState(null, '', qs ? `${base}?${qs}` : base);
 }
 
 function stateFromUrl() {
+  // SEO-страница бренда: сервер передаёт бренд мета-тегом
+  const metaBrand = document.querySelector('meta[name="mq-brand"]')?.content;
+  if (metaBrand) { activeBrand = metaBrand; _filtersOpen = true; }
   const p = new URLSearchParams(location.search);
   const sec = p.get('sec');
   if (sec === 'archive')    activeCat = '__archive__';
@@ -79,8 +84,8 @@ function stateFromUrl() {
 async function boot() {
   document.getElementById('sectionKicker').textContent = TITLES[SECTION].kicker;
   document.getElementById('sectionTitle').textContent  = TITLES[SECTION].title;
-  // В шапке всегда «Masqucerade» — общий бренд (медальон на Monarc скрыт в CSS)
-  document.title = 'Masqucerade';
+  // В шапке всегда «Masqucerade»; на страницах брендов серверный title не трогаем
+  if (!document.querySelector('meta[name="mq-brand"]')) document.title = 'Masqucerade';
   document.querySelectorAll('.site-nav a').forEach(a =>
     a.classList.toggle('active', a.dataset.nav === SECTION));
   document.getElementById('footTg').href = `https://t.me/${TG_USERNAME}`;

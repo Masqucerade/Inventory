@@ -166,6 +166,15 @@ class App {
     this.renderView(startView);
     this._applyAccess();
     this.backup.checkAutoBackup();
+
+    // Скан QR-этикетки: /admin#item=<id> открывает карточку товара
+    const qr = /#item=([\w-]+)/.exec(location.hash);
+    if (qr) {
+      history.replaceState(null, '', location.pathname);
+      const id = decodeURIComponent(qr[1]);
+      if (this.items.some(i => i.id === id)) this.showItemModal(id);
+      else this.toast('Товар с этикетки не найден — возможно, удалён');
+    }
   }
 
   /* ── Доступ к разделам ── */
@@ -974,6 +983,7 @@ class App {
     });
 
     document.getElementById('bulkDeleteBtn').addEventListener('click', () => this.bulkDelete());
+    document.getElementById('bulkLabelsBtn').addEventListener('click', () => this.bulkLabels());
 
     // «Выбрать все» — все товары текущего списка (с учётом фильтров и поиска)
     document.getElementById('selectAllBtn').addEventListener('click', async () => {
@@ -2232,7 +2242,7 @@ class App {
     const word = n === 1 ? 'товар' : n > 1 && n < 5 ? 'товара' : 'товаров';
     document.getElementById('deliveryBarCount').textContent =
       n === 0 ? 'Выберите товары' : `${n} ${word}`;
-    ['bulkStatusBtn', 'bulkParcelBtn', 'bulkDeliveryBtn', 'bulkOwnerBtn', 'bulkParamsBtn', 'bulkFlagsBtn', 'bulkDeleteBtn'].forEach(id => {
+    ['bulkStatusBtn', 'bulkParcelBtn', 'bulkDeliveryBtn', 'bulkOwnerBtn', 'bulkParamsBtn', 'bulkFlagsBtn', 'bulkLabelsBtn', 'bulkDeleteBtn'].forEach(id => {
       const b = document.getElementById(id);
       if (b) b.disabled = n === 0;
     });
@@ -2245,6 +2255,41 @@ class App {
       if (ids.length) saBtn.textContent =
         ids.every(id => this._selectedIds.has(id)) ? 'Снять всё' : 'Выбрать все';
     }
+  }
+
+  /* Bulk: печать QR-этикеток для склада. Скан QR открывает карточку в панели.
+     Формат 58×40 мм — стандартный стикер термопринтера; на обычном принтере
+     печатается сеткой. */
+  bulkLabels() {
+    const ids = [...this._selectedIds];
+    if (!ids.length) return;
+    const items = ids.map(id => this.items.find(i => i.id === id)).filter(Boolean);
+    const w = window.open('', '_blank');
+    if (!w) { this.toast('Откройте панель в браузере — вебвью не даёт открыть окно печати'); return; }
+    const esc = s => this.esc(s);
+    w.document.write(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Этикетки · ${items.length} шт</title><style>
+      body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;margin:0;padding:8mm;display:flex;flex-wrap:wrap;gap:3mm;background:#fff;color:#000}
+      .lbl{width:58mm;height:40mm;border:.3mm dashed #bbb;border-radius:2mm;padding:3mm;box-sizing:border-box;
+           display:flex;gap:3mm;align-items:center;page-break-inside:avoid;break-inside:avoid}
+      .lbl img{width:30mm;height:30mm;flex-shrink:0}
+      .in{min-width:0;flex:1}
+      .n{font-size:3.4mm;font-weight:700;line-height:1.25;max-height:13mm;overflow:hidden}
+      .s{font-size:2.9mm;color:#555;margin-top:1mm}
+      .p{font-size:4.2mm;font-weight:800;margin-top:1.5mm}
+      @media print{body{padding:0}.lbl{border-color:transparent}}
+    </style></head><body>` + items.map(i => {
+      const url = location.origin + '/admin#item=' + encodeURIComponent(i.id);
+      const sizes = (i.sizes || []).filter(s => s.size).map(s => s.size).join(' · ');
+      return `<div class="lbl">
+        <img src="/qr.svg?d=${encodeURIComponent(url)}" alt="QR">
+        <div class="in">
+          <div class="n">${esc(i.name || '')}</div>
+          ${sizes ? `<div class="s">${esc(sizes)}</div>` : ''}
+          ${i.price ? `<div class="p">${fmtMoney(i.price)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('') + `<script>onload=function(){setTimeout(function(){print()},500)}<\/script></body></html>`);
+    w.document.close();
   }
 
   /* Bulk: удаление выбранных — одним запросом, с подтверждением */
