@@ -46,7 +46,10 @@ const sendHtml = (res, file) =>
 const SITE_CATALOG = fs.readFileSync(path.join(__dirname, 'site/catalog.html'), 'utf8');
 const SITE_PRODUCT = fs.readFileSync(path.join(__dirname, 'site/product.html'), 'utf8');
 const SITE_404     = fs.readFileSync(path.join(__dirname, 'site/404.html'), 'utf8');
-const OG_FALLBACK  = '/site/og-cover.png';
+/* OG-превью и имя сайта — у каждого домена свои */
+const OG_IMAGE  = { monarc: '/site/og-masqucerade.jpg', type: '/site/og-type.jpg' };
+const SITE_NAME = { monarc: 'Masqucerade', type: 'Type-clothes' };
+const ogImage   = s => OG_IMAGE[s] || OG_IMAGE.monarc;
 
 const escAttr = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 const originOf = req => `${req.protocol}://${req.get('host')}`;
@@ -75,7 +78,7 @@ function headTags({ title, description, url, image, type = 'website', section = 
   <meta name="description" content="${d}">
   <link rel="canonical" href="${u}">
   <meta property="og:type" content="${type}">
-  <meta property="og:site_name" content="Masqucerade INC.">
+  <meta property="og:site_name" content="${escAttr(SITE_NAME[section] || SITE_NAME.monarc)}">
   <meta property="og:title" content="${t}">
   <meta property="og:description" content="${d}">
   <meta property="og:url" content="${u}">
@@ -96,12 +99,12 @@ function headTags({ title, description, url, image, type = 'website', section = 
 /* Каталог раздела: главная страница каждого бренд-домена */
 function serveCatalog(req, res, section) {
   const o = originOf(req);
-  const title = 'Masqucerade';
+  const title = section === 'monarc' ? 'Masqucerade' : 'Type-clothes';
   const description = section === 'monarc'
-    ? 'Оригинальные дизайнерские бренды — ERD, Chrome Hearts, Balenciaga, Rick Owens и другие.'
-    : 'Люкс-качество на каждый день — повседневная одежда в безупречном исполнении.';
+    ? 'Оригинальные дизайнерские бренды — ERD, Chrome Hearts, Balenciaga, Rick Owens и другие. Проверка подлинности, доставка по России и миру.'
+    : 'Повседневная одежда люкс-качества — базовый гардероб в безупречном исполнении. Доставка по России и миру.';
   let html = SITE_CATALOG.replace('<!--META-->', headTags({
-    title, description, url: o + '/', image: o + OG_FALLBACK, section,
+    title, description, url: o + '/', image: o + ogImage(section), section,
   }));
   if (section === 'monarc') html = monarcFavicon(html);
   res.set('Cache-Control', 'no-cache').send(html);
@@ -136,7 +139,7 @@ app.get('/brand/:slug', (req, res) => {
     title: `${brand} — оригинал с доставкой | Masqucerade`,
     description: `Оригинальные вещи ${brand} в Masqucerade${count ? `: ${count} в наличии и под заказ` : ''}. Проверка подлинности, отправка по России и всему миру.`,
     url: `${o}/brand/${req.params.slug}`,
-    image: o + OG_FALLBACK,
+    image: o + ogImage(section),
     section,
   }) + `\n  <meta name="mq-brand" content="${escAttr(brand)}">`);
   if (section === 'monarc') html = monarcFavicon(html);
@@ -206,13 +209,14 @@ app.get('/product/:id', (req, res) => {
       itemCondition: it.condition === 'new' ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition',
     },
   };
+  const section = it.isMonarc ? 'monarc' : 'type';
   let html = SITE_PRODUCT.replace('<!--META-->', headTags({
-    title:       `${it.name} — Masqucerade`,
-    description: it.description || [price, it.isMonarc ? 'Monarc' : 'Type Clothes'].filter(Boolean).join(' · '),
+    title:       `${it.name} — ${SITE_NAME[section]}`,
+    description: it.description || [price, SITE_NAME[section]].filter(Boolean).join(' · '),
     url,
-    image: photos[0] ? o + photos[0] : o + OG_FALLBACK,
+    image: photos[0] ? o + photos[0] : o + ogImage(section),
     type:  'product',
-    section: it.isMonarc ? 'monarc' : 'type',
+    section,
   }) + `\n  <script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
   if (it.isMonarc) html = monarcFavicon(html);
   res.set('Cache-Control', 'no-cache').send(html);
