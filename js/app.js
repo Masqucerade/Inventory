@@ -1690,10 +1690,13 @@ class App {
      при отпускании карточка мягко приземляется в слот. Работает в
      сортировке «Добавлен» вне режима выделения; порядок хранится в pos. ── */
   _bindCardDrag() {
-    const wrap = document.querySelector('#inventoryList .items-list');
+    // Только активный список (прямой ребёнок) — архив не тасуем
+    const wrap = document.querySelector('#inventoryList > .items-list');
     if (!wrap || wrap._dragBound) return;
     wrap._dragBound = true;
     wrap._justDragged = false;
+    // Нативный drag картинки (десктоп) перехватывает жест и обрывает наш
+    wrap.addEventListener('dragstart', (e) => e.preventDefault());
 
     let el = null, ph = null, pid = null, startX = 0, startY = 0,
         grabDX = 0, grabDY = 0, dragging = false, landing = false, longT = null;
@@ -1704,6 +1707,9 @@ class App {
     const startDrag = () => {
       if (!el || dragging) return;
       dragging = true;
+      // Инлайном, не классом: возврат animation после снятия класса
+      // перезапускал бы cellIn — карточки «мигали» после дропа
+      for (const c of cards()) c.style.animation = 'none';
       const r = el.getBoundingClientRect();
       grabDX = startX - r.left; grabDY = startY - r.top;
       // Слот держит место и показывает, куда ляжет карточка
@@ -1747,6 +1753,7 @@ class App {
       if (el) {
         el.classList.remove('drag');
         el.style.cssText = '';
+        el.style.animation = 'none';   // иначе cellIn перезапустится — карточка мигнёт
       }
       ph?.remove(); ph = null;
       wrap.classList.remove('dragging');
@@ -1784,7 +1791,7 @@ class App {
     };
 
     wrap.addEventListener('pointerdown', (e) => {
-      if (!canDrag() || landing) return;
+      if (!canDrag() || landing || dragging || el) return;   // второй палец не влезает в жест
       const c = e.target.closest('.item-card');
       if (!c) return;
       el = c; pid = e.pointerId; startX = e.clientX; startY = e.clientY;
@@ -1793,7 +1800,7 @@ class App {
     });
 
     wrap.addEventListener('pointermove', (e) => {
-      if (!el || landing) return;
+      if (!el || landing || e.pointerId !== pid) return;
       if (!dragging) {
         const d = Math.hypot(e.clientX - startX, e.clientY - startY);
         if (e.pointerType === 'mouse' && d > 6) startDrag();
@@ -1807,20 +1814,26 @@ class App {
       const sr = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0, bottom: innerHeight };
       if (e.clientY < sr.top + 90) scroller.scrollTop -= 9;
       else if (e.clientY > sr.bottom - 90) scroller.scrollTop += 9;
-      // Слот встаёт до/после соседа, чью середину пересёк палец
-      for (const c of cards()) {
-        if (c === el) continue;
+      // Слот встаёт до/после соседа, чью середину пересёк палец;
+      // выше первой / ниже последней карточки — в самый край списка
+      const rest = cards().filter(c => c !== el);
+      let target;
+      for (const c of rest) {
         const r = c.getBoundingClientRect();
         if (e.clientY > r.top && e.clientY < r.bottom) {
-          const target = e.clientY < r.top + r.height / 2 ? c : c.nextSibling;
-          if (target !== ph && ph.nextSibling !== target)   // не дёргать, если слот уже там
-            flipMove(() => wrap.insertBefore(ph, target));
+          target = e.clientY < r.top + r.height / 2 ? c : c.nextSibling;
           break;
         }
       }
+      if (target === undefined && rest.length) {
+        if (e.clientY <= rest[0].getBoundingClientRect().top) target = rest[0];
+        else if (e.clientY >= rest[rest.length - 1].getBoundingClientRect().bottom) target = null;  // в конец
+      }
+      if (target !== undefined && target !== ph && ph.nextSibling !== target)
+        flipMove(() => wrap.insertBefore(ph, target));
     });
-    wrap.addEventListener('pointerup',     () => stop(true));
-    wrap.addEventListener('pointercancel', () => stop(false));
+    wrap.addEventListener('pointerup',     (e) => { if (!el || e.pointerId === pid) stop(true); });
+    wrap.addEventListener('pointercancel', (e) => { if (!el || e.pointerId === pid) stop(false); });
     /* Тач: нативный скролл шлёт pointercancel и обрывает drag — во время
        перетаскивания глушим touchmove (non-passive, иначе preventDefault нем) */
     wrap.addEventListener('touchmove', (e) => {

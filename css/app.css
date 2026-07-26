@@ -269,7 +269,12 @@ html, body {
   cursor: pointer; min-height: 58px;
   animation: cellIn .22s ease both;
   transition: background .12s;
+  /* long-press поднимает карточку (drag) — системное превью фото,
+     выделение текста и нативный drag картинки мешают жесту */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none; user-select: none;
 }
+.item-card img { -webkit-user-drag: none; }
 .item-card:active { background: var(--fill); }
 .item-card:not(:last-child) > .item-info {
   border-bottom: 1px solid var(--sep2);
@@ -298,7 +303,6 @@ html, body {
 }
 @keyframes phIn { from { opacity: 0; transform: scaleY(.7); } to { opacity: 1; transform: none; } }
 .items-list.dragging { touch-action: none; }
-.items-list.dragging .item-card { animation: none; }
 
 @keyframes cellIn {
   from { opacity: 0; transform: translateY(5px); }
