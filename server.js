@@ -568,7 +568,11 @@ app.get('/api/public/collections', (req, res) => {
 app.get('/api/public/blocks', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   const section = ['brands', 'monarc'].includes(req.query.section) ? 'monarc' : 'type';
+  // Фото — только строки-ссылки: старый баг сохранял вместо ссылки объект
+  // (Promise в JSON), и «[object Object]» ломал витрину
+  const img = v => (typeof v === 'string' ? v : '');
   const blocks = (load().blocks || [])
+    .map(b => ({ ...b, image: img(b.image), imageA: img(b.imageA), imageB: img(b.imageB) }))
     .filter(b => b.enabled && (b.section === 'all' || b.section === section))
     .sort((a, b) => (a.order || 0) - (b.order || 0))
     .map(b => {
@@ -1705,16 +1709,16 @@ app.delete('/api/collections/:id', (req, res) => {
 
 /* ─── SITE BLOCKS (баннер / текст / промо на витрине) ─── */
 app.get('/api/blocks', (req, res) => res.json(load().blocks || []));
-app.put('/api/blocks', (req, res) => {
+app.put('/api/blocks', async (req, res) => {
   const db = load();
   if (!db.blocks) db.blocks = [];
   const b = { ...req.body };
   // Картинки (баннер + обе картинки двойного баннера): base64 → файл на volume.
-  const toRef = v => (typeof v === 'string' && v.startsWith('data:')) ? (saveDataUrl(v) || v) : v;
+  const toRef = async v => (typeof v === 'string' && v.startsWith('data:')) ? ((await saveDataUrl(v)) || v) : v;
   // Только присланные поля: b[f] = toRef(undefined) создавал ключ со значением
   // undefined, и частичный мердж (тумблер/порядок/fit) затирал сохранённое фото
-  for (const f of ['image', 'imageA', 'imageB']) if (b[f] !== undefined) b[f] = toRef(b[f]);
-  if (Array.isArray(b.images)) b.images = b.images.map(toRef).filter(Boolean);   // мультифото баннера
+  for (const f of ['image', 'imageA', 'imageB']) if (b[f] !== undefined) b[f] = await toRef(b[f]);
+  if (Array.isArray(b.images)) b.images = (await Promise.all(b.images.map(toRef))).filter(Boolean);   // мультифото баннера
   if (!b.id) {
     b.id = uid();
     if (b.order == null) b.order = db.blocks.reduce((m, x) => Math.max(m, x.order || 0), 0) + 1;
