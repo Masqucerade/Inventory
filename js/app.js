@@ -2290,6 +2290,10 @@ class App {
       .n{font-size:3.3mm;font-weight:700;line-height:1.25;max-height:16mm;overflow:hidden}
       .s{font-size:2.8mm;margin-top:1.1mm}
       .s span{font-size:2mm;font-weight:600;letter-spacing:.18em;text-transform:uppercase;margin-right:.8mm}
+      /* Размеры-чипы: клик оставляет один (продаваемый) размер на этикетке */
+      .szc{font-weight:400;cursor:pointer;margin-right:1.2mm}
+      .szc.off{opacity:.2;text-decoration:line-through}
+      @media print{.szc.off{display:none}}
       .n.pn{font-size:2.9mm}
       .list{font-size:2.5mm;line-height:1.4;margin-top:.8mm;max-height:15mm;overflow:hidden}
       .site{text-align:center;font-size:2mm;font-weight:600;letter-spacing:.24em;text-transform:uppercase;margin-top:1mm}
@@ -2325,17 +2329,20 @@ class App {
       </select>
       <button onclick="print()">Печать</button>
       <span style="opacity:.6">${items.length} шт</span>
+      ${items.some(i => (i.sizes || []).filter(s => s.size).length > 1)
+        ? '<span style="opacity:.6">· Клик по размеру — оставить только его</span>' : ''}
     </div>` + items.map(i => {
       // /q/<id>: товар с витрины откроется на сайте (удобно на ПВЗ), скрытый — в панели
       const url = location.origin + '/q/' + encodeURIComponent(i.id);
-      const sizes = (i.sizes || []).filter(s => s.size).map(s => s.size).join(' · ');
+      const sizes = (i.sizes || []).filter(s => s.size).map(s => s.size);
       return `<div class="lbl">
         <div class="brand">Masqucerade</div>
         <div class="mid">
           <img src="/qr.svg?d=${encodeURIComponent(url)}" alt="QR">
           <div class="in">
             <div class="n">${esc(i.name || '')}</div>
-            ${sizes ? `<div class="s"><span>Размер</span>${esc(sizes)}</div>` : ''}
+            ${sizes.length ? `<div class="s"><span>Размер</span>${sizes.map(sz =>
+              `<b class="szc" onclick="pick(this)">${esc(sz)}</b>`).join('')}</div>` : ''}
           </div>
         </div>
         <div class="site">masqucerade.com</div>
@@ -2360,6 +2367,14 @@ class App {
         <div class="site">masqucerade.com</div>
       </div>`;
     })() : '') + `<script>
+      // Клик по размеру: оставить только его; клик по единственному оставшемуся — вернуть все
+      function pick(el){
+        var all = el.parentNode.querySelectorAll('.szc');
+        if (all.length < 2) return;
+        var solo = !el.classList.contains('off') &&
+                   el.parentNode.querySelectorAll('.szc.off').length === all.length - 1;
+        all.forEach(function(b){ b.classList.toggle('off', !solo && b !== el); });
+      }
       document.getElementById('fmt').onchange = function(){
         var v = this.value;
         document.body.className = v === 'a4' ? '' : 'thermo ' + v;
