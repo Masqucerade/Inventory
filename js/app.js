@@ -5313,7 +5313,7 @@ class App {
       html += g('Текст строки', `<input type="text" class="form-input" id="blkMarquee" value="${esc(b.text || '')}" placeholder="Например: Новая коллекция уже здесь">`);
     } else if (b.type === 'cover') {
       b.pos = b.pos || 'center center'; b.fit = b.fit || 'cover';
-      html += `<div class="blk-hint">Заглавный кадр на самом верху раздела, ниже посетитель листает к товарам. Показывается первая включённая обложка раздела.</div>`;
+      html += `<div class="blk-hint">Заглавный кадр на самом верху раздела, ниже посетитель листает к товарам. Несколько включённых обложек раздела показываются по очереди.</div>`;
       html += imgField('image', 'Фото обложки');
       if (b.image) html += g('Предпросмотр', `
         <div class="blk-banner-preview h-xl">

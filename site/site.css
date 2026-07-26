@@ -1031,6 +1031,12 @@ body.has-cover .catalog-wrap { padding-top: clamp(18px, 3.4vh, 34px); }
 .grid-head-row .catalog-tools { flex-shrink: 0; }
 /* Заголовок скрыт (пусто без фильтра) — строка не занимает место без кнопки */
 .grid-head-row:not(:has(.filters-btn:not([hidden]))):has(.grid-heading[hidden]) { display: none; }
+/* Слайд обложки: несколько включённых обложек листаются кроссфейдом.
+   При одиночной «фото целиком» слайд в потоке — секция берёт высоту кадра. */
+.sc-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.1s ease; }
+.sc-slide.on { opacity: 1; }
+.site-cover.fit-auto .sc-slide { position: relative; inset: auto; width: 100%; }
+@media (prefers-reduced-motion: reduce) { .sc-slide { transition: none; } }
 .sc-shade {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, transparent 55%, color-mix(in srgb, var(--bg) 78%, transparent) 100%);

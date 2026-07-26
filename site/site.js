@@ -885,11 +885,14 @@ let _carouselResizeT;
 window.addEventListener('resize', () => { clearTimeout(_carouselResizeT); _carouselResizeT = setTimeout(markCarousels, 150); });
 
 /* Обложка раздела: полноэкранное превью на самом верху, ниже — каталог.
-   Берётся первый включённый блок типа «cover» своего раздела. */
+   Одна включённая обложка — как есть (включая режим «фото целиком»);
+   несколько — показываются по очереди с плавным кроссфейдом. */
+let _coverTimer = null;
 function renderCover(blocks) {
   const wrap = document.getElementById('siteCover');
   if (!wrap) return;
-  const c = (blocks || []).find(b => b.type === 'cover' && b.image);
+  const covers = (blocks || []).filter(b => b.type === 'cover' && b.image);
+  const c = covers[0];
   // При обложке заголовок раздела прячется — бренд уже в кадре, дубль не нужен
   document.body.classList.toggle('has-cover', !!c);
   if (c) {
@@ -904,23 +907,41 @@ function renderCover(blocks) {
       if (chips) row.parentNode.insertBefore(chips, row.nextSibling);
     }
   }
+  clearInterval(_coverTimer);
   if (!c) { wrap.innerHTML = ''; return; }
-  const fitAuto = c.fit === 'auto';   // «фото целиком» — высота по кадру, стрелка не нужна
-  const hasCaption = !!(c.heading || c.sub);
-  wrap.innerHTML = `
-    <section class="site-cover${fitAuto ? ' fit-auto' : ''}">
-      <img src="${esc(c.image)}" alt="" style="object-position:${esc(c.pos || 'center center')}" draggable="false">
+  // «Фото целиком» (высота по кадру) имеет смысл только для одиночной обложки:
+  // в ротации кадры разной высоты дёргали бы страницу
+  const fitAuto = covers.length === 1 && c.fit === 'auto';
+  const slide = (b, on) => {
+    const hasCaption = !!(b.heading || b.sub);
+    return `<div class="sc-slide${on ? ' on' : ''}">
+      <img src="${esc(b.image)}" alt="" style="object-position:${esc(b.pos || 'center center')}" draggable="false">
       ${hasCaption ? `<div class="sc-shade" aria-hidden="true"></div>
       <div class="sc-caption">
-        ${c.heading ? `<h2>${esc(c.heading)}</h2>` : ''}
-        ${c.sub ? `<p>${esc(c.sub)}</p>` : ''}
+        ${b.heading ? `<h2>${esc(b.heading)}</h2>` : ''}
+        ${b.sub ? `<p>${esc(b.sub)}</p>` : ''}
       </div>` : ''}
+    </div>`;
+  };
+  wrap.innerHTML = `
+    <section class="site-cover${fitAuto ? ' fit-auto' : ''}">
+      ${covers.map((b, i) => slide(b, i === 0)).join('')}
       ${fitAuto ? '' : `<button class="sc-scroll" type="button" aria-label="К товарам">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>`}
     </section>`;
+  if (covers.length > 1) {
+    const slides = [...wrap.querySelectorAll('.sc-slide')];
+    let cur = 0;
+    _coverTimer = setInterval(() => {
+      if (document.hidden) return;   // вкладка в фоне — не листаем
+      slides[cur].classList.remove('on');
+      cur = (cur + 1) % slides.length;
+      slides[cur].classList.add('on');
+    }, 6000);
+  }
   wrap.querySelector('.sc-scroll')?.addEventListener('click', () => {
     const target = document.querySelector('.catalog-wrap');
     if (!target) return;
