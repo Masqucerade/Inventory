@@ -2273,30 +2273,42 @@ class App {
     const w = window.open('', '_blank');
     if (!w) { this.toast('Откройте панель в браузере — вебвью не даёт открыть окно печати'); return; }
     const esc = s => this.esc(s);
-    w.document.write(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Этикетки · ${items.length} шт</title><style>
+    w.document.write(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Этикетки · ${items.length} шт</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap"><style>
       body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;margin:0;padding:8mm;padding-top:22mm;
            display:flex;flex-wrap:wrap;gap:3mm;background:#fff;color:#000}
-      .lbl{width:58mm;height:40mm;border:.3mm dashed #bbb;border-radius:2mm;padding:3mm;box-sizing:border-box;
-           display:flex;gap:3mm;align-items:center;page-break-inside:avoid;break-inside:avoid}
-      .lbl img{width:30mm;height:30mm;flex-shrink:0}
-      .in{min-width:0;flex:1;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
-      .shop{font-size:2.5mm;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
-            border-bottom:.3mm solid #000;padding-bottom:1mm;margin-bottom:1.4mm}
-      .n{font-size:3.4mm;font-weight:700;line-height:1.25;max-height:14mm;overflow:hidden}
-      .s{font-size:2.9mm;color:#444;margin-top:1mm}
-      .list{font-size:2.7mm;line-height:1.45;margin-top:.6mm;max-height:19mm;overflow:hidden}
+      .lbl{width:58mm;height:40mm;border:.3mm dashed #bbb;border-radius:2mm;padding:2.4mm 3mm 2.2mm;box-sizing:border-box;
+           display:flex;flex-direction:column;page-break-inside:avoid;break-inside:avoid}
+      /* Шильдик: серифный логотип как на витрине, тонкие линии по бокам */
+      .brand{display:flex;align-items:center;gap:2mm;white-space:nowrap;
+             font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+             font-size:3.9mm;font-weight:600;letter-spacing:.3em;text-transform:uppercase}
+      .brand::before,.brand::after{content:'';flex:1;min-width:1.5mm;border-top:.25mm solid #000}
+      .mid{flex:1;min-height:0;display:flex;gap:2.6mm;align-items:center}
+      .mid img{width:24mm;height:24mm;flex-shrink:0}
+      .in{min-width:0;flex:1;display:flex;flex-direction:column;justify-content:center}
+      .n{font-size:3.3mm;font-weight:700;line-height:1.25;max-height:16mm;overflow:hidden}
+      .s{font-size:2.8mm;margin-top:1.1mm}
+      .s span{font-size:2mm;font-weight:600;letter-spacing:.18em;text-transform:uppercase;margin-right:.8mm}
+      .n.pn{font-size:2.9mm}
+      .list{font-size:2.5mm;line-height:1.4;margin-top:.8mm;max-height:15mm;overflow:hidden}
+      .site{text-align:center;font-size:2mm;font-weight:600;letter-spacing:.24em;text-transform:uppercase;margin-top:1mm}
 
       /* Термопринтер (Xprinter XP-365B и похожие): одна этикетка = одна страница,
          без полей, рамок и скруглений */
       body.thermo{padding:0;padding-top:18mm;display:block}
       @media print{body.thermo{padding:0}}
       body.thermo .lbl{border:none;border-radius:0;margin:0;page-break-after:always}
-      body.t4030 .lbl{width:40mm;height:30mm;padding:2mm;gap:2mm}
-      body.t4030 .lbl img{width:22mm;height:22mm}
-      body.t4030 .shop{font-size:1.9mm;letter-spacing:.08em;padding-bottom:.7mm;margin-bottom:1mm}
-      body.t4030 .n{font-size:2.6mm;max-height:10mm}
-      body.t4030 .s{font-size:2.1mm}
-      body.t4030 .list{font-size:2mm;line-height:1.4;max-height:12mm}
+      body.t4030 .lbl{width:40mm;height:30mm;padding:1.8mm 2.2mm 1.6mm}
+      body.t4030 .brand{font-size:2.7mm;letter-spacing:.22em;gap:1.4mm}
+      body.t4030 .mid{gap:1.8mm}
+      body.t4030 .mid img{width:17mm;height:17mm}
+      body.t4030 .n{font-size:2.5mm;max-height:11mm}
+      body.t4030 .s{font-size:2.1mm;margin-top:.7mm}
+      body.t4030 .s span{font-size:1.6mm}
+      body.t4030 .n.pn{font-size:1.9mm}
+      body.t4030 .list{font-size:1.9mm;max-height:9mm}
+      body.t4030 .site{font-size:1.5mm;letter-spacing:.18em;margin-top:.6mm}
 
       .bar{position:fixed;top:0;left:0;right:0;z-index:10;background:#111;color:#fff;
            display:flex;gap:10px;align-items:center;padding:10px 14px;font-size:14px}
@@ -2318,12 +2330,15 @@ class App {
       const url = location.origin + '/q/' + encodeURIComponent(i.id);
       const sizes = (i.sizes || []).filter(s => s.size).map(s => s.size).join(' · ');
       return `<div class="lbl">
-        <img src="/qr.svg?d=${encodeURIComponent(url)}" alt="QR">
-        <div class="in">
-          <div class="shop">Masqucerade INC.</div>
-          <div class="n">${esc(i.name || '')}</div>
-          ${sizes ? `<div class="s">Размер: ${esc(sizes)}</div>` : ''}
+        <div class="brand">Masqucerade</div>
+        <div class="mid">
+          <img src="/qr.svg?d=${encodeURIComponent(url)}" alt="QR">
+          <div class="in">
+            <div class="n">${esc(i.name || '')}</div>
+            ${sizes ? `<div class="s"><span>Размер</span>${esc(sizes)}</div>` : ''}
+          </div>
         </div>
+        <div class="site">masqucerade.com</div>
       </div>`;
     }).join('') + (items.length > 1 ? (() => {
       // Сводная этикетка посылки: скан выделяет все её товары в панели
@@ -2334,12 +2349,15 @@ class App {
       };
       const shown = items.slice(0, 5);
       return `<div class="lbl" style="border-style:solid">
-        <img src="/qr.svg?d=${encodeURIComponent(purl)}" alt="QR">
-        <div class="in">
-          <div class="shop">Masqucerade INC.</div>
-          <div class="n">Посылка&nbsp;·&nbsp;${items.length}&nbsp;шт</div>
-          <div class="list">${shown.map(line).join('<br>')}${items.length > 5 ? `<br>…и ещё ${items.length - 5}` : ''}</div>
+        <div class="brand">Masqucerade</div>
+        <div class="mid">
+          <img src="/qr.svg?d=${encodeURIComponent(purl)}" alt="QR">
+          <div class="in">
+            <div class="n pn">Посылка&nbsp;·&nbsp;${items.length}&nbsp;шт</div>
+            <div class="list">${shown.map(line).join('<br>')}${items.length > 5 ? `<br>…и ещё ${items.length - 5}` : ''}</div>
+          </div>
         </div>
+        <div class="site">masqucerade.com</div>
       </div>`;
     })() : '') + `<script>
       document.getElementById('fmt').onchange = function(){
