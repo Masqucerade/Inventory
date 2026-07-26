@@ -172,7 +172,7 @@ class App {
     if (qr) {
       history.replaceState(null, '', location.pathname);
       const id = decodeURIComponent(qr[1]);
-      if (this.items.some(i => i.id === id)) this.showItemModal(id);
+      if (this.items.some(i => i.id === id)) this.openItemModal(id);
       else this.toast('Товар с этикетки не найден — возможно, удалён');
     }
   }
