@@ -143,11 +143,19 @@ app.get('/brand/:slug', (req, res) => {
   res.set('Cache-Control', 'no-cache').send(html);
 });
 
+/* QR с этикетки: товар на витрине → страница товара на сайте (удобно на ПВЗ),
+   иначе → карточка в панели (для скрытых/служебных) */
+app.get('/q/:id', (req, res) => {
+  const it = (load().items || []).find(i => i.id === req.params.id);
+  if (it && it.showOnSite) return res.redirect(302, `/product/${encodeURIComponent(it.id)}`);
+  res.redirect(302, `/admin#item=${encodeURIComponent(req.params.id)}`);
+});
+
 /* QR-код (SVG) — для этикеток склада; публичный, содержимое ограничено */
 let QRCode = null;
 try { QRCode = require('qrcode'); } catch (_) { console.warn('qrcode недоступен — этикетки без QR'); }
 app.get('/qr.svg', async (req, res) => {
-  const d = String(req.query.d || '').slice(0, 300);
+  const d = String(req.query.d || '').slice(0, 600);
   if (!d || !QRCode) return res.status(404).end();
   try {
     res.type('image/svg+xml').set('Cache-Control', 'public, max-age=86400')

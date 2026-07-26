@@ -167,13 +167,17 @@ class App {
     this._applyAccess();
     this.backup.checkAutoBackup();
 
-    // Скан QR-этикетки: /admin#item=<id> открывает карточку товара
-    const qr = /#item=([\w-]+)/.exec(location.hash);
-    if (qr) {
+    // Скан QR-этикетки: #item=<id> — карточка товара, #items=a,b,c — посылка
+    const qrOne   = /#item=([\w-]+)/.exec(location.hash);
+    const qrMulti = /#items=([\w,-]+)/.exec(location.hash);
+    if (qrOne || qrMulti) {
       history.replaceState(null, '', location.pathname);
-      const id = decodeURIComponent(qr[1]);
-      if (this.items.some(i => i.id === id)) this.openItemModal(id);
-      else this.toast('Товар с этикетки не найден — возможно, удалён');
+      if (qrMulti) this._selectScanned(qrMulti[1].split(','));
+      else {
+        const id = decodeURIComponent(qrOne[1]);
+        if (this.items.some(i => i.id === id)) this.openItemModal(id);
+        else this.toast('Товар с этикетки не найден — возможно, удалён');
+      }
     }
   }
 
@@ -984,6 +988,7 @@ class App {
 
     document.getElementById('bulkDeleteBtn').addEventListener('click', () => this.bulkDelete());
     document.getElementById('bulkLabelsBtn').addEventListener('click', () => this.bulkLabels());
+    document.getElementById('scanQrBtn')?.addEventListener('click', () => this.scanQr());
 
     // «Выбрать все» — все товары текущего списка (с учётом фильтров и поиска)
     document.getElementById('selectAllBtn').addEventListener('click', async () => {
@@ -2278,7 +2283,8 @@ class App {
       .p{font-size:4.2mm;font-weight:800;margin-top:1.5mm}
       @media print{body{padding:0}.lbl{border-color:transparent}}
     </style></head><body>` + items.map(i => {
-      const url = location.origin + '/admin#item=' + encodeURIComponent(i.id);
+      // /q/<id>: товар с витрины откроется на сайте (удобно на ПВЗ), скрытый — в панели
+      const url = location.origin + '/q/' + encodeURIComponent(i.id);
       const sizes = (i.sizes || []).filter(s => s.size).map(s => s.size).join(' · ');
       return `<div class="lbl">
         <img src="/qr.svg?d=${encodeURIComponent(url)}" alt="QR">
@@ -2288,8 +2294,69 @@ class App {
           ${i.price ? `<div class="p">${fmtMoney(i.price)}</div>` : ''}
         </div>
       </div>`;
-    }).join('') + `<script>onload=function(){setTimeout(function(){print()},500)}<\/script></body></html>`);
+    }).join('') + (items.length > 1 ? (() => {
+      // Сводная этикетка посылки: скан выделяет все её товары в панели
+      const purl = location.origin + '/admin#items=' + items.map(i => i.id).join(',');
+      const names = items.slice(0, 3).map(i => i.name).join(', ') + (items.length > 3 ? ` +${items.length - 3}` : '');
+      return `<div class="lbl" style="border-style:solid">
+        <img src="/qr.svg?d=${encodeURIComponent(purl)}" alt="QR">
+        <div class="in">
+          <div class="n">📦 Посылка · ${items.length} шт</div>
+          <div class="s">${esc(names)}</div>
+          <div class="p">${fmtMoney(items.reduce((s, i) => s + (i.price || 0), 0))}</div>
+        </div>
+      </div>`;
+    })() : '') + `<script>onload=function(){setTimeout(function(){print()},500)}<\/script></body></html>`);
     w.document.close();
+  }
+
+  /* ── Сканер QR: в Telegram — встроенный сканер, в браузере — ввод ссылки ── */
+  scanQr() {
+    const tg = window.Telegram?.WebApp;
+    if (tg?.showScanQrPopup) {
+      try {
+        tg.showScanQrPopup({ text: 'Наведите камеру на QR этикетки' }, (data) => {
+          this._handleScan(data);
+          return true;   // true = закрыть сканер
+        });
+        return;
+      } catch (_) {}
+    }
+    this._prompt('Скан QR', '', 'Вставьте ссылку или ID с этикетки')
+      .then(v => { if (v) this._handleScan(v); });
+  }
+
+  _handleScan(data) {
+    const s = String(data || '').trim();
+    // Посылка: #items=id1,id2,… → выделить все её товары
+    const multi = /#items=([\w,-]+)/.exec(s);
+    if (multi) { this._selectScanned(multi[1].split(',')); return; }
+    // Товар: /q/<id>, /product/<id>, #item=<id> или голый id
+    const one = /(?:#item=|\/q\/|\/product\/)([\w-]+)/.exec(s) || /^([\w-]{8,})$/.exec(s);
+    const id  = one && decodeURIComponent(one[1]);
+    if (id && this.items.some(i => i.id === id)) {
+      this.renderView('inventory');
+      this.openItemModal(id);
+    } else {
+      this.toast('Товар по QR не найден');
+    }
+  }
+
+  async _selectScanned(ids) {
+    const found = ids.filter(id => this.items.some(i => i.id === id));
+    if (!found.length) { this.toast('Товары посылки не найдены'); return; }
+    // Сбрасываем фильтры списка — все вещи посылки должны быть видны
+    this.filterOwnerId = null; this._filterMonarc = false; this.filterStatus = '';
+    const si = document.getElementById('searchInput');
+    if (si) si.value = '';
+    this.renderOwnerFilterChips();
+    this.renderView('inventory');
+    if (!this._selectMode) this.enterSelectMode();
+    this._selectedIds = new Set(found);
+    await this.renderInventoryList();
+    this.updateDeliveryBar();
+    const names = found.map(id => this.items.find(i => i.id === id)?.name).filter(Boolean);
+    this.toast(`📦 ${found.length} тов.: ${names.join(', ').slice(0, 120)}${names.join(', ').length > 120 ? '…' : ''}`);
   }
 
   /* Bulk: удаление выбранных — одним запросом, с подтверждением */
