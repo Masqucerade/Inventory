@@ -1080,6 +1080,11 @@ class App {
       else this._colPicked.add(id);
       row.classList.toggle('picked', this._colPicked.has(id));
       this._updateColCount();
+      this._renderColOrder();
+    });
+    document.getElementById('colOrderList').addEventListener('click', (e) => {
+      const mv = e.target.closest('.col-ord-move');
+      if (mv && !mv.disabled) this._moveColItem(mv.dataset.id, mv.dataset.dir);
     });
 
     /* Блоки на сайте */
@@ -1699,7 +1704,8 @@ class App {
     wrap.addEventListener('dragstart', (e) => e.preventDefault());
 
     let el = null, ph = null, pid = null, startX = 0, startY = 0,
-        grabDX = 0, grabDY = 0, dragging = false, landing = false, longT = null;
+        grabDX = 0, grabDY = 0, dragging = false, landing = false, longT = null,
+        flipLockUntil = 0;   // пока соседи разъезжаются, их rect'ы врут — не перецеливаемся
     const canDrag  = () => this._sortBy === 'date' && !this._selectMode;
     const cards    = () => [...wrap.querySelectorAll('.item-card')];
     const scroller = document.querySelector('#view-inventory .view-body') || document.scrollingElement;
@@ -1740,13 +1746,15 @@ class App {
         c.style.transform  = `translateY(${d}px)`;
         moved.push(c);
       }
-      if (moved.length) requestAnimationFrame(() => {
+      // setTimeout, не rAF: rAF замирает в свёрнутой вкладке (Telegram сворачивают
+      // посреди жеста) — transform остался бы навсегда и карточки бы «слиплись»
+      if (moved.length) setTimeout(() => {
         for (const c of moved) {
           c.style.transition = 'transform .18s ease';
           c.style.transform  = '';
         }
         setTimeout(() => { for (const c of moved) c.style.transition = ''; }, 240);
-      });
+      }, 20);
     };
 
     const cleanup = () => {
@@ -1757,6 +1765,9 @@ class App {
       }
       ph?.remove(); ph = null;
       wrap.classList.remove('dragging');
+      // Страховка: если FLIP-таймеры не дожили (вкладку свернули посреди
+      // жеста), снять зависшие transform у соседей
+      for (const c of cards()) { c.style.transform = ''; c.style.transition = ''; }
       dragging = false; landing = false; el = null; pid = null;
     };
 
@@ -1814,23 +1825,23 @@ class App {
       const sr = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0, bottom: innerHeight };
       if (e.clientY < sr.top + 90) scroller.scrollTop -= 9;
       else if (e.clientY > sr.bottom - 90) scroller.scrollTop += 9;
-      // Слот встаёт до/после соседа, чью середину пересёк палец;
-      // выше первой / ниже последней карточки — в самый край списка
-      const rest = cards().filter(c => c !== el);
-      let target;
-      for (const c of rest) {
+      // Целимся центром самой карточки, а не пальцем: пользователь судит по
+      // тому, где карточка, — если схватить её за край, палец может ещё не
+      // дойти до середины соседа, хотя карточка уже «на его месте».
+      // Слот встаёт перед первым соседом, чья середина ниже центра карточки.
+      if (Date.now() < flipLockUntil) return;
+      const er = el.getBoundingClientRect();
+      const cy = er.top + er.height / 2;
+      let target = null;                             // null = в самый конец
+      for (const c of cards()) {
+        if (c === el) continue;
         const r = c.getBoundingClientRect();
-        if (e.clientY > r.top && e.clientY < r.bottom) {
-          target = e.clientY < r.top + r.height / 2 ? c : c.nextSibling;
-          break;
-        }
+        if (cy < r.top + r.height / 2) { target = c; break; }
       }
-      if (target === undefined && rest.length) {
-        if (e.clientY <= rest[0].getBoundingClientRect().top) target = rest[0];
-        else if (e.clientY >= rest[rest.length - 1].getBoundingClientRect().bottom) target = null;  // в конец
-      }
-      if (target !== undefined && target !== ph && ph.nextSibling !== target)
+      if (target !== ph && ph.nextSibling !== target) {
         flipMove(() => wrap.insertBefore(ph, target));
+        flipLockUntil = Date.now() + 190;
+      }
     });
     wrap.addEventListener('pointerup',     (e) => { if (!el || e.pointerId === pid) stop(true); });
     wrap.addEventListener('pointercancel', (e) => { if (!el || e.pointerId === pid) stop(false); });
@@ -5279,6 +5290,7 @@ class App {
     document.getElementById('colTitle').value = col?.title || '';
     document.getElementById('colDesc').value  = col?.description || '';
     this._renderColPicker();
+    this._renderColOrder();
     this.openModal('collectionModal');
     if (!col) setTimeout(() => document.getElementById('colTitle').focus(), 350);
   }
@@ -5308,6 +5320,41 @@ class App {
   _updateColCount() {
     document.getElementById('colPickerCount').textContent =
       this._colPicked?.size ? `· выбрано ${this._colPicked.size}` : '';
+  }
+
+  /* Порядок выбранных товаров: как в Set (порядок добавления),
+     стрелки переставляют — так товары идут на сайте */
+  _renderColOrder() {
+    const grp = document.getElementById('colOrderGroup');
+    const el  = document.getElementById('colOrderList');
+    if (!grp || !el) return;
+    const rows = [...this._colPicked]
+      .map(id => this.items.find(i => i.id === id)).filter(Boolean);
+    grp.hidden = rows.length < 2;
+    if (grp.hidden) { el.innerHTML = ''; return; }
+    el.innerHTML = rows.map((i, k) => {
+      const cover = i.thumbs?.[0] || i.photos?.[0] || i.photo;
+      return `<div class="settings-row col-ord-row" data-ord-id="${i.id}">
+        <div class="col-pick-thumb">${cover ? `<img src="${this.esc(cover)}" alt="">` : '📦'}</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">${this.esc(i.name)}</div>
+        </div>
+        <div class="block-row-actions">
+          <button class="block-move col-ord-move" data-id="${i.id}" data-dir="up" title="Выше"${k === 0 ? ' disabled' : ''}>↑</button>
+          <button class="block-move col-ord-move" data-id="${i.id}" data-dir="down" title="Ниже"${k === rows.length - 1 ? ' disabled' : ''}>↓</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  _moveColItem(id, dir) {
+    const arr = [...this._colPicked];
+    const i = arr.indexOf(id);
+    const j = dir === 'up' ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    this._colPicked = new Set(arr);
+    this._renderColOrder();
   }
 
   async saveCollectionForm() {
