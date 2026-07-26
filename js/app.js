@@ -1685,53 +1685,106 @@ class App {
   }
 
   /* ── Перетаскивание карточек в списке «Товары»: мышью сразу, на таче —
-     long-press. Работает в сортировке «Добавлен» вне режима выделения;
-     порядок сохраняется (pos) и переживает перезаход. Архив не тасуем. ── */
+     long-press. Карточка «поднимается» из списка (fixed + скейл + тень),
+     на её месте — слот-превью, соседи раздвигаются FLIP-анимацией,
+     при отпускании карточка мягко приземляется в слот. Работает в
+     сортировке «Добавлен» вне режима выделения; порядок хранится в pos. ── */
   _bindCardDrag() {
     const wrap = document.querySelector('#inventoryList .items-list');
     if (!wrap || wrap._dragBound) return;
     wrap._dragBound = true;
     wrap._justDragged = false;
 
-    let el = null, pid = null, startX = 0, startY = 0, dragging = false, longT = null;
+    let el = null, ph = null, pid = null, startX = 0, startY = 0,
+        grabDX = 0, grabDY = 0, dragging = false, landing = false, longT = null;
     const canDrag  = () => this._sortBy === 'date' && !this._selectMode;
     const cards    = () => [...wrap.querySelectorAll('.item-card')];
     const scroller = document.querySelector('#view-inventory .view-body') || document.scrollingElement;
 
     const startDrag = () => {
-      if (!el) return;
+      if (!el || dragging) return;
       dragging = true;
-      el.classList.add('drag');
+      const r = el.getBoundingClientRect();
+      grabDX = startX - r.left; grabDY = startY - r.top;
+      // Слот держит место и показывает, куда ляжет карточка
+      ph = document.createElement('div');
+      ph.className = 'item-card-ph';
+      ph.style.height = (r.height - 4) + 'px';       // -4: вертикальные поля слота
+      el.after(ph);
+      // Карточка выходит из потока и следует за пальцем
+      el.style.width = r.width + 'px';
+      el.style.left  = r.left + 'px';
+      el.style.top   = r.top + 'px';
+      el.classList.add('drag');                      // fixed + скейл + тень (анимируется)
       wrap.classList.add('dragging');
       try { el.setPointerCapture(pid); } catch (_) {}
       if (navigator.vibrate) navigator.vibrate(10);
     };
 
+    // FLIP: соседи плавно съезжают на новые места после перестановки слота
+    const flipMove = (mutate) => {
+      const others = cards().filter(c => c !== el);
+      const before = new Map(others.map(c => [c, c.getBoundingClientRect().top]));
+      mutate();
+      const moved = [];
+      for (const c of others) {
+        const d = before.get(c) - c.getBoundingClientRect().top;
+        if (!d) continue;
+        c.style.transition = 'none';
+        c.style.transform  = `translateY(${d}px)`;
+        moved.push(c);
+      }
+      if (moved.length) requestAnimationFrame(() => {
+        for (const c of moved) {
+          c.style.transition = 'transform .18s ease';
+          c.style.transform  = '';
+        }
+        setTimeout(() => { for (const c of moved) c.style.transition = ''; }, 240);
+      });
+    };
+
+    const cleanup = () => {
+      if (el) {
+        el.classList.remove('drag');
+        el.style.cssText = '';
+      }
+      ph?.remove(); ph = null;
+      wrap.classList.remove('dragging');
+      dragging = false; landing = false; el = null; pid = null;
+    };
+
     const stop = (commit) => {
       clearTimeout(longT); longT = null;
-      if (dragging && el) {
-        wrap.classList.remove('dragging');
-        el.classList.remove('drag');
-        el.style.transform = '';
-        wrap._justDragged = true;                    // подавить click-«открыть карточку»
-        setTimeout(() => { wrap._justDragged = false; }, 60);
-        if (commit) {
-          // Порядок из DOM; pos хранится в порядке вида «сверху вниз» при ↓
-          let ids = cards().map(c => c.dataset.id);
-          if (this._sortDir === 'asc') ids = ids.reverse();
-          const posById = new Map(ids.map((id, i) => [id, i]));
-          this.items.forEach(i => { if (posById.has(i.id)) i.pos = posById.get(i.id); });
-          this.db.reorderItems(ids).catch(() => this.toast('Не удалось сохранить порядок'));
-          clearTimeout(this._itemReorderLogT);
-          this._itemReorderLogT = setTimeout(() =>
-            this.db.logAction('item_edit', 'Порядок товаров изменён'), 4000);
-        }
-      }
-      dragging = false; el = null; pid = null;
+      if (!dragging || !el || landing) { if (!landing) { el = null; pid = null; } return; }
+      wrap._justDragged = true;                      // подавить click-«открыть карточку»
+      setTimeout(() => { wrap._justDragged = false; }, 80);
+      if (!commit || !ph) { cleanup(); return; }
+      // Приземление: карточка доезжает до слота, потом встаёт в поток
+      landing = true;
+      const grabbed = el, slot = ph;
+      const pr = slot.getBoundingClientRect();
+      grabbed.style.transition = 'left .16s ease, top .16s ease, transform .16s ease, box-shadow .16s ease';
+      grabbed.style.left = (pr.left - 6) + 'px';     // компенсация полей слота
+      grabbed.style.top  = (pr.top - 2) + 'px';
+      grabbed.style.transform = 'scale(1)';
+      grabbed.style.boxShadow = '0 2px 10px rgba(0,0,0,.25)';
+      setTimeout(() => {
+        slot.replaceWith(grabbed);
+        cleanup();
+        // Порядок из DOM; pos хранится в порядке вида «сверху вниз» при ↓
+        let ids = cards().map(c => c.dataset.id);
+        if (this._sortDir === 'asc') ids = ids.reverse();
+        const posById = new Map(ids.map((id, i) => [id, i]));
+        this.items.forEach(i => { if (posById.has(i.id)) i.pos = posById.get(i.id); });
+        this.db.reorderItems(ids).catch(() => this.toast('Не удалось сохранить порядок'));
+        clearTimeout(this._itemReorderLogT);
+        this._itemReorderLogT = setTimeout(() =>
+          this.db.logAction('item_edit', 'Порядок товаров изменён'), 4000);
+      }, 175);
     };
 
     wrap.addEventListener('pointerdown', (e) => {
-      if (!canDrag()) return;
+      if (!canDrag() || landing) return;
       const c = e.target.closest('.item-card');
       if (!c) return;
       el = c; pid = e.pointerId; startX = e.clientX; startY = e.clientY;
@@ -1740,27 +1793,28 @@ class App {
     });
 
     wrap.addEventListener('pointermove', (e) => {
-      if (!el) return;
-      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (!el || landing) return;
       if (!dragging) {
-        if (e.pointerType === 'mouse' && Math.hypot(dx, dy) > 6) startDrag();
-        else if (Math.hypot(dx, dy) > 10) { clearTimeout(longT); longT = null; el = null; return; }  // это скролл списка
+        const d = Math.hypot(e.clientX - startX, e.clientY - startY);
+        if (e.pointerType === 'mouse' && d > 6) startDrag();
+        else if (d > 10) { clearTimeout(longT); longT = null; el = null; return; }  // это скролл списка
         if (!dragging) return;
       }
       e.preventDefault();
-      el.style.transform = `translateY(${dy}px) scale(1.02)`;
-      // У краёв экрана — подкручиваем список
+      el.style.left = (e.clientX - grabDX) + 'px';
+      el.style.top  = (e.clientY - grabDY) + 'px';
+      // У краёв экрана — подкручиваем список (fixed-карточка остаётся под пальцем)
       const sr = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0, bottom: innerHeight };
       if (e.clientY < sr.top + 90) scroller.scrollTop -= 9;
       else if (e.clientY > sr.bottom - 90) scroller.scrollTop += 9;
-      // Пересечение с серединой соседа — переставляем в DOM на лету
+      // Слот встаёт до/после соседа, чью середину пересёк палец
       for (const c of cards()) {
         if (c === el) continue;
         const r = c.getBoundingClientRect();
         if (e.clientY > r.top && e.clientY < r.bottom) {
-          wrap.insertBefore(el, e.clientY < r.top + r.height / 2 ? c : c.nextSibling);
-          startX = e.clientX; startY = e.clientY;
-          el.style.transform = 'scale(1.02)';
+          const target = e.clientY < r.top + r.height / 2 ? c : c.nextSibling;
+          if (target !== ph && ph.nextSibling !== target)   // не дёргать, если слот уже там
+            flipMove(() => wrap.insertBefore(ph, target));
           break;
         }
       }
