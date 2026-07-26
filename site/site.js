@@ -914,8 +914,11 @@ function renderCover(blocks) {
   const fitAuto = covers.length === 1 && c.fit === 'auto';
   const slide = (b, on) => {
     const hasCaption = !!(b.heading || b.sub);
+    // Кадр: --pos для десктопа, --pos-m для телефона (панель отдаёт проценты;
+    // без своего мобильного кадра телефон наследует десктопный)
+    const pos = `--pos:${esc(b.pos || 'center center')}${b.posM ? `;--pos-m:${esc(b.posM)}` : ''}`;
     return `<div class="sc-slide${on ? ' on' : ''}">
-      <img src="${esc(b.image)}" alt="" style="object-position:${esc(b.pos || 'center center')}" draggable="false">
+      <img src="${esc(b.image)}" alt="" style="${pos}" draggable="false">
       ${hasCaption ? `<div class="sc-shade" aria-hidden="true"></div>
       <div class="sc-caption">
         ${b.heading ? `<h2>${esc(b.heading)}</h2>` : ''}

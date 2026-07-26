@@ -5215,6 +5215,7 @@ class App {
 
   openBlockModal(block = null) {
     this._blockIsNew = !block;
+    this._cropView = 'd';
     this._block = block ? { ...block } : { type: 'banner', section: 'all', enabled: true, linkType: 'none' };
     document.getElementById('blockModalTitle').textContent = block ? 'Изменить блок' : 'Новый блок';
     this._renderBlockForm();
@@ -5315,19 +5316,28 @@ class App {
       b.pos = b.pos || 'center center'; b.fit = b.fit || 'cover';
       html += `<div class="blk-hint">Заглавный кадр на самом верху раздела, ниже посетитель листает к товарам. Несколько включённых обложек раздела показываются по очереди.</div>`;
       html += imgField('image', 'Фото обложки');
-      if (b.image) html += g('Предпросмотр', `
-        <div class="blk-banner-preview h-xl">
-          <img src="${esc(b.image)}" alt="" style="object-fit:${b.fit === 'auto' ? 'contain' : 'cover'};object-position:${esc(b.pos)}">
-          ${b.heading ? `<div class="blk-preview-cap">${esc(b.heading)}</div>` : ''}
-        </div>`);
       html += g('Кадр', seg('fit', [
         { v: 'cover', t: 'На весь экран' }, { v: 'auto', t: 'Фото целиком' },
       ]));
-      if (b.fit !== 'auto') html += g('Фокус фото — какая часть в кадре', `
-        <div class="blk-seg blk-pos-grid" data-seg="pos">
-          ${['left top','center top','right top','left center','center center','right center','left bottom','center bottom','right bottom']
-            .map(v => `<button type="button" class="${b.pos === v ? 'on' : ''}" data-val="${v}" title="${v}"><i></i></button>`).join('')}
-        </div>`);
+      if (b.image && b.fit !== 'auto') {
+        // Интерактивный кадр: тянешь фото — выбираешь, что видно на сайте.
+        // Десктоп и телефон кадрируются отдельно (pos / posM)
+        const view = this._cropView === 'm' ? 'm' : 'd';
+        html += g('Кадр на сайте — потяните фото', `
+          <div class="blk-seg blk-crop-tabs" style="margin-bottom:8px">
+            <button type="button" class="blk-crop-tab${view === 'd' ? ' on' : ''}" data-crop="d">Десктоп</button>
+            <button type="button" class="blk-crop-tab${view === 'm' ? ' on' : ''}" data-crop="m">Телефон</button>
+          </div>
+          <div class="blk-crop-stage${view === 'm' ? ' m' : ''}" id="blkCropStage">
+            <img src="${esc(b.image)}" alt="" draggable="false">
+          </div>`);
+      } else if (b.image) {
+        html += g('Предпросмотр', `
+          <div class="blk-banner-preview h-xl">
+            <img src="${esc(b.image)}" alt="" style="object-fit:contain">
+            ${b.heading ? `<div class="blk-preview-cap">${esc(b.heading)}</div>` : ''}
+          </div>`);
+      }
       html += g('Заголовок (необязательно)', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || '')}" placeholder="Например: Monarc">`);
       html += g('Подпись (необязательно)', `<input type="text" class="form-input" id="blkSub" value="${esc(b.sub || '')}" placeholder="Короткая строка под заголовком">`);
     } else if (b.type === 'popup') {
@@ -5357,6 +5367,45 @@ class App {
       html += g('Текст полосы', `<input type="text" class="form-input" id="blkText" value="${esc(b.text || '')}" placeholder="Например: Бесплатная доставка от 5000 ₽">`);
     }
     document.getElementById('blockFormBody').innerHTML = html;
+    this._initCropDrag();
+  }
+
+  /* Перетаскивание фото в кадре обложки: объект-позиция в процентах.
+     Десктоп пишет в pos, телефон — в posM (сайт возьмёт его в мобильной вёрстке). */
+  _initCropDrag() {
+    const stage = document.getElementById('blkCropStage');
+    if (!stage) return;
+    const img = stage.querySelector('img');
+    const key = this._cropView === 'm' ? 'posM' : 'pos';
+    const parse = v => {
+      const m = /^([\d.]+)%\s+([\d.]+)%$/.exec(v || '');
+      if (m) return [parseFloat(m[1]), parseFloat(m[2])];
+      const map = { left: 0, top: 0, center: 50, right: 100, bottom: 100 };
+      const p = String(v || 'center center').split(/\s+/);
+      return [map[p[0]] ?? 50, map[p[1]] ?? 50];
+    };
+    // Телефон без своего кадра наследует десктопный
+    let [px, py] = parse(this._block[key] || this._block.pos);
+    img.style.objectPosition = `${px}% ${py}%`;
+    let drag = null;
+    stage.onpointerdown = (e) => {
+      if (!img.naturalWidth) return;
+      e.preventDefault();
+      try { stage.setPointerCapture(e.pointerId); } catch {}
+      const scale = Math.max(stage.clientWidth / img.naturalWidth, stage.clientHeight / img.naturalHeight);
+      drag = { x: e.clientX, y: e.clientY, px, py,
+               ox: img.naturalWidth * scale - stage.clientWidth,
+               oy: img.naturalHeight * scale - stage.clientHeight };
+    };
+    stage.onpointermove = (e) => {
+      if (!drag) return;
+      // Сдвиг фото вправо = показываем левую часть (процент меньше)
+      if (drag.ox > 1) px = Math.min(100, Math.max(0, drag.px - (e.clientX - drag.x) / drag.ox * 100));
+      if (drag.oy > 1) py = Math.min(100, Math.max(0, drag.py - (e.clientY - drag.y) / drag.oy * 100));
+      img.style.objectPosition = `${px}% ${py}%`;
+      this._block[key] = `${Math.round(px)}% ${Math.round(py)}%`;
+    };
+    stage.onpointerup = stage.onpointercancel = () => { drag = null; };
   }
 
   _readBlockForm() {
@@ -5379,6 +5428,14 @@ class App {
   }
 
   _onBlockFormClick(e) {
+    // Вкладки кадра (десктоп/телефон) — раньше общего .blk-seg: у них нет data-seg
+    const cropTab = e.target.closest('.blk-crop-tab');
+    if (cropTab) {
+      this._readBlockForm();
+      this._cropView = cropTab.dataset.crop;
+      this._renderBlockForm();
+      return;
+    }
     const seg = e.target.closest('.blk-seg button');
     if (seg) {
       this._readBlockForm();

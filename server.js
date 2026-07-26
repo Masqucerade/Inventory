@@ -598,6 +598,7 @@ app.get('/api/public/blocks', (req, res) => {
         id: b.id, type: 'cover', order,
         image: b.image || '', heading: b.heading || '', sub: b.sub || '',
         pos: b.pos || 'center center',
+        posM: typeof b.posM === 'string' ? b.posM : '',   // отдельный кадр для телефона
         fit: b.fit === 'auto' ? 'auto' : 'cover',   // auto = фото целиком, без кадрирования
       };
       // Попап при заходе: section нужен клиенту (лендинг показывает только «Везде»)

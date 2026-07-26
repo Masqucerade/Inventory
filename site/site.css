@@ -999,7 +999,12 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
 }
 .site-cover img {
   width: 100%; height: 100%; object-fit: cover; display: block;
+  object-position: var(--pos, center center);
   pointer-events: none; -webkit-user-drag: none; user-select: none;
+}
+/* Телефон: свой кадр обложки, если задан в панели */
+@media (max-width: 640px) {
+  .site-cover img { object-position: var(--pos-m, var(--pos, center center)); }
 }
 /* Режим «Фото целиком»: во всю ширину экрана, высота по самому фото */
 .site-cover.fit-auto { height: auto; min-height: 0; }
