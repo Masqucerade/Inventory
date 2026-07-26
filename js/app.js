@@ -5579,12 +5579,35 @@ class App {
     };
 
     let html = '';
-    if (this._blockIsNew)
-      html += g('Тип блока', seg('type', [
-        { v: 'banner', t: 'Баннер' }, { v: 'cover', t: 'Обложка' }, { v: 'weekly', t: 'Товары' },
-        { v: 'statement', t: 'Слоган' }, { v: 'text', t: 'Текст' }, { v: 'marquee', t: 'Строка' }, { v: 'promo', t: 'Промо' },
-        { v: 'popup', t: 'Попап' },
-      ]));
+    if (this._blockIsNew) {
+      // Выбор типа — карточки с мини-схемой «как это выглядит на сайте»:
+      // по одним названиям тип не вспомнить
+      const sw = `fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`;
+      const TYPES = [
+        { v: 'banner', t: 'Баннер', d: 'Крупное фото в потоке витрины',
+          s: `<svg viewBox="0 0 54 36" ${sw}><rect x="3" y="6" width="48" height="24" rx="3"/><circle cx="13" cy="14" r="2.4"/><path d="M7 25l9-7 7 5 6-4 10 6"/></svg>` },
+        { v: 'cover', t: 'Обложка', d: 'Первый экран раздела, во всю высоту',
+          s: `<svg viewBox="0 0 54 36" ${sw}><rect x="12" y="2" width="30" height="32" rx="3"/><path d="M17 20l7-6 5 4 8-5"/><path d="M24 28l3 3 3-3"/></svg>` },
+        { v: 'weekly', t: 'Товары', d: 'Полка выбранных товаров',
+          s: `<svg viewBox="0 0 54 36" ${sw}><rect x="4" y="8" width="13" height="20" rx="2"/><rect x="20.5" y="8" width="13" height="20" rx="2"/><rect x="37" y="8" width="13" height="20" rx="2"/></svg>` },
+        { v: 'statement', t: 'Слоган', d: 'Крупная фраза по центру',
+          s: `<svg viewBox="0 0 54 36" ${sw}><path d="M13 15h28" stroke-width="3"/><path d="M18 22h18" stroke-width="3"/></svg>` },
+        { v: 'text', t: 'Текст', d: 'Заголовок и абзац текста',
+          s: `<svg viewBox="0 0 54 36" ${sw}><path d="M8 10h22" stroke-width="2.6"/><path d="M8 17h38M8 23h32"/></svg>` },
+        { v: 'marquee', t: 'Строка', d: 'Бегущая строка через экран',
+          s: `<svg viewBox="0 0 54 36" ${sw}><path d="M4 18h40"/><path d="M40 13l7 5-7 5"/></svg>` },
+        { v: 'promo', t: 'Промо', d: 'Тонкая полоса-объявление сверху',
+          s: `<svg viewBox="0 0 54 36" ${sw}><rect x="3" y="4" width="48" height="7" rx="3.5"/><rect x="7" y="17" width="40" height="15" rx="2" opacity=".35"/></svg>` },
+        { v: 'popup', t: 'Попап', d: 'Окно при входе на сайт',
+          s: `<svg viewBox="0 0 54 36" ${sw}><rect x="4" y="4" width="46" height="28" rx="3" opacity=".35"/><rect x="16" y="10" width="22" height="16" rx="3"/></svg>` },
+      ];
+      html += g('Тип блока', `<div class="blk-seg blk-type-grid" data-seg="type">` + TYPES.map(o =>
+        `<button type="button" class="${b.type === o.v ? 'on' : ''}" data-val="${o.v}">
+          <span class="btg-scheme">${o.s}</span>
+          <span class="btg-name">${o.t}</span>
+          <span class="btg-desc">${o.d}</span>
+        </button>`).join('') + `</div>`);
+    }
     html += g('Сайт', seg('section', [{ v: 'all', t: 'Оба сайта' }, { v: 'monarc', t: 'Masqucerade' }, { v: 'type', t: 'Type-clothes' }]));
 
     if (b.type === 'banner') {
@@ -5635,21 +5658,26 @@ class App {
     } else if (b.type === 'cover') {
       b.pos = b.pos || 'center center'; b.fit = b.fit || 'cover';
       html += `<div class="blk-hint">Заглавный кадр на самом верху раздела, ниже посетитель листает к товарам. Несколько включённых обложек раздела показываются по очереди.</div>`;
-      html += imgField('image', 'Фото обложки');
+      const dim = t => `<span style="color:var(--text3);font-weight:400">${t}</span>`;
+      html += imgField('image', `Фото — десктоп ${dim('· горизонтальное, лучше 2560×1440 (16:9)')}`);
+      html += imgField('imageM', `Фото — телефон ${dim('· вертикальное, лучше 1080×1920 (9:16)')}`);
+      if (!b.imageM) html += `<div class="blk-hint" style="margin-top:-6px">Телефонное фото не задано — на мобильных покажется обрезанное десктопное. Вертикальная версия смотрится заметно лучше.</div>`;
       html += g('Кадр', seg('fit', [
         { v: 'cover', t: 'На весь экран' }, { v: 'auto', t: 'Фото целиком' },
       ]));
       if (b.image && b.fit !== 'auto') {
-        // Интерактивный кадр: тянешь фото — выбираешь, что видно на сайте.
-        // Десктоп и телефон кадрируются отдельно (pos / posM)
+        // Интерактивный кадр: рамка = экран посетителя, тянешь фото — выбираешь,
+        // что видно. Десктоп и телефон кадрируются отдельно (pos / posM);
+        // вкладка «Телефон» показывает своё фото, если оно задано
         const view = this._cropView === 'm' ? 'm' : 'd';
-        html += g('Кадр на сайте — потяните фото', `
+        const stageSrc = view === 'm' && b.imageM ? b.imageM : b.image;
+        html += g('Как будет на сайте — потяните фото, чтобы выбрать кадр', `
           <div class="blk-seg blk-crop-tabs" style="margin-bottom:8px">
             <button type="button" class="blk-crop-tab${view === 'd' ? ' on' : ''}" data-crop="d">Десктоп</button>
-            <button type="button" class="blk-crop-tab${view === 'm' ? ' on' : ''}" data-crop="m">Телефон</button>
+            <button type="button" class="blk-crop-tab${view === 'm' ? ' on' : ''}" data-crop="m">Телефон${b.imageM ? ' · своё фото' : ''}</button>
           </div>
           <div class="blk-crop-stage${view === 'm' ? ' m' : ''}" id="blkCropStage">
-            <img src="${esc(b.image)}" alt="" draggable="false">
+            <img src="${esc(stageSrc)}" alt="" draggable="false">
           </div>`);
       } else if (b.image) {
         html += g('Предпросмотр', `
@@ -5792,8 +5820,9 @@ class App {
     if (e.target.classList.contains('blk-img-input')) {
       const field = e.target.closest('[data-imgfield]').dataset.imgfield;
       const f = e.target.files[0];
-      // Обложка тянется на всю ширину больших мониторов — ей нужен запас
-      const maxSide = this._block?.type === 'cover' ? 2560 : 1920;
+      // Обложка тянется на всю ширину больших мониторов — ей нужен запас;
+      // телефонной версии хватает 1600 по длинной стороне
+      const maxSide = field === 'imageM' ? 1600 : this._block?.type === 'cover' ? 2560 : 1920;
       if (f) resizeImage(f, maxSide, maxSide, 0.88)
         .then(url => { this._readBlockForm(); this._block[field] = url; this._renderBlockForm(); })
         .catch(() => this.toast('Ошибка загрузки фото'));

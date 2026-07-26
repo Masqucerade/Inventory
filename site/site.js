@@ -917,9 +917,11 @@ function renderCover(blocks) {
     // Кадр: --pos для десктопа, --pos-m для телефона (панель отдаёт проценты;
     // без своего мобильного кадра телефон наследует десктопный)
     const pos = `--pos:${esc(b.pos || 'center center')}${b.posM ? `;--pos-m:${esc(b.posM)}` : ''}`;
-    return `<div class="sc-slide${on ? ' on' : ''}">
-      <img src="${esc(b.image)}" alt="" style="${pos}" draggable="false">
-    </div>`;
+    // Своё фото для телефона: <picture> подменяет кадр на узких экранах
+    const img = b.imageM
+      ? `<picture><source media="(max-width: 640px)" srcset="${esc(b.imageM)}"><img src="${esc(b.image)}" alt="" style="${pos}" draggable="false"></picture>`
+      : `<img src="${esc(b.image)}" alt="" style="${pos}" draggable="false">`;
+    return `<div class="sc-slide${on ? ' on' : ''}">${img}</div>`;
   };
   wrap.innerHTML = `
     <section class="site-cover${fitAuto ? ' fit-auto' : ''}">

@@ -602,6 +602,7 @@ app.get('/api/public/blocks', (req, res) => {
       if (b.type === 'cover') return {
         id: b.id, type: 'cover', order,
         image: b.image || '',
+        imageM: typeof b.imageM === 'string' ? b.imageM : '',   // своё фото для телефона
         pos: b.pos || 'center center',
         posM: typeof b.posM === 'string' ? b.posM : '',   // отдельный кадр для телефона
         fit: b.fit === 'auto' ? 'auto' : 'cover',   // auto = фото целиком, без кадрирования
@@ -1728,7 +1729,7 @@ app.put('/api/blocks', async (req, res) => {
   const toRef = async v => (typeof v === 'string' && v.startsWith('data:')) ? ((await saveDataUrl(v)) || v) : v;
   // Только присланные поля: b[f] = toRef(undefined) создавал ключ со значением
   // undefined, и частичный мердж (тумблер/порядок/fit) затирал сохранённое фото
-  for (const f of ['image', 'imageA', 'imageB']) if (b[f] !== undefined) b[f] = await toRef(b[f]);
+  for (const f of ['image', 'imageM', 'imageA', 'imageB']) if (b[f] !== undefined) b[f] = await toRef(b[f]);
   if (Array.isArray(b.images)) b.images = (await Promise.all(b.images.map(toRef))).filter(Boolean);   // мультифото баннера
   if (!b.id) {
     b.id = uid();

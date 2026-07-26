@@ -997,6 +997,7 @@ body.theme-type .good-tag.preorder { background: #e7e5e0; color: #6d685c; }
   overflow: hidden;
   background: var(--bg2);
 }
+.site-cover picture { display: contents; }   /* обёртка мобильного фото не участвует в раскладке */
 .site-cover img {
   width: 100%; height: 100%; object-fit: cover; display: block;
   object-position: var(--pos, center center);
