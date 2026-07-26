@@ -5184,7 +5184,7 @@ class App {
       const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
       const label = b.type === 'promo' ? b.text : (b.heading || 'Без заголовка');
       return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}">
-        <div class="settings-row-icon" style="background:rgba(167,139,250,.14)">${meta.e}</div>
+        ${this._blockThumb(b, meta.e)}
         <div class="settings-row-info">
           <div class="settings-row-title">${this.esc(label || meta.t)}</div>
           <div class="settings-row-sub">${meta.t} · ${SEC[b.section] || b.section}${b.enabled ? '' : ' · скрыт'}</div>
@@ -5839,6 +5839,16 @@ class App {
       <button class="stream-move" data-dir="down" title="Ниже"${i === n - 1 ? ' disabled' : ''}>↓</button>`;
   }
 
+  /* Иконка строки блока: фото блока, если есть (обложку/баннер видно сразу),
+     иначе эмодзи типа */
+  _blockThumb(b, emoji) {
+    const s = v => (typeof v === 'string' ? v : '');   // не-строки — битые фото старого бага
+    const img = s(b.image) || s(b.imageA) || s(b.imageB);
+    return img
+      ? `<div class="settings-row-icon block-thumb"><img src="${this.esc(img)}" alt="" loading="lazy"></div>`
+      : `<div class="settings-row-icon" style="background:rgba(167,139,250,.14)">${emoji}</div>`;
+  }
+
   _blockRowHtml(b, i, n) {
     const TYPE = {
       banner: { t: 'Баннер', e: '🖼' }, weekly: { t: 'Товары недели', e: '⭐' },
@@ -5856,7 +5866,7 @@ class App {
       : (b.heading || 'Без заголовка');
     const sub = `${meta.t} · ${SEC[b.section] || b.section}${b.type === 'promo' ? ' · сверху' : ''}${b.enabled ? '' : ' · скрыт'}`;
     return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}" data-kind="block">
-      <div class="settings-row-icon" style="background:rgba(167,139,250,.14)">${meta.e}</div>
+      ${this._blockThumb(b, meta.e)}
       <div class="settings-row-info">
         <div class="settings-row-title">${this.esc((label || meta.t).replace(/\n/g, ' '))}</div>
         <div class="settings-row-sub">${sub}</div>
