@@ -1736,16 +1736,18 @@ class App {
     };
 
     // FLIP: соседи плавно съезжают на новые места после перестановки слота
+    // (по обеим осям — в веб-версии на ПК список свёрстан сеткой)
     const flipMove = (mutate) => {
       const others = cards().filter(c => c !== el);
-      const before = new Map(others.map(c => [c, c.getBoundingClientRect().top]));
+      const before = new Map(others.map(c => { const r = c.getBoundingClientRect(); return [c, { left: r.left, top: r.top }]; }));
       mutate();
       const moved = [];
       for (const c of others) {
-        const d = before.get(c) - c.getBoundingClientRect().top;
-        if (!d) continue;
+        const b = before.get(c), r = c.getBoundingClientRect();
+        const dx = b.left - r.left, dy = b.top - r.top;
+        if (!dx && !dy) continue;
         c.style.transition = 'none';
-        c.style.transform  = `translateY(${d}px)`;
+        c.style.transform  = `translate(${dx}px, ${dy}px)`;
         moved.push(c);
       }
       // setTimeout, не rAF: rAF замирает в свёрнутой вкладке (Telegram сворачивают
@@ -1833,15 +1835,35 @@ class App {
       // Целимся центром самой карточки, а не пальцем: пользователь судит по
       // тому, где карточка, — если схватить её за край, палец может ещё не
       // дойти до середины соседа, хотя карточка уже «на его месте».
-      // Слот встаёт перед первым соседом, чья середина ниже центра карточки.
       if (Date.now() < flipLockUntil) return;
       const er = el.getBoundingClientRect();
-      const cy = er.top + er.height / 2;
-      let target = null;                             // null = в самый конец
-      for (const c of cards()) {
-        if (c === el) continue;
-        const r = c.getBoundingClientRect();
-        if (cy < r.top + r.height / 2) { target = c; break; }
+      const ex = er.left + er.width / 2, ey = er.top + er.height / 2;
+      let target;
+      if (getComputedStyle(wrap).display === 'grid') {
+        // Веб-версия на ПК: сетка в несколько колонок. Ищем ближайшую к центру
+        // карточку; до/после — в своём ряду по горизонтали, между рядами по вертикали
+        let best = null, bestD = Infinity;
+        for (const c of cards()) {
+          if (c === el) continue;
+          const r = c.getBoundingClientRect();
+          const dx = Math.max(r.left - ex, ex - r.right, 0);
+          const dy = Math.max(r.top - ey, ey - r.bottom, 0);
+          const d = dx * dx + dy * dy;
+          if (d < bestD) { bestD = d; best = { c, r }; }
+        }
+        if (!best) return;
+        const bcx = best.r.left + best.r.width / 2, bcy = best.r.top + best.r.height / 2;
+        const sameRow = Math.abs(ey - bcy) < best.r.height / 2;
+        const before  = sameRow ? ex < bcx : ey < bcy;
+        target = before ? best.c : best.c.nextSibling;
+      } else {
+        // Телефон: один столбец — слот перед первым соседом, чья середина ниже
+        target = null;                               // null = в самый конец
+        for (const c of cards()) {
+          if (c === el) continue;
+          const r = c.getBoundingClientRect();
+          if (ey < r.top + r.height / 2) { target = c; break; }
+        }
       }
       if (target !== ph && ph.nextSibling !== target) {
         flipMove(() => wrap.insertBefore(ph, target));
