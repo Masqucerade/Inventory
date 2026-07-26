@@ -175,7 +175,7 @@ class App {
       if (qrMulti) this._selectScanned(qrMulti[1].split(','));
       else {
         const id = decodeURIComponent(qrOne[1]);
-        if (this.items.some(i => i.id === id)) this.openItemModal(id);
+        if (this.items.some(i => i.id === id)) this.openDetailModal(id);   // превью, не редактирование
         else this.toast('Товар с этикетки не найден — возможно, удалён');
       }
     }
@@ -2418,7 +2418,7 @@ class App {
     const id  = one && decodeURIComponent(one[1]);
     if (id && this.items.some(i => i.id === id)) {
       this.renderView('inventory');
-      this.openItemModal(id);
+      this.openDetailModal(id);   // превью товара; «Изменить» — внутри него
     } else {
       this.toast('Товар по QR не найден');
     }
