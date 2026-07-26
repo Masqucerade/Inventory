@@ -1103,6 +1103,46 @@ app.post('/api/items/bulk', (req, res) => {
   res.json({ ok: true, updated });
 });
 
+/* Человекочитаемый дифф товара для журнала: что конкретно изменилось.
+   Закуп и доставку не раскрываем в суммах — журнал видят и hideCosts-пользователи. */
+const LOG_STATUS_RU = { ordered: 'Заказано', at_warehouse: 'На складе', in_stock: 'В наличии', processing: 'В заказе', done: 'Завершено' };
+const LOG_SEX_RU    = { m: 'Мужское', w: 'Женское', uni: 'Унисекс' };
+const LOG_COND_RU   = { new: 'Новое с биркой', excellent: 'Отличное', good: 'Хорошее' };
+const LOG_GARM_RU   = { top: 'Верх', bottom: 'Низ', shoes: 'Обувь', outerwear: 'Верхняя одежда' };
+const fmtRub = n => new Intl.NumberFormat('ru-RU').format(n || 0) + ' ₽';
+
+function humanItemDiff(db, a, b) {
+  const p = [];
+  if ((a.name || '') !== (b.name || '')) p.push(`название: «${a.name || '—'}» → «${b.name || '—'}»`);
+  if ((a.price || 0) !== (b.price || 0)) p.push(`цена: ${fmtRub(a.price)} → ${fmtRub(b.price)}`);
+  if ((a.oldPrice || 0) !== (b.oldPrice || 0)) p.push(`цена до скидки: ${a.oldPrice ? fmtRub(a.oldPrice) : '—'} → ${b.oldPrice ? fmtRub(b.oldPrice) : '—'}`);
+  if ((a.buyPrice || 0) !== (b.buyPrice || 0)) p.push('закуп изменён');
+  if ((a.deliveryCost || 0) !== (b.deliveryCost || 0)) p.push('доставка изменена');
+  if ((a.orderStatus || '') !== (b.orderStatus || '')) p.push(`статус: ${LOG_STATUS_RU[a.orderStatus] || '—'} → ${LOG_STATUS_RU[b.orderStatus] || '—'}`);
+  if ((a.ownerId || '') !== (b.ownerId || '')) {
+    const nm = id => (db.owners || []).find(o => o.id === id)?.name || 'без владельца';
+    p.push(`владелец: ${nm(a.ownerId)} → ${nm(b.ownerId)}`);
+  }
+  if ((a.categoryId || '') !== (b.categoryId || '')) {
+    const nm = id => (db.categories || []).find(c => c.id === id)?.name || 'без категории';
+    p.push(`категория: ${nm(a.categoryId)} → ${nm(b.categoryId)}`);
+  }
+  if ((a.brand || '') !== (b.brand || ''))         p.push(`бренд: ${a.brand || '—'} → ${b.brand || '—'}`);
+  if ((a.condition || '') !== (b.condition || '')) p.push(`состояние: ${LOG_COND_RU[a.condition] || '—'} → ${LOG_COND_RU[b.condition] || '—'}`);
+  if ((a.sex || '') !== (b.sex || ''))             p.push(`пол: ${LOG_SEX_RU[a.sex] || '—'} → ${LOG_SEX_RU[b.sex] || '—'}`);
+  if ((a.garment || '') !== (b.garment || ''))     p.push(`тип: ${LOG_GARM_RU[a.garment] || '—'} → ${LOG_GARM_RU[b.garment] || '—'}`);
+  if ((a.quantity || 0) !== (b.quantity || 0)) p.push(`остаток: ${a.quantity || 0} → ${b.quantity || 0} шт`);
+  else if (JSON.stringify(a.sizes || []) !== JSON.stringify(b.sizes || [])) p.push('размеры изменены');
+  const ph = x => Array.isArray(x.photos) ? x.photos.length : (x.photo ? 1 : 0);
+  if (ph(a) !== ph(b)) p.push(`фото: ${ph(a)} → ${ph(b)}`);
+  if (!!a.showOnAvito !== !!b.showOnAvito) p.push(b.showOnAvito ? 'выставлен на Авито' : 'снят с Авито');
+  if ((a.description || '') !== (b.description || ''))   p.push('описание обновлено');
+  if ((a.measurements || '') !== (b.measurements || '')) p.push('замеры обновлены');
+  if ((a.notes || '') !== (b.notes || ''))               p.push('заметки обновлены');
+  if (!p.length) return null;
+  return `Товар «${b.name || a.name}»: ${p.join(' · ')}`;
+}
+
 app.put('/api/items', async (req, res) => {
   const db  = load();
   const now = new Date().toISOString();
@@ -1139,6 +1179,17 @@ app.put('/api/items', async (req, res) => {
     if (Object.keys(changes).length)
       item.history = [...item.history, { ts: now, by: item._updatedBy||null, byName: req.user?.name || null, changes }].slice(-30);
     delete item._updatedBy;
+    // Журнал: конкретика изменений («цена: 8 900 → 9 500 ₽ · статус: …»),
+    // а не безликое «Изменён товар». Пустые правки не логируем.
+    const diffDesc = humanItemDiff(db, old, item);
+    if (diffDesc) {
+      const entry = { id: uid(), ts: now, type: 'item_edit',
+        user: req.user?.name || req.user?.login || null, desc: diffDesc, meta: { id: item.id } };
+      if (!db.logs) db.logs = [];
+      db.logs.push(entry);
+      if (db.logs.length > 300) db.logs = db.logs.slice(-300);
+      logToTelegram(entry);
+    }
     db.items[idx] = item;
   } else {
     item.history = [];

@@ -2496,7 +2496,7 @@ class App {
       this.toast('Ошибка — проверьте соединение');
       return;
     }
-    await this.db.logAction('item_delete', `Удалено товаров: ${ids.length}`, { level: 'danger' });
+    await this.db.logAction('item_delete', `Удалено ${ids.length} тов.: ${this._namesFor(ids, 5)}`, { level: 'danger' });
     await this.loadData();
     this.exitSelectMode();
     this.toast(`Удалено: ${ids.length} ✓`);
@@ -2524,6 +2524,13 @@ class App {
     await this.applyBulk(patch, 'Параметры товаров обновлены', 'Параметры обновлены ✓');
   }
 
+  // Имена товаров для журнала: первые 3 + «и ещё N»
+  _namesFor(ids, max = 3) {
+    const names = ids.map(id => this.items.find(i => i.id === id)?.name).filter(Boolean);
+    return names.slice(0, max).map(n => `«${n}»`).join(', ') +
+      (names.length > max ? ` и ещё ${names.length - max}` : '');
+  }
+
   /* Патч по всем выбранным товарам — одним запросом (bulk API) */
   async applyBulk(patch, logDesc, toastMsg) {
     const ids = [...this._selectedIds];
@@ -2533,7 +2540,7 @@ class App {
       this.toast('Ошибка — проверьте соединение');
       return;
     }
-    await this.db.logAction('item_edit', `${logDesc} (${ids.length} тов.)`);
+    await this.db.logAction('item_edit', `${logDesc} — ${ids.length} тов.: ${this._namesFor(ids)}`);
     await this.loadData();
     this.exitSelectMode();
     this.toast(toastMsg);
@@ -2799,11 +2806,14 @@ class App {
 
     try {
       const saved = await this.db.saveItem(item);
-      await this.db.logAction(
-        isNew ? 'item_add' : 'item_edit',
-        isNew ? `Добавлен товар: «${name}»` : `Изменён товар: «${name}»`,
-        { id: saved.id, name, quantity: totQty, price: item.price }
-      );
+      // Редактирование логирует сервер — с точным диффом «что изменилось».
+      // Здесь — только создание, сразу с ключевыми параметрами.
+      if (isNew) {
+        const st = STATUSES.find(s => s.id === item.orderStatus)?.label || '';
+        await this.db.logAction('item_add',
+          `Добавлен товар: «${name}» · ${fmtMoney(item.price)}${totQty ? ` · ${totQty} шт` : ''}${st ? ` · ${st}` : ''}${item.brand ? ` · ${item.brand}` : ''}`,
+          { id: saved.id, name, quantity: totQty, price: item.price });
+      }
       // Появление/уход товара с публичной витрины — отдельная строка в журнале
       if (!!item.showOnSite !== oldShowOnSite) {
         await this.db.logAction('site_item', item.showOnSite
@@ -4602,7 +4612,7 @@ class App {
     this._savingSale = true;
     try {
       await this.db.addSale({ itemId, itemName, size, salePrice, buyPrice, deliveryCost: delivery, note });
-      await this.db.logAction('sale', `Продажа: «${itemName}»${size ? ` (${size})` : ''}`, { salePrice, buyPrice, deliveryCost: delivery });
+      await this.db.logAction('sale', `Продажа: «${itemName}»${size ? ` (${size})` : ''} — ${fmtMoney(salePrice)}`, { salePrice, buyPrice, deliveryCost: delivery });
       this.closeModal('saleModal');
       await this.loadData();          // обновить остатки в кэше
       this.renderInventoryList();     // отразить списание в списке товаров
