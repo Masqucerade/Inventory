@@ -2274,7 +2274,8 @@ class App {
     if (!w) { this.toast('Откройте панель в браузере — вебвью не даёт открыть окно печати'); return; }
     const esc = s => this.esc(s);
     w.document.write(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Этикетки · ${items.length} шт</title><style>
-      body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;margin:0;padding:8mm;display:flex;flex-wrap:wrap;gap:3mm;background:#fff;color:#000}
+      body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;margin:0;padding:8mm;padding-top:22mm;
+           display:flex;flex-wrap:wrap;gap:3mm;background:#fff;color:#000}
       .lbl{width:58mm;height:40mm;border:.3mm dashed #bbb;border-radius:2mm;padding:3mm;box-sizing:border-box;
            display:flex;gap:3mm;align-items:center;page-break-inside:avoid;break-inside:avoid}
       .lbl img{width:30mm;height:30mm;flex-shrink:0}
@@ -2284,8 +2285,35 @@ class App {
       .n{font-size:3.4mm;font-weight:700;line-height:1.25;max-height:14mm;overflow:hidden}
       .s{font-size:2.9mm;color:#444;margin-top:1mm}
       .list{font-size:2.7mm;line-height:1.45;margin-top:.6mm;max-height:19mm;overflow:hidden}
-      @media print{body{padding:0}.lbl{border-color:transparent}}
-    </style></head><body>` + items.map(i => {
+
+      /* Термопринтер (Xprinter XP-365B и похожие): одна этикетка = одна страница,
+         без полей, рамок и скруглений */
+      body.thermo{padding:0;padding-top:18mm;display:block}
+      @media print{body.thermo{padding:0}}
+      body.thermo .lbl{border:none;border-radius:0;margin:0;page-break-after:always}
+      body.t4030 .lbl{width:40mm;height:30mm;padding:2mm;gap:2mm}
+      body.t4030 .lbl img{width:22mm;height:22mm}
+      body.t4030 .shop{font-size:1.9mm;letter-spacing:.08em;padding-bottom:.7mm;margin-bottom:1mm}
+      body.t4030 .n{font-size:2.6mm;max-height:10mm}
+      body.t4030 .s{font-size:2.1mm}
+      body.t4030 .list{font-size:2mm;line-height:1.4;max-height:12mm}
+
+      .bar{position:fixed;top:0;left:0;right:0;z-index:10;background:#111;color:#fff;
+           display:flex;gap:10px;align-items:center;padding:10px 14px;font-size:14px}
+      .bar select{padding:7px 10px;border-radius:8px;border:1px solid #444;background:#222;color:#fff;font-size:14px}
+      .bar button{padding:8px 22px;border-radius:8px;border:none;background:#7c6dfa;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+      @media print{.bar{display:none}body{padding:0}.lbl{border-color:transparent}}
+    </style><style id="pageStyle">@page{size:58mm 40mm;margin:0}</style></head><body class="thermo t5840">
+    <div class="bar">
+      <span>Формат:</span>
+      <select id="fmt">
+        <option value="t5840" selected>Термопринтер 58×40 (XP-365B)</option>
+        <option value="t4030">Термопринтер 40×30</option>
+        <option value="a4">Обычный принтер — сетка на листе</option>
+      </select>
+      <button onclick="print()">Печать</button>
+      <span style="opacity:.6">${items.length} шт</span>
+    </div>` + items.map(i => {
       // /q/<id>: товар с витрины откроется на сайте (удобно на ПВЗ), скрытый — в панели
       const url = location.origin + '/q/' + encodeURIComponent(i.id);
       const sizes = (i.sizes || []).filter(s => s.size).map(s => s.size).join(' · ');
@@ -2313,7 +2341,16 @@ class App {
           <div class="list">${shown.map(line).join('<br>')}${items.length > 5 ? `<br>…и ещё ${items.length - 5}` : ''}</div>
         </div>
       </div>`;
-    })() : '') + `<script>onload=function(){setTimeout(function(){print()},500)}<\/script></body></html>`);
+    })() : '') + `<script>
+      document.getElementById('fmt').onchange = function(){
+        var v = this.value;
+        document.body.className = v === 'a4' ? '' : 'thermo ' + v;
+        document.getElementById('pageStyle').textContent =
+          v === 't5840' ? '@page{size:58mm 40mm;margin:0}' :
+          v === 't4030' ? '@page{size:40mm 30mm;margin:0}' :
+          '@page{size:auto;margin:8mm}';
+      };
+    <\/script></body></html>`);
     w.document.close();
   }
 
