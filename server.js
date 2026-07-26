@@ -271,6 +271,7 @@ app.use(express.static(path.join(__dirname), {
 
 const DATA_DIR  = process.env.DATA_DIR  || path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'db.json');
+const LOGS_FILE = path.join(DATA_DIR, 'logs.json');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 // Фото лежат отдельными файлами на volume, а не base64 в db.json. Имена — по
@@ -327,10 +328,38 @@ async function externalizePhotos(item) {
 // из ОЗУ. Иначе каждый из ~10 запросов на загрузку страницы заново читал и
 // парсил весь db.json с диска (с base64-фото) — отсюда и тормоза.
 let _db = null;
+/* Атомарная запись: во временный файл + rename. Прямая запись могла оборваться
+   на середине (OOM, kill при деплое) и оставить битый JSON — а битый db.json
+   означал бы молчаливый старт с пустой базой. */
+function writeAtomic(file, str) {
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, str);
+  fs.renameSync(tmp, file);
+}
+
+// Битый файл не перезаписываем молча — откладываем в сторону для разбора,
+// чтобы данные нельзя было потерять безвозвратно одним неудачным рестартом
+function readJson(file, fallback) {
+  if (!fs.existsSync(file)) return fallback;
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (e) {
+    const broken = file + '.broken-' + Date.now();
+    try { fs.renameSync(file, broken); } catch (_) {}
+    console.error(`Corrupt ${path.basename(file)}: ${e.message} → отложен в ${path.basename(broken)}`);
+    return fallback;
+  }
+}
+
 function load() {
   if (_db) return _db;
-  try { _db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
-  catch { _db = { items: [], owners: [], logs: [] }; }
+  _db = readJson(DATA_FILE, { items: [], owners: [] });
+  // Миграция: журнал переехал в logs.json — раньше каждая запись в журнал
+  // стоила перезаписи всей базы целиком
+  if (Array.isArray(_db.logs)) {
+    if (_db.logs.length && !loadLogs().length) { _logs = _db.logs; saveLogs(); }
+    delete _db.logs;
+    save(_db);
+  }
   return _db;
 }
 
@@ -341,14 +370,37 @@ function save(db) {
   _db = db;
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(() => {
-    try { fs.writeFileSync(DATA_FILE, JSON.stringify(_db)); }
+    try { writeAtomic(DATA_FILE, JSON.stringify(_db)); }
     catch (e) { console.error('save failed:', e.message); }
   }, 150);
 }
+
+/* ── Журнал — отдельный файл со своим дебаунсом: пишется чаще всего,
+   и его записи не должны тянуть за собой перезапись всей базы ── */
+let _logs = null, _logsTimer = null;
+function loadLogs() {
+  if (!_logs) _logs = readJson(LOGS_FILE, []);
+  return _logs;
+}
+function saveLogs() {
+  clearTimeout(_logsTimer);
+  _logsTimer = setTimeout(() => {
+    try { writeAtomic(LOGS_FILE, JSON.stringify(_logs || [])); }
+    catch (e) { console.error('logs save failed:', e.message); }
+  }, 150);
+}
+function addLog(entry) {
+  loadLogs().push(entry);
+  if (_logs.length > 300) _logs = _logs.slice(-300);
+  saveLogs();
+  return entry;
+}
+
 // Гарантируем запись перед остановкой процесса
 function flush() {
-  clearTimeout(_saveTimer);
-  try { if (_db) fs.writeFileSync(DATA_FILE, JSON.stringify(_db)); } catch (_) {}
+  clearTimeout(_saveTimer); clearTimeout(_logsTimer);
+  try { if (_db)   writeAtomic(DATA_FILE, JSON.stringify(_db)); } catch (_) {}
+  try { if (_logs) writeAtomic(LOGS_FILE, JSON.stringify(_logs)); } catch (_) {}
 }
 process.on('SIGTERM', () => { flush(); process.exit(0); });
 process.on('SIGINT',  () => { flush(); process.exit(0); });
@@ -676,10 +728,8 @@ app.post('/api/public/order', (req, res) => {
   const order = { id: uid(), createdAt: new Date().toISOString(), name, contact, comment, items, status: 'new' };
   db.orders.push(order);
   // Журнал панели
-  if (!db.logs) db.logs = [];
-  db.logs.push({ id: uid(), ts: order.createdAt, type: 'site_order', user: 'site',
+  addLog({ id: uid(), ts: order.createdAt, type: 'site_order', user: 'site',
     desc: `Заявка с сайта: ${items.length} тов. · ${contact}`, meta: { level: 'warn' } });
-  if (db.logs.length > 300) db.logs = db.logs.slice(-300);
   save(db);
 
   // Telegram: в общий чат и лично каждому root
@@ -1208,9 +1258,7 @@ app.put('/api/items', async (req, res) => {
     if (diffDesc) {
       const entry = { id: uid(), ts: now, type: 'item_edit',
         user: req.user?.name || req.user?.login || null, desc: diffDesc, meta: { id: item.id } };
-      if (!db.logs) db.logs = [];
-      db.logs.push(entry);
-      if (db.logs.length > 300) db.logs = db.logs.slice(-300);
+      addLog(entry);
       logToTelegram(entry);
     }
     db.items[idx] = item;
@@ -1352,28 +1400,23 @@ function logToTelegram(entry) {
   })().catch(() => {});
 }
 
-/* ─── LOGS ─── */
+/* ─── LOGS (отдельный файл logs.json — см. loadLogs/addLog) ─── */
 app.get('/api/logs', (req, res) => {
   const limit = Math.min(300, Math.max(1, parseInt(req.query.limit) || 80));
-  const logs = (load().logs || []).slice().reverse().slice(0, limit);
-  res.json(logs);
+  res.json(loadLogs().slice().reverse().slice(0, limit));
 });
 
 app.post('/api/logs', (req, res) => {
-  const db    = load();
   const entry = { id: uid(), ...req.body, ts: new Date().toISOString() };
   // Кто сделал — для журнала (Terminal)
   entry.user = req.user?.name || req.user?.login || null;
-  if (!db.logs) db.logs = [];
-  db.logs.push(entry);
-  if (db.logs.length > 300) db.logs = db.logs.slice(-300);
-  save(db);
+  addLog(entry);
   logToTelegram(entry); // → Telegram
   res.json(entry);
 });
 
 app.delete('/api/logs', (req, res) => {
-  const db = load(); db.logs = []; save(db);
+  _logs = []; saveLogs();
   res.json({ ok: true });
 });
 
@@ -1412,7 +1455,7 @@ app.get('/api/items.csv', (req, res) => {
 });
 
 app.get('/api/logs.csv', (req, res) => {
-  const logs = (load().logs || []).slice().reverse().slice(0, 80);
+  const logs = loadLogs().slice().reverse().slice(0, 80);
 
   const rows = [csvRow(['Дата и время','Тип','Описание'])];
   logs.forEach(log => {
@@ -2170,6 +2213,51 @@ async function sendBackupToTelegram() {
 app.post('/api/backup/send', async (req, res) => {
   const ok = await sendBackupToTelegram();
   res.json({ ok });
+});
+
+/* ─── Сборка фото-сирот ───
+   Файлы в /photos, на которые не осталось ссылок в базе (замена обложки,
+   удаление товара, webp-миграция), копились на volume навсегда. Раз в сутки
+   сверяем каталог со ссылками по всему JSON базы — не зависит от списка полей.
+   Карантин 48ч по mtime бережёт свежезагруженное; пустая база — стоп-кран
+   (иначе после сбоя db.json чистка снесла бы все фото). */
+function cleanupOrphanPhotos() {
+  const db = load();
+  if (!(db.items || []).length && !(db.blocks || []).length) return { skipped: 'empty-db' };
+  const s = JSON.stringify(db);
+  const used = new Set(), usedBase = new Set();
+  const re = /\/photos\/([A-Za-z0-9._-]+)/g;
+  let m;
+  while ((m = re.exec(s))) { used.add(m[1]); usedBase.add(m[1].replace(/\.[^.]+$/, '')); }
+  if (!used.size) return { skipped: 'no-refs' };
+  const cutoff = Date.now() - 48 * 3600 * 1000;
+  let removed = 0, freed = 0;
+  for (const f of fs.readdirSync(PHOTOS_DIR)) {
+    if (used.has(f)) continue;
+    // Производный кэш Авито живёт, пока жив его исходник
+    if (/-avito\.jpg$/i.test(f) && usedBase.has(f.replace(/-avito\.jpg$/i, ''))) continue;
+    try {
+      const p  = path.join(PHOTOS_DIR, f);
+      const st = fs.statSync(p);
+      if (!st.isFile() || st.mtimeMs > cutoff) continue;   // карантин 48ч
+      fs.unlinkSync(p);
+      removed++; freed += st.size;
+    } catch (_) {}
+  }
+  if (removed) {
+    console.log(`Photo GC: удалено ${removed} сирот, освобождено ${Math.round(freed / 1024)} КБ`);
+    addLog({ id: uid(), ts: new Date().toISOString(), type: 'clear', user: 'system',
+      desc: `Очистка фото: удалено ${removed} неиспользуемых файлов (${(freed / 1048576).toFixed(1)} МБ)` });
+  }
+  return { removed, freed };
+}
+setTimeout(cleanupOrphanPhotos, 10 * 60 * 1000);            // после старта, не мешая запуску
+setInterval(cleanupOrphanPhotos, 24 * 60 * 60 * 1000);      // и далее раз в сутки
+
+// Ручной запуск чистки (root) — посмотреть эффект, не дожидаясь суток
+app.post('/api/photos/cleanup', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  res.json(cleanupOrphanPhotos());
 });
 
 /* Smart scheduler — survives restarts */
