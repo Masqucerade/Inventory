@@ -594,9 +594,10 @@ app.get('/api/public/blocks', (req, res) => {
         imageB: b.imageB || '', captionB: b.captionB || '', linkTypeB: b.linkTypeB || 'none', linkValueB: b.linkValueB || '',
       };
       // Обложка раздела: полноэкранное превью на самом верху каталога
+      // heading обложки — внутреннее имя для панели, наружу не отдаём
       if (b.type === 'cover') return {
         id: b.id, type: 'cover', order,
-        image: b.image || '', heading: b.heading || '', sub: b.sub || '',
+        image: b.image || '',
         pos: b.pos || 'center center',
         posM: typeof b.posM === 'string' ? b.posM : '',   // отдельный кадр для телефона
         fit: b.fit === 'auto' ? 'auto' : 'cover',   // auto = фото целиком, без кадрирования
@@ -1245,12 +1246,6 @@ app.delete('/api/owners/:id', (req, res) => {
 });
 
 /* ─── Telegram log notifications — fire and forget ─── */
-const TG_ICONS = {
-  item_add:     '➕', item_edit:    '✏️', item_delete:  '🗑',
-  owner_add:    '👤', owner_edit:   '✏️', owner_delete: '🗑',
-  backup:       '💾', restore:      '📂', clear:        '🧹',
-  site_block:   '🧱', site_col:     '🗂', site_faq:     '💬', site_item: '🌐',
-};
 
 /* Категории уведомлений: каждому типу события — категория,
    пользователю можно включить набор категорий (user.notify = ['item_add', ...]) */
@@ -1314,14 +1309,13 @@ function logToTelegram(entry) {
   const token = process.env.TG_LOG_TOKEN;
   if (!token) return;
 
-  const icon = TG_ICONS[entry.type] || '•';
   const date = new Date(entry.ts).toLocaleString('ru-RU', {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
     timeZone: 'Europe/Moscow',
   });
   // desc содержит пользовательский ввод (названия товаров) — экранируем,
   // иначе «<» в названии ломает parse_mode HTML и сообщение молча не уходит
-  const text = `${icon} <b>${escAttr(entry.desc)}</b>\n<i>${date}</i>`;
+  const text = `<b>${escAttr(entry.desc)}</b>\n<i>${date}</i>`;
 
   // Главный чат (как раньше)
   if (process.env.TG_LOG_CHAT) tgSend(token, process.env.TG_LOG_CHAT, text);

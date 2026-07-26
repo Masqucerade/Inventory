@@ -5335,11 +5335,10 @@ class App {
         html += g('Предпросмотр', `
           <div class="blk-banner-preview h-xl">
             <img src="${esc(b.image)}" alt="" style="object-fit:contain">
-            ${b.heading ? `<div class="blk-preview-cap">${esc(b.heading)}</div>` : ''}
           </div>`);
       }
-      html += g('Заголовок (необязательно)', `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || '')}" placeholder="Например: Monarc">`);
-      html += g('Подпись (необязательно)', `<input type="text" class="form-input" id="blkSub" value="${esc(b.sub || '')}" placeholder="Короткая строка под заголовком">`);
+      html += g('Название <span style="color:var(--text3);font-weight:400">— видно только в панели</span>',
+        `<input type="text" class="form-input" id="blkHeading" value="${esc(b.heading || '')}" placeholder="Например: Обложка SS26">`);
     } else if (b.type === 'popup') {
       b.repeat = b.repeat || 'once';
       html += `<div class="blk-hint">Всплывающее окно при заходе на сайт — анонс, акция или приветствие. «Один раз» — после закрытия посетителя больше не беспокоим.</div>`;
@@ -5415,7 +5414,7 @@ class App {
     else if (b.type === 'promo')      { set('blkText', 'text'); }
     else if (b.type === 'marquee')    { set('blkMarquee', 'text'); }
     else if (b.type === 'popup')      { set('blkHeading', 'heading'); set('blkPopupText', 'text', false); set('blkBtnLabel', 'btnLabel'); }
-    else if (b.type === 'cover')      { set('blkHeading', 'heading'); set('blkSub', 'sub'); }
+    else if (b.type === 'cover')      { set('blkHeading', 'heading'); }   // имя для панели, на сайт не идёт
     else if (b.type === 'statement')  { set('blkKicker', 'kicker'); set('blkStatement', 'text', false); }
     else if (b.type === 'weekly')     { set('blkHeading', 'heading'); }
     else if (b.type === 'banner')     { set('blkHeading', 'heading'); set('blkSub', 'sub'); }

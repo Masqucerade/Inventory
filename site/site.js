@@ -912,18 +912,13 @@ function renderCover(blocks) {
   // «Фото целиком» (высота по кадру) имеет смысл только для одиночной обложки:
   // в ротации кадры разной высоты дёргали бы страницу
   const fitAuto = covers.length === 1 && c.fit === 'auto';
+  // Текста поверх обложки нет: название обложки — внутреннее, для панели
   const slide = (b, on) => {
-    const hasCaption = !!(b.heading || b.sub);
     // Кадр: --pos для десктопа, --pos-m для телефона (панель отдаёт проценты;
     // без своего мобильного кадра телефон наследует десктопный)
     const pos = `--pos:${esc(b.pos || 'center center')}${b.posM ? `;--pos-m:${esc(b.posM)}` : ''}`;
     return `<div class="sc-slide${on ? ' on' : ''}">
       <img src="${esc(b.image)}" alt="" style="${pos}" draggable="false">
-      ${hasCaption ? `<div class="sc-shade" aria-hidden="true"></div>
-      <div class="sc-caption">
-        ${b.heading ? `<h2>${esc(b.heading)}</h2>` : ''}
-        ${b.sub ? `<p>${esc(b.sub)}</p>` : ''}
-      </div>` : ''}
     </div>`;
   };
   wrap.innerHTML = `
