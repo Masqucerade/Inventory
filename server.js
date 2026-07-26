@@ -1109,6 +1109,18 @@ app.post('/api/items/bulk', (req, res) => {
   res.json({ ok: true, updated });
 });
 
+/* Ручной порядок карточек (drag в списке «Товары»): pos = индекс в списке.
+   Товары не из ids не трогаем — у них свой pos или его нет (новые, сверху). */
+app.post('/api/items/reorder', (req, res) => {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+  if (!ids.length) return res.status(400).json({ error: 'ids required' });
+  const db = load();
+  const posById = new Map(ids.map((id, i) => [id, i]));
+  (db.items || []).forEach(i => { if (posById.has(i.id)) i.pos = posById.get(i.id); });
+  save(db);
+  res.json({ ok: true });
+});
+
 /* Человекочитаемый дифф товара для журнала: что конкретно изменилось.
    Закуп и доставку не раскрываем в суммах — журнал видят и hideCosts-пользователи. */
 const LOG_STATUS_RU = { ordered: 'Заказано', at_warehouse: 'На складе', in_stock: 'В наличии', processing: 'В заказе', done: 'Завершено' };

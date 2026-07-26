@@ -949,6 +949,7 @@ class App {
     document.getElementById('inventoryList').addEventListener('click', (e) => {
       const card = e.target.closest('.item-card');
       if (!card) return;
+      if (card.closest('.items-list')?._justDragged) return;   // это был drag, не тап
       if (this._selectMode) this.toggleSelectItem(card.dataset.id);
       else this.openDetailModal(card.dataset.id);
     });
@@ -1603,8 +1604,14 @@ class App {
       const rank = id => { const i = STATUSES.findIndex(s => s.id === id); return i < 0 ? 99 : i; };
       items.sort((a, b) => sd * (rank(a.orderStatus) - rank(b.orderStatus)));
     } else if (this._sortBy === 'date') {
-      // по дате добавления в панель (createdAt)
-      items.sort((a, b) => sd * (new Date(a.createdAt || 0) - new Date(b.createdAt || 0)));
+      // «Добавлен»: ручной порядок (pos задаётся перетаскиванием карточек),
+      // товары без pos — новые, идут сверху по дате добавления
+      const t = i => new Date(i.createdAt || 0).getTime();
+      items.sort((a, b) => {
+        const ap = a.pos != null, bp = b.pos != null;
+        const r = ap && bp ? a.pos - b.pos : ap !== bp ? (ap ? 1 : -1) : t(b) - t(a);
+        return (this._sortDir === 'desc' ? 1 : -1) * r;
+      });
     }
 
     // Monarc isolation
@@ -1668,12 +1675,103 @@ class App {
     }
 
     list.innerHTML = html;
+    this._bindCardDrag();
 
     document.getElementById('archiveToggle')?.addEventListener('click', () => {
       this._archiveOpen = !this._archiveOpen;
       document.getElementById('archiveListWrap')?.classList.toggle('hidden', !this._archiveOpen);
       document.querySelector('#archiveToggle .archive-chevron')?.classList.toggle('open', this._archiveOpen);
     });
+  }
+
+  /* ── Перетаскивание карточек в списке «Товары»: мышью сразу, на таче —
+     long-press. Работает в сортировке «Добавлен» вне режима выделения;
+     порядок сохраняется (pos) и переживает перезаход. Архив не тасуем. ── */
+  _bindCardDrag() {
+    const wrap = document.querySelector('#inventoryList .items-list');
+    if (!wrap || wrap._dragBound) return;
+    wrap._dragBound = true;
+    wrap._justDragged = false;
+
+    let el = null, pid = null, startX = 0, startY = 0, dragging = false, longT = null;
+    const canDrag  = () => this._sortBy === 'date' && !this._selectMode;
+    const cards    = () => [...wrap.querySelectorAll('.item-card')];
+    const scroller = document.querySelector('#view-inventory .view-body') || document.scrollingElement;
+
+    const startDrag = () => {
+      if (!el) return;
+      dragging = true;
+      el.classList.add('drag');
+      wrap.classList.add('dragging');
+      try { el.setPointerCapture(pid); } catch (_) {}
+      if (navigator.vibrate) navigator.vibrate(10);
+    };
+
+    const stop = (commit) => {
+      clearTimeout(longT); longT = null;
+      if (dragging && el) {
+        wrap.classList.remove('dragging');
+        el.classList.remove('drag');
+        el.style.transform = '';
+        wrap._justDragged = true;                    // подавить click-«открыть карточку»
+        setTimeout(() => { wrap._justDragged = false; }, 60);
+        if (commit) {
+          // Порядок из DOM; pos хранится в порядке вида «сверху вниз» при ↓
+          let ids = cards().map(c => c.dataset.id);
+          if (this._sortDir === 'asc') ids = ids.reverse();
+          const posById = new Map(ids.map((id, i) => [id, i]));
+          this.items.forEach(i => { if (posById.has(i.id)) i.pos = posById.get(i.id); });
+          this.db.reorderItems(ids).catch(() => this.toast('Не удалось сохранить порядок'));
+          clearTimeout(this._itemReorderLogT);
+          this._itemReorderLogT = setTimeout(() =>
+            this.db.logAction('item_edit', 'Порядок товаров изменён'), 4000);
+        }
+      }
+      dragging = false; el = null; pid = null;
+    };
+
+    wrap.addEventListener('pointerdown', (e) => {
+      if (!canDrag()) return;
+      const c = e.target.closest('.item-card');
+      if (!c) return;
+      el = c; pid = e.pointerId; startX = e.clientX; startY = e.clientY;
+      if (e.pointerType === 'mouse') return;         // мышь: drag начнётся от движения
+      longT = setTimeout(startDrag, 300);            // тач: удержание, чтобы не мешать скроллу
+    });
+
+    wrap.addEventListener('pointermove', (e) => {
+      if (!el) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (!dragging) {
+        if (e.pointerType === 'mouse' && Math.hypot(dx, dy) > 6) startDrag();
+        else if (Math.hypot(dx, dy) > 10) { clearTimeout(longT); longT = null; el = null; return; }  // это скролл списка
+        if (!dragging) return;
+      }
+      e.preventDefault();
+      el.style.transform = `translateY(${dy}px) scale(1.02)`;
+      // У краёв экрана — подкручиваем список
+      const sr = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0, bottom: innerHeight };
+      if (e.clientY < sr.top + 90) scroller.scrollTop -= 9;
+      else if (e.clientY > sr.bottom - 90) scroller.scrollTop += 9;
+      // Пересечение с серединой соседа — переставляем в DOM на лету
+      for (const c of cards()) {
+        if (c === el) continue;
+        const r = c.getBoundingClientRect();
+        if (e.clientY > r.top && e.clientY < r.bottom) {
+          wrap.insertBefore(el, e.clientY < r.top + r.height / 2 ? c : c.nextSibling);
+          startX = e.clientX; startY = e.clientY;
+          el.style.transform = 'scale(1.02)';
+          break;
+        }
+      }
+    });
+    wrap.addEventListener('pointerup',     () => stop(true));
+    wrap.addEventListener('pointercancel', () => stop(false));
+    /* Тач: нативный скролл шлёт pointercancel и обрывает drag — во время
+       перетаскивания глушим touchmove (non-passive, иначе preventDefault нем) */
+    wrap.addEventListener('touchmove', (e) => {
+      if (dragging) e.preventDefault();
+    }, { passive: false });
   }
 
   _itemCardHtml(item, idx, ownerMap) {
@@ -2134,6 +2232,14 @@ class App {
     });
     strip.addEventListener('pointerup',     () => stop(true));
     strip.addEventListener('pointercancel', () => stop(false));
+    /* Тач: как только нативный скролл ленты стартует, браузер шлёт pointercancel
+       и drag обрывается — «фото не переставляются». Во время drag глушим
+       touchmove: скролл не начинается и жест доживает до pointerup. До старта
+       drag не вмешиваемся — палец при long-press неподвижен, а быстрый свайп
+       должен скроллить ленту как обычно. Non-passive обязателен для preventDefault. */
+    strip.addEventListener('touchmove', (e) => {
+      if (dragging) e.preventDefault();
+    }, { passive: false });
   }
 
   _renderPhotoStrip() {
@@ -5179,7 +5285,7 @@ class App {
       text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' },
       popup: { t: 'Попап при входе', e: '🔔' }, cover: { t: 'Обложка раздела', e: '🏞' },
     };
-    const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
+    const SEC  = { all: 'Оба сайта', monarc: 'Masqucerade', type: 'Type-clothes' };
     el.innerHTML = `<div class="settings-section">` + this._blocks.map((b, i) => {
       const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
       const label = b.type === 'promo' ? b.text : (b.heading || 'Без заголовка');
@@ -5265,7 +5371,7 @@ class App {
         { v: 'statement', t: 'Слоган' }, { v: 'text', t: 'Текст' }, { v: 'marquee', t: 'Строка' }, { v: 'promo', t: 'Промо' },
         { v: 'popup', t: 'Попап' },
       ]));
-    html += g('Раздел', seg('section', [{ v: 'all', t: 'Везде' }, { v: 'monarc', t: 'Monarc' }, { v: 'type', t: 'Type' }]));
+    html += g('Сайт', seg('section', [{ v: 'all', t: 'Оба сайта' }, { v: 'monarc', t: 'Masqucerade' }, { v: 'type', t: 'Type-clothes' }]));
 
     if (b.type === 'banner') {
       // Дефолты нового баннера
@@ -5621,21 +5727,48 @@ class App {
     if (animate) { pane.classList.remove('pane-in'); void pane.offsetWidth; pane.classList.add('pane-in'); }
   }
 
-  /* ── Вкладка «Витрина»: блоки + подборки ── */
+  /* К какому сайту относится элемент потока: блок — по полю section,
+     подборка — по товарам внутри (все Monarc → masqucerade, все Type → type) */
+  _streamSite(x) {
+    if (x.kind === 'block') {
+      const s = x.ref.section;
+      return s === 'monarc' ? 'monarc' : s === 'type' ? 'type' : 'both';
+    }
+    const ids = new Set(x.ref.itemIds || []);
+    const its = (this.items || []).filter(i => ids.has(i.id));
+    if (its.length && its.every(i => i.isMonarc))  return 'monarc';
+    if (its.length && its.every(i => !i.isMonarc)) return 'type';
+    return 'both';
+  }
+
+  /* ── Вкладка «Витрина»: два сайта, у каждого свой список блоков и подборок.
+     Блок «Оба сайта» виден в обеих колонках; стрелки двигают в рамках сайта. ── */
   _renderSiteShowcase(pane) {
     const stream = this._stream || [];
-    const rows = stream.map((x, i) => x.kind === 'block'
-      ? this._blockRowHtml(x.ref, i, stream.length)
-      : this._colRowHtml(x.ref, i, stream.length)).join('');
+    const group = site => stream.filter(x => { const s = this._streamSite(x); return s === site || s === 'both'; });
+    const listHtml = arr => arr.length
+      ? arr.map((x, i) => x.kind === 'block'
+          ? this._blockRowHtml(x.ref, i, arr.length)
+          : this._colRowHtml(x.ref, i, arr.length)).join('')
+      : '<div class="site-mgmt-empty"><span>🧱</span>Пока пусто — добавьте блок</div>';
     pane.innerHTML = `
       <div class="site-sec-head">
-        <div><div class="site-sec-title">Блоки и подборки</div><div class="site-sec-hint">Баннеры, промо и подборки — можно чередовать, порядок стрелками</div></div>
+        <div><div class="site-sec-title">Блоки и подборки</div><div class="site-sec-hint">У каждого сайта свой список; блок «Оба сайта» виден на обоих. Порядок — стрелками</div></div>
         <div class="site-sec-actions">
           <button class="site-mini-add block-add">＋ Блок</button>
           <button class="site-mini-add col-add">＋ Подборку</button>
         </div>
       </div>
-      <div class="settings-section">${stream.length ? rows : '<div class="site-mgmt-empty"><span>🧱</span>Пока пусто — добавьте блок или подборку</div>'}</div>`;
+      <div class="site-split">
+        <div class="site-split-col" data-site="monarc">
+          <div class="site-split-head">masqucerade.com</div>
+          <div class="settings-section">${listHtml(group('monarc'))}</div>
+        </div>
+        <div class="site-split-col" data-site="type">
+          <div class="site-split-head">type-clothes.com</div>
+          <div class="settings-section">${listHtml(group('type'))}</div>
+        </div>
+      </div>`;
   }
 
   /* ── Вкладка «Товары»: что сейчас на витрине ── */
@@ -5856,7 +5989,7 @@ class App {
       marquee: { t: 'Бегущая строка', e: '➰' }, promo: { t: 'Промо-полоса', e: '📣' },
       popup: { t: 'Попап при входе', e: '🔔' }, cover: { t: 'Обложка раздела', e: '🏞' },
     };
-    const SEC  = { all: 'Везде', monarc: 'Monarc', type: 'Type' };
+    const SEC  = { all: 'Оба сайта', monarc: 'Masqucerade', type: 'Type-clothes' };
     const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
     const label = (b.type === 'promo' || b.type === 'marquee' || b.type === 'statement') ? b.text
       : b.type === 'duo' ? (b.captionA || b.captionB || 'Двойной баннер')
@@ -5900,8 +6033,16 @@ class App {
     const arr = [...(this._stream || [])];
     const i = arr.findIndex(x => x.kind === row.dataset.kind &&
       (x.id === row.dataset.blockId || x.id === row.dataset.colId));
-    const j = dir === 'up' ? i - 1 : i + 1;
-    if (i < 0 || j < 0 || j >= arr.length) return;
+    if (i < 0) return;
+    // Колонка сайта: сосед — ближайший элемент этого же сайта, чужие пропускаем
+    const site = row.closest('[data-site]')?.dataset.site;
+    const step = dir === 'up' ? -1 : 1;
+    let j = i + step;
+    if (site) {
+      const inGroup = k => { const s = this._streamSite(arr[k]); return s === site || s === 'both'; };
+      while (j >= 0 && j < arr.length && !inGroup(j)) j += step;
+    }
+    if (j < 0 || j >= arr.length) return;
     [arr[i], arr[j]] = [arr[j], arr[i]];
     await Promise.all(arr.map((x, idx) => x.order === idx ? null :
       (x.kind === 'block' ? this.db.saveBlock({ id: x.id, order: idx }) : this.db.saveCollection({ id: x.id, order: idx }))));

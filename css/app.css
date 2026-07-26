@@ -274,6 +274,15 @@ html, body {
 .item-card:not(:last-child) > .item-info {
   border-bottom: 1px solid var(--sep2);
 }
+/* Перетаскивание карточки (ручной порядок в «Добавлен») */
+.item-card.drag {
+  z-index: 6; position: relative; opacity: .94;
+  background: var(--card);
+  box-shadow: 0 12px 32px rgba(0,0,0,.55);
+  border-radius: var(--r);
+}
+.items-list.dragging { touch-action: none; }
+.items-list.dragging .item-card { animation: none; }
 
 @keyframes cellIn {
   from { opacity: 0; transform: translateY(5px); }
@@ -1217,6 +1226,13 @@ body.select-mode .bottom-nav { display: none; }
 .site-mgmt-add:hover { background: var(--fill); }
 .site-mgmt-empty { display: flex; align-items: center; gap: 8px; padding: 16px 14px; color: var(--text3); font-size: 13px; }
 .site-mgmt-empty span { font-size: 18px; }
+/* Витрина: два сайта — на телефоне друг под другом, на широком экране пополам */
+.site-split { display: grid; gap: 18px; margin-top: 2px; }
+@media (min-width: 900px) { .site-split { grid-template-columns: 1fr 1fr; align-items: start; } }
+.site-split-head {
+  font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--text3); margin: 0 0 8px 2px;
+}
 
 /* 6 вкладок — чуть плотнее подписи, чтобы «Статистика» не обрезалась */
 .nav-label { font-size: 9.5px; white-space: nowrap; letter-spacing: -.1px; }
@@ -1255,6 +1271,8 @@ body.select-mode .bottom-nav { display: none; }
   position: relative; flex-shrink: 0;
   width: 86px; height: 86px; border-radius: 14px; overflow: hidden;
   border: 1px solid var(--sep); cursor: pointer;
+  /* long-press начинает drag — системное меню «Сохранить фото» iOS мешает */
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
 .photo-thumb.main { border-color: rgba(124,109,250,.55); }
 /* Перетаскивание фото в ленте */

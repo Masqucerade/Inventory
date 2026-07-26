@@ -261,6 +261,12 @@ class InventoryDB {
     if (!r.ok) throw new Error('bulk failed');
     return r.json();
   }
+  // Ручной порядок карточек: pos = индекс id в переданном списке
+  async reorderItems(ids) {
+    const r = await fetch('/api/items/reorder', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ids }) });
+    if (!r.ok) throw new Error('reorder failed');
+    return r.json();
+  }
   async bulkDeleteItems(ids) {
     const r = await fetch('/api/items/bulk-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ids }) });
     if (!r.ok) throw new Error('bulk delete failed');
