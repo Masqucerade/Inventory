@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=100">
+  <link rel="stylesheet" href="css/app.css?v=101">
 </head>
 <body>
 
@@ -527,6 +527,16 @@
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
       <span>Удалить</span>
     </button>
+  </div>
+</div>
+
+<!-- Сканер QR: собственная камера (работает в любом вебвью) -->
+<div class="modal qr-scan-modal" id="qrScanModal">
+  <div class="qrscan-box">
+    <video id="qrScanVideo" playsinline muted></video>
+    <div class="qrscan-frame"></div>
+    <div class="qrscan-hint">Наведите камеру на QR-код этикетки</div>
+    <button class="qrscan-close" id="qrScanClose" type="button" aria-label="Закрыть сканер">✕</button>
   </div>
 </div>
 
@@ -1189,6 +1199,6 @@
 
 <script src="js/db.js?v=53"></script>
 <script src="js/backup.js?v=45"></script>
-<script src="js/app.js?v=124"></script>
+<script src="js/app.js?v=126"></script>
 </body>
 </html>

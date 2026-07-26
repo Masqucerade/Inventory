@@ -989,6 +989,7 @@ class App {
     document.getElementById('bulkDeleteBtn').addEventListener('click', () => this.bulkDelete());
     document.getElementById('bulkLabelsBtn').addEventListener('click', () => this.bulkLabels());
     document.getElementById('scanQrBtn')?.addEventListener('click', () => this.scanQr());
+    document.getElementById('qrScanClose')?.addEventListener('click', () => this._qrStop?.());
 
     // «Выбрать все» — все товары текущего списка (с учётом фильтров и поиска)
     document.getElementById('selectAllBtn').addEventListener('click', async () => {
@@ -2310,10 +2311,14 @@ class App {
     w.document.close();
   }
 
-  /* ── Сканер QR: в Telegram — встроенный сканер, в браузере — ввод ссылки ── */
+  /* ── Сканер QR ──
+     1) Telegram новых версий (API ≥6.4) — нативный сканер;
+     2) иначе — своя камера: getUserMedia + BarcodeDetector / jsQR (работает
+        в старых TG-вебвью и любом браузере);
+     3) камера недоступна — ручной ввод ссылки. */
   scanQr() {
     const tg = window.Telegram?.WebApp;
-    if (tg?.showScanQrPopup) {
+    if (tg?.showScanQrPopup && tg.isVersionAtLeast?.('6.4')) {
       try {
         tg.showScanQrPopup({ text: 'Наведите камеру на QR этикетки' }, (data) => {
           this._handleScan(data);
@@ -2322,8 +2327,85 @@ class App {
         return;
       } catch (_) {}
     }
-    this._prompt('Скан QR', '', 'Вставьте ссылку или ID с этикетки')
-      .then(v => { if (v) this._handleScan(v); });
+    this._openCamScanner();
+  }
+
+  // Декодер jsQR подгружается лениво — только при первом открытии сканера
+  _loadJsQR() {
+    if (window.jsQR) return Promise.resolve();
+    return this._jsqrP || (this._jsqrP = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'js/jsqr.js?v=1';
+      s.onload = res; s.onerror = () => { this._jsqrP = null; rej(); };
+      document.head.appendChild(s);
+    }));
+  }
+
+  async _openCamScanner() {
+    const video = document.getElementById('qrScanVideo');
+    // Модалку показываем сразу — пользователь видит, что сканер запускается
+    this.openModal('qrScanModal');
+    this._qrStop = () => this.closeModal('qrScanModal');   // ✕ работает и на этапе запроса
+    let stream;
+    try {
+      stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false,
+        }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+      ]);
+    } catch (_) {
+      this.closeModal('qrScanModal');
+      const v = await this._prompt('Скан QR', '', 'Камера недоступна — вставьте ссылку с этикетки');
+      if (v) this._handleScan(v);
+      return;
+    }
+    if (!document.getElementById('qrScanModal').classList.contains('open')) {
+      // Закрыли крестиком, пока ждали разрешение — глушим камеру
+      stream.getTracks().forEach(t => t.stop());
+      return;
+    }
+    video.srcObject = stream;
+    await video.play().catch(() => {});
+
+    // Распознавание: нативный BarcodeDetector, иначе jsQR по кадрам canvas
+    let detector = null;
+    try { if ('BarcodeDetector' in window) detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (_) {}
+    if (!detector) await this._loadJsQR().catch(() => {});
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const stop = () => {
+      clearInterval(this._qrTimer);
+      stream.getTracks().forEach(t => t.stop());
+      video.srcObject = null;
+      this.closeModal('qrScanModal');
+    };
+    this._qrStop = stop;
+
+    let busy = false;
+    this._qrTimer = setInterval(async () => {
+      if (busy || video.readyState < 2) return;
+      busy = true;
+      try {
+        let text = null;
+        if (detector) {
+          const codes = await detector.detect(video);
+          text = codes[0]?.rawValue || null;
+        } else if (window.jsQR) {
+          canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+          const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          text = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' })?.data || null;
+        }
+        if (text) {
+          if (navigator.vibrate) navigator.vibrate(30);
+          stop();
+          this._handleScan(text);
+        }
+      } catch (_) {}
+      busy = false;
+    }, 250);
   }
 
   _handleScan(data) {
