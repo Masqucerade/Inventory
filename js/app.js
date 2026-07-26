@@ -1848,7 +1848,9 @@ class App {
           const r = c.getBoundingClientRect();
           const dx = Math.max(r.left - ex, ex - r.right, 0);
           const dy = Math.max(r.top - ey, ey - r.bottom, 0);
-          const d = dx * dx + dy * dy;
+          // Вертикаль весит больше: в пустом углу ряда сосед по ряду и карточка
+          // из соседнего ряда равноудалены — слот метался бы между ними
+          const d = dx * dx + dy * dy * 4;
           if (d < bestD) { bestD = d; best = { c, r }; }
         }
         if (!best) return;
@@ -2272,6 +2274,10 @@ class App {
   }
 
   /* ── Перетаскивание фото в ленте: мышью сразу, на таче — long-press.
+     Та же механика, что у карточек товаров: фото «поднимается» (absolute,
+     за пальцем), его место держит слот-плейсхолдер, соседи разъезжаются
+     FLIP-анимацией. Старый вариант без слота дёргал раскладку на каждой
+     вставке и фото «мигало» между позициями на границах строк сетки.
      Порядок в ленте = порядок фото на сайте; тап без движения по-прежнему
      делает фото главным. ── */
   _bindPhotoDrag() {
@@ -2280,32 +2286,87 @@ class App {
     strip._dragBound = true;
     strip._justDragged = false;
 
-    let el = null, pid = null, startX = 0, startY = 0, dragging = false, longT = null;
+    let el = null, ph = null, pid = null, startX = 0, startY = 0,
+        grabDX = 0, grabDY = 0, dragging = false, landing = false, longT = null,
+        finalRects = new Map(), finalAt = 0;   // финальные rect'ы соседей во время FLIP
     const thumbs = () => [...strip.querySelectorAll('.photo-thumb')];
 
     const startDrag = () => {
-      if (!el) return;
+      if (!el || dragging) return;
       dragging = true;
+      const r = el.getBoundingClientRect(), sr = strip.getBoundingClientRect();
+      grabDX = startX - r.left; grabDY = startY - r.top;
+      ph = document.createElement('div');
+      ph.className = 'photo-thumb-ph';
+      // Телефон (горизонтальная лента): слот повторяет размер кадра.
+      // Веб (сетка): размер задаёт ячейка — инлайн сломал бы раскладку,
+      // особенно у крупного главного фото на всю ширину
+      if (getComputedStyle(strip).display !== 'grid') {
+        ph.style.width  = r.width + 'px';
+        ph.style.height = r.height + 'px';
+      }
+      el.after(ph);
+      el.style.width  = r.width + 'px';
+      el.style.height = r.height + 'px';
+      el.style.left = (r.left - sr.left + strip.scrollLeft) + 'px';
+      el.style.top  = (r.top - sr.top + strip.scrollTop) + 'px';
       el.classList.add('drag');
       strip.classList.add('dragging');
       try { el.setPointerCapture(pid); } catch (_) {}
       if (navigator.vibrate) navigator.vibrate(10);   // лёгкий отклик на таче
     };
 
+    // FLIP по обеим осям: в вебе лента — сетка, кадры съезжают и по вертикали.
+    // Rect'ы после mutate (до inverted-transform) — финальные: запоминаем их,
+    // чтобы прицел не смотрел на анимируемые позиции
+    const flipMove = (mutate) => {
+      const others = thumbs().filter(t => t !== el);
+      const before = new Map(others.map(t => { const r = t.getBoundingClientRect(); return [t, { l: r.left, t: r.top }]; }));
+      mutate();
+      const moved = [];
+      finalRects = new Map(); finalAt = Date.now();
+      for (const t of others) {
+        const b = before.get(t), r = t.getBoundingClientRect();
+        finalRects.set(t, r);
+        const dx = b.l - r.left, dy = b.t - r.top;
+        if (!dx && !dy) continue;
+        t.style.transition = 'none';
+        t.style.transform  = `translate(${dx}px, ${dy}px)`;
+        moved.push(t);
+      }
+      // setTimeout, не rAF: rAF замирает в свёрнутой вкладке
+      if (moved.length) setTimeout(() => {
+        for (const t of moved) { t.style.transition = 'transform .16s ease'; t.style.transform = ''; }
+        setTimeout(() => { for (const t of moved) t.style.transition = ''; }, 200);
+      }, 20);
+    };
+
     const stop = (commit) => {
       clearTimeout(longT); longT = null;
-      if (dragging && el) {
-        strip.classList.remove('dragging');
+      if (!dragging || !el || landing) { if (!landing) { el = null; pid = null; } return; }
+      strip._justDragged = true;                       // подавить click-«сделать главным»
+      setTimeout(() => { strip._justDragged = false; }, 80);
+      const finish = () => {
         // Новый порядок — из DOM (data-idx хранят исходные индексы)
         if (commit) this._photos = thumbs().map(t => this._photos[+t.dataset.idx]);
-        this._renderPhotoStrip();
-        strip._justDragged = true;                     // подавить click-«сделать главным»
-        setTimeout(() => { strip._justDragged = false; }, 50);
-      }
-      dragging = false; el = null; pid = null;
+        strip.classList.remove('dragging');
+        this._renderPhotoStrip();                      // полный перерендер чистит все стили
+        dragging = false; landing = false; el = null; ph = null; pid = null;
+      };
+      if (!commit || !ph) { finish(); return; }
+      // Приземление в слот, затем фиксация порядка
+      landing = true;
+      const grabbed = el, slot = ph;
+      const pr = slot.getBoundingClientRect(), sr = strip.getBoundingClientRect();
+      grabbed.style.transition = 'left .15s ease, top .15s ease, transform .15s ease';
+      grabbed.style.left = (pr.left - sr.left + strip.scrollLeft) + 'px';
+      grabbed.style.top  = (pr.top - sr.top + strip.scrollTop) + 'px';
+      grabbed.style.transform = 'scale(1)';
+      setTimeout(() => { slot.replaceWith(grabbed); finish(); }, 165);
     };
 
     strip.addEventListener('pointerdown', (e) => {
+      if (dragging || landing || el) return;           // второй палец не влезает в жест
       const t = e.target.closest('.photo-thumb');
       if (!t || e.target.closest('.photo-thumb-remove')) return;
       el = t; pid = e.pointerId; startX = e.clientX; startY = e.clientY;
@@ -2314,29 +2375,41 @@ class App {
     });
 
     strip.addEventListener('pointermove', (e) => {
-      if (!el) return;
-      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (!el || landing || e.pointerId !== pid) return;
       if (!dragging) {
-        if (e.pointerType === 'mouse' && Math.hypot(dx, dy) > 6) startDrag();
-        else if (Math.hypot(dx, dy) > 10) { clearTimeout(longT); longT = null; el = null; return; }   // это скролл ленты
+        const d = Math.hypot(e.clientX - startX, e.clientY - startY);
+        if (e.pointerType === 'mouse' && d > 6) startDrag();
+        else if (d > 10) { clearTimeout(longT); longT = null; el = null; return; }   // это скролл ленты
         if (!dragging) return;
       }
       e.preventDefault();
-      el.style.transform = `translate(${dx}px, ${dy}px) scale(1.05)`;
-      // Пересечение с соседом — переставляем в DOM на лету
+      const sr = strip.getBoundingClientRect();
+      el.style.left = (e.clientX - grabDX - sr.left + strip.scrollLeft) + 'px';
+      el.style.top  = (e.clientY - grabDY - sr.top + strip.scrollTop) + 'px';
+      // Целимся центром фото. Во время FLIP живые rect'ы соседей врут
+      // (transform едет) — берём их финальные позиции из flipMove
+      const er = el.getBoundingClientRect();
+      const ex = er.left + er.width / 2, ey = er.top + er.height / 2;
+      const fresh = Date.now() - finalAt < 260;
+      let best = null, bestD = Infinity;
       for (const t of thumbs()) {
         if (t === el) continue;
-        const r = t.getBoundingClientRect();
-        if (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top - 20 && e.clientY < r.bottom + 20) {
-          strip.insertBefore(el, e.clientX < r.left + r.width / 2 ? t : t.nextSibling);
-          startX = e.clientX; startY = e.clientY;      // transform заново от новой позиции
-          el.style.transform = 'scale(1.05)';
-          break;
-        }
+        const r = (fresh && finalRects.get(t)) || t.getBoundingClientRect();
+        const ddx = Math.max(r.left - ex, ex - r.right, 0);
+        const ddy = Math.max(r.top - ey, ey - r.bottom, 0);
+        const d = ddx * ddx + ddy * ddy * 4;   // вертикаль весит больше — не прыгать между строками
+        if (d < bestD) { bestD = d; best = { t, r }; }
       }
+      if (!best) return;
+      const bcx = best.r.left + best.r.width / 2, bcy = best.r.top + best.r.height / 2;
+      const sameRow = Math.abs(ey - bcy) < best.r.height / 2;
+      const before  = sameRow ? ex < bcx : ey < bcy;
+      const anchor  = before ? best.t : best.t.nextElementSibling;   // может быть «＋ Фото» — слот встанет перед ней
+      if (anchor !== ph && ph.nextElementSibling !== anchor)
+        flipMove(() => strip.insertBefore(ph, anchor));
     });
-    strip.addEventListener('pointerup',     () => stop(true));
-    strip.addEventListener('pointercancel', () => stop(false));
+    strip.addEventListener('pointerup',     (e) => { if (!el || e.pointerId === pid) stop(true); });
+    strip.addEventListener('pointercancel', (e) => { if (!el || e.pointerId === pid) stop(false); });
     /* Тач: как только нативный скролл ленты стартует, браузер шлёт pointercancel
        и drag обрывается — «фото не переставляются». Во время drag глушим
        touchmove: скролл не начинается и жест доживает до pointerup. До старта

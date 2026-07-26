@@ -1289,6 +1289,7 @@ body.select-mode .bottom-nav { display: none; }
 .photo-strip {
   display: flex; gap: 8px; overflow-x: auto;
   padding-bottom: 4px; scrollbar-width: none;
+  position: relative;   /* поднятое фото позиционируется относительно ленты */
 }
 .photo-strip::-webkit-scrollbar { display: none; }
 .photo-thumb {
@@ -1299,11 +1300,22 @@ body.select-mode .bottom-nav { display: none; }
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
 .photo-thumb.main { border-color: rgba(124,109,250,.55); }
-/* Перетаскивание фото в ленте */
+/* Перетаскивание фото в ленте: поднятый кадр — absolute за пальцем,
+   его место держит слот-плейсхолдер (как у карточек товаров) */
 .photo-thumb.drag {
-  z-index: 6; opacity: .92;
-  box-shadow: 0 10px 28px rgba(0,0,0,.55);
+  position: absolute; z-index: 30;
+  box-shadow: 0 12px 30px rgba(0,0,0,.6);
   border-color: var(--accent);
+  transform: scale(1.06);
+  transition: transform .15s ease, box-shadow .15s ease;
+  pointer-events: none;
+}
+.photo-thumb-ph {
+  flex-shrink: 0; box-sizing: border-box;
+  border-radius: 14px;
+  background: var(--fill2);
+  border: 1px dashed var(--sep);
+  animation: phIn .15s ease;
 }
 .photo-strip.dragging { overflow-x: hidden; touch-action: none; }
 .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -2939,7 +2951,8 @@ html.is-web #guideModal { height: min(760px, 86vh); }
     gap: 8px; overflow: visible; padding-bottom: 0;
   }
   html.is-web #photoPicker .photo-thumb,
-  html.is-web #photoPicker .photo-add-tile {
+  html.is-web #photoPicker .photo-add-tile,
+  html.is-web #photoPicker .photo-thumb-ph {
     width: 100%; height: auto; aspect-ratio: 1;
   }
   /* Первое (главное) фото — крупное, на всю ширину колонки */
