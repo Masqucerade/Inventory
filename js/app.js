@@ -1723,11 +1723,13 @@ class App {
       ph.className = 'item-card-ph';
       ph.style.height = (r.height - 4) + 'px';       // -4: вертикальные поля слота
       el.after(ph);
-      // Карточка выходит из потока и следует за пальцем
+      // Карточка выходит из потока и следует за пальцем.
+      // Координаты — относительно списка (absolute), не вьюпорта: см. CSS .drag
+      const wr = wrap.getBoundingClientRect();
       el.style.width = r.width + 'px';
-      el.style.left  = r.left + 'px';
-      el.style.top   = r.top + 'px';
-      el.classList.add('drag');                      // fixed + скейл + тень (анимируется)
+      el.style.left  = (r.left - wr.left) + 'px';
+      el.style.top   = (r.top - wr.top) + 'px';
+      el.classList.add('drag');                      // absolute + скейл + тень (анимируется)
       wrap.classList.add('dragging');
       try { el.setPointerCapture(pid); } catch (_) {}
       if (navigator.vibrate) navigator.vibrate(10);
@@ -1781,9 +1783,10 @@ class App {
       landing = true;
       const grabbed = el, slot = ph;
       const pr = slot.getBoundingClientRect();
+      const wr = wrap.getBoundingClientRect();
       grabbed.style.transition = 'left .16s ease, top .16s ease, transform .16s ease, box-shadow .16s ease';
-      grabbed.style.left = (pr.left - 6) + 'px';     // компенсация полей слота
-      grabbed.style.top  = (pr.top - 2) + 'px';
+      grabbed.style.left = (pr.left - wr.left - 6) + 'px';   // компенсация полей слота
+      grabbed.style.top  = (pr.top - wr.top - 2) + 'px';
       grabbed.style.transform = 'scale(1)';
       grabbed.style.boxShadow = '0 2px 10px rgba(0,0,0,.25)';
       setTimeout(() => {
@@ -1819,12 +1822,14 @@ class App {
         if (!dragging) return;
       }
       e.preventDefault();
-      el.style.left = (e.clientX - grabDX) + 'px';
-      el.style.top  = (e.clientY - grabDY) + 'px';
-      // У краёв экрана — подкручиваем список (fixed-карточка остаётся под пальцем)
+      // У краёв экрана — подкручиваем список (координаты ниже считаем уже
+      // после скролла, чтобы карточка осталась под пальцем)
       const sr = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0, bottom: innerHeight };
       if (e.clientY < sr.top + 90) scroller.scrollTop -= 9;
       else if (e.clientY > sr.bottom - 90) scroller.scrollTop += 9;
+      const wr = wrap.getBoundingClientRect();
+      el.style.left = (e.clientX - grabDX - wr.left) + 'px';
+      el.style.top  = (e.clientY - grabDY - wr.top) + 'px';
       // Целимся центром самой карточки, а не пальцем: пользователь судит по
       // тому, где карточка, — если схватить её за край, палец может ещё не
       // дойти до середины соседа, хотя карточка уже «на его месте».

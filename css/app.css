@@ -280,9 +280,13 @@ html, body {
   border-bottom: 1px solid var(--sep2);
 }
 /* Перетаскивание карточки (ручной порядок в «Добавлен»):
-   поднятая карточка — fixed, следует за пальцем со скейлом и тенью */
+   поднятая карточка следует за пальцем со скейлом и тенью.
+   absolute относительно списка, НЕ fixed: fixed внутри контейнера с
+   -webkit-overflow-scrolling на iOS-вебвью Telegram считает координаты
+   от контента — карточка «улетала» при зажатии */
+.items-list { position: relative; }
 .item-card.drag {
-  position: fixed; z-index: 40;
+  position: absolute; z-index: 40;
   background: var(--card);
   border: 1px solid var(--sep);
   border-radius: var(--r);
