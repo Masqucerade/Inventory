@@ -2278,10 +2278,12 @@ class App {
       .lbl{width:58mm;height:40mm;border:.3mm dashed #bbb;border-radius:2mm;padding:3mm;box-sizing:border-box;
            display:flex;gap:3mm;align-items:center;page-break-inside:avoid;break-inside:avoid}
       .lbl img{width:30mm;height:30mm;flex-shrink:0}
-      .in{min-width:0;flex:1}
-      .n{font-size:3.4mm;font-weight:700;line-height:1.25;max-height:13mm;overflow:hidden}
-      .s{font-size:2.9mm;color:#555;margin-top:1mm}
-      .p{font-size:4.2mm;font-weight:800;margin-top:1.5mm}
+      .in{min-width:0;flex:1;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+      .shop{font-size:2.5mm;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+            border-bottom:.3mm solid #000;padding-bottom:1mm;margin-bottom:1.4mm}
+      .n{font-size:3.4mm;font-weight:700;line-height:1.25;max-height:14mm;overflow:hidden}
+      .s{font-size:2.9mm;color:#444;margin-top:1mm}
+      .list{font-size:2.7mm;line-height:1.45;margin-top:.6mm;max-height:19mm;overflow:hidden}
       @media print{body{padding:0}.lbl{border-color:transparent}}
     </style></head><body>` + items.map(i => {
       // /q/<id>: товар с витрины откроется на сайте (удобно на ПВЗ), скрытый — в панели
@@ -2290,21 +2292,25 @@ class App {
       return `<div class="lbl">
         <img src="/qr.svg?d=${encodeURIComponent(url)}" alt="QR">
         <div class="in">
+          <div class="shop">Masqucerade INC.</div>
           <div class="n">${esc(i.name || '')}</div>
-          ${sizes ? `<div class="s">${esc(sizes)}</div>` : ''}
-          ${i.price ? `<div class="p">${fmtMoney(i.price)}</div>` : ''}
+          ${sizes ? `<div class="s">Размер: ${esc(sizes)}</div>` : ''}
         </div>
       </div>`;
     }).join('') + (items.length > 1 ? (() => {
       // Сводная этикетка посылки: скан выделяет все её товары в панели
       const purl = location.origin + '/admin#items=' + items.map(i => i.id).join(',');
-      const names = items.slice(0, 3).map(i => i.name).join(', ') + (items.length > 3 ? ` +${items.length - 3}` : '');
+      const line = i => {
+        const sz = (i.sizes || []).filter(s => s.size).map(s => s.size).join('/');
+        return `• ${esc(i.name)}${sz ? ` (${esc(sz)})` : ''}`;
+      };
+      const shown = items.slice(0, 5);
       return `<div class="lbl" style="border-style:solid">
         <img src="/qr.svg?d=${encodeURIComponent(purl)}" alt="QR">
         <div class="in">
-          <div class="n">📦 Посылка · ${items.length} шт</div>
-          <div class="s">${esc(names)}</div>
-          <div class="p">${fmtMoney(items.reduce((s, i) => s + (i.price || 0), 0))}</div>
+          <div class="shop">Masqucerade INC.</div>
+          <div class="n">Посылка&nbsp;·&nbsp;${items.length}&nbsp;шт</div>
+          <div class="list">${shown.map(line).join('<br>')}${items.length > 5 ? `<br>…и ещё ${items.length - 5}` : ''}</div>
         </div>
       </div>`;
     })() : '') + `<script>onload=function(){setTimeout(function(){print()},500)}<\/script></body></html>`);
