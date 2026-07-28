@@ -186,7 +186,10 @@ class App {
     if (section === 'settings') section = 'faq';   // вкладка FAQ = view "settings"
     const u = this.currentUser;
     if (!u) return false;
+    if (section === 'profile') return true;        // личная страница есть у каждого
     if (u.role === 'root') return true;
+    // Сотрудник: вкладки «Проект» нет — её содержимое живёт на «Личном»
+    if (section === 'project') return false;
     if (!Array.isArray(u.access)) return true;   // не настроено = полный доступ
     return u.access.includes(section);
   }
@@ -195,10 +198,24 @@ class App {
   _applyAccess() {
     document.querySelectorAll('.nav-btn').forEach(b =>
       b.classList.toggle('hidden', !this.hasAccess(b.dataset.view)));
+    // Задачи/заметки/доступы сотрудника живут на «Личном» — переносим узлы проекта
+    this._mountProjectInProfile();
     if (!this.hasAccess(this.currentView)) {
       const first = ['inventory','stats','finance','project','site','terminal','settings'].find(v => this.hasAccess(v));
       if (first) this.renderView(first);
     }
+  }
+
+  /* Сотрудник: DOM-узлы «Проекта» (шапка, вкладки, контент) физически
+     переезжают на личную страницу — вся логика проекта работает как есть.
+     Root: узлы возвращаются на место во вкладку «Проект». */
+  _mountProjectInProfile() {
+    const isRoot = this.currentUser?.role === 'root';
+    const nodes  = ['projHero', 'projTabs', 'projectContent'].map(id => document.getElementById(id));
+    if (nodes.some(n => !n)) return;
+    const target = isRoot ? document.getElementById('projectBody')
+                          : document.getElementById('profileProjectMount');
+    if (target && nodes[0].parentElement !== target) target.append(...nodes);
   }
 
   // Аватар текущего профиля справа вверху
@@ -306,8 +323,6 @@ class App {
     const isRoot = this.currentUser?.role === 'root';
     const u      = this.currentUser || {};
 
-    const svgKey = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
-
     const chevron = `<svg class="menu-acc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>`;
     const plus    = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
 
@@ -322,7 +337,6 @@ class App {
           </div>
         </div>
         <div class="hero-actions">
-          <button class="hero-action-btn" id="mChangePassBtn" title="Сменить пароль">${svgKey}</button>
           <button class="hero-action-btn danger" id="mLogoutBtn" title="Выйти">${svgLogout}</button>
         </div>
       </div>
@@ -471,13 +485,6 @@ class App {
     });
 
     document.getElementById('mAddUserBtn')?.addEventListener('click', () => this.openUserModal());
-
-    document.getElementById('mChangePassBtn')?.addEventListener('click', async () => {
-      const np = await this._prompt('Новый пароль', '', 'Введите новый пароль');
-      if (!np) return;
-      try { await this.db.changeMyPassword(np); this.toast('Пароль изменён ✓'); }
-      catch (e) { this.toast(e.message || 'Ошибка'); }
-    });
 
     this.renderOwners('menuOwnersList');
     this._renderMenuCats();
@@ -868,7 +875,8 @@ class App {
 
     /* FAB */
     document.getElementById('fabBtn').addEventListener('click', () => {
-      if (this.currentView === 'project') {
+      // «Личное» сотрудника содержит вкладки проекта — FAB работает так же
+      if (this.currentView === 'project' || this.currentView === 'profile') {
         if (this._projectSubTab === 'quick')      this.openQuickModal();
         else if (this._projectSubTab === 'notes') this.openNoteModal();
         else this.openTaskModal();
@@ -1437,8 +1445,10 @@ class App {
     document.getElementById(`view-${view}`)?.classList.add('active');
     document.querySelector(`.nav-btn[data-view="${view}"]`)?.classList.add('active');
     const isRoot = this.currentUser?.role === 'root';
-    // На вкладке «Гайды» создавать может только root
-    const fabHidden = !['inventory','project','settings'].includes(view) || (view === 'settings' && !isRoot);
+    // На вкладке «Гайды» создавать может только root; «Личное» сотрудника
+    // включает задачи проекта — FAB для создания задачи нужен и там
+    const fabHidden = !['inventory','project','settings'].includes(view) && !(view === 'profile' && !isRoot)
+      || (view === 'settings' && !isRoot);
     document.getElementById('fabBtn').classList.toggle('hidden', fabHidden);
 
     switch (view) {
@@ -1447,6 +1457,7 @@ class App {
       case 'finance':   this.renderFinance();       break;
       case 'project':   this.renderProject();       break;
       case 'site':      this.renderSiteView();      break;
+      case 'profile':   this.renderProfile();       break;
       case 'terminal':  this.renderTerminal();      break;
       case 'settings':  this.renderGuides();         break;
     }
@@ -4076,6 +4087,90 @@ class App {
         </svg>
         <p>Настройки доступны через меню ☰ в шапке</p>
       </div>`;
+  }
+
+  /* ──────────────────────────────────────────
+     PROFILE — личная страница пользователя:
+     профиль + смена пароля + свои финансы;
+     сотрудникам сюда же переезжает «Проект»
+     ────────────────────────────────────────── */
+  async renderProfile() {
+    const head = document.getElementById('profileHead');
+    if (!head) return;
+    const u = this.currentUser || {};
+    const isRoot = u.role === 'root';
+    const hideCosts = !!u.hideCosts && !isRoot;
+
+    // Финансы: пользователь ↔ участник по совпадению имени (как в задачах)
+    const owner = (this.owners || []).find(o =>
+      (o.name || '').toLowerCase() === (u.name || '').toLowerCase());
+    let finHtml = '';
+    if (owner && !hideCosts) {
+      const pct = owner.profitPercent || 0;
+      let cost = 0, share = 0, val = 0;
+      (this.items || []).filter(i => i.ownerId === owner.id && i.orderStatus !== 'done').forEach(i => {
+        const qty = i.quantity || 0;
+        const c   = (i.buyPrice || 0) + (i.deliveryCost || 0);
+        cost += qty * c;
+        val  += (i.total || 0);
+        share += i.isMonarc ? (i.total || 0) : qty * (c + ((i.price || 0) - c) * pct / 100);
+      });
+      const sales = (await this.db.getSales()).filter(s => s.ownerId === owner.id);
+      const soldSum   = sales.reduce((s, x) => s + (x.salePrice || 0) * (x.qty || 1), 0);
+      const soldShare = sales.reduce((s, x) => s + ((x.buyPrice || 0) + (x.deliveryCost || 0)) * (x.qty || 1)
+        + (x.netProfit || 0) * pct / 100, 0);
+      finHtml = `
+        <div class="section-title">Мои финансы${pct ? ` <em style="font-style:normal;font-size:11px;color:var(--text3)">· ${pct}% от прибыли</em>` : ''}</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" data-count="${Math.round(cost)}" data-fmt="money">0 ₽</div>
+            <div class="stat-label">Вложено сейчас (закуп + доставка)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" data-count="${Math.round(share)}" data-fmt="money">0 ₽</div>
+            <div class="stat-label">Получу при продаже всего</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" data-count="${Math.round(val)}" data-fmt="money">0 ₽</div>
+            <div class="stat-label">На витрине по ценам продажи</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" data-count="${Math.round(soldShare)}" data-fmt="money">0 ₽</div>
+            <div class="stat-label">Заработано с продаж (${sales.length} шт на ${fmtMoney(soldSum)})</div>
+          </div>
+        </div>`;
+    }
+
+    head.innerHTML = `
+      <div class="account-hero" style="margin-bottom:14px">
+        <div class="account-hero-avatar">${(u.name || u.login || '?')[0].toUpperCase()}</div>
+        <div class="account-hero-info">
+          <div class="account-hero-name">${this.esc(u.name || '')}</div>
+          <div class="account-hero-role">
+            <span class="account-badge ${isRoot ? 'root' : ''}">${isRoot ? 'Root-админ' : 'Сотрудник'}</span>
+            <span>@${this.esc(u.login || '')}</span>
+          </div>
+        </div>
+        <div class="hero-actions">
+          <button class="btn-line" id="profChangePassBtn">Сменить пароль</button>
+        </div>
+      </div>
+      ${finHtml}`;
+
+    document.getElementById('profChangePassBtn')?.addEventListener('click', async () => {
+      const np = await this._prompt('Новый пароль', '', 'Введите новый пароль');
+      if (!np) return;
+      try { await this.db.changeMyPassword(np); this.toast('Пароль изменён ✓'); }
+      catch (e) { this.toast(e.message || 'Ошибка'); }
+    });
+
+    runCountUps(head);
+
+    // Сотрудник: ниже — задачи/заметки/доступы (узлы проекта уже перенесены)
+    if (!isRoot) {
+      this._mountProjectInProfile();
+      await this.renderProject();
+    }
   }
 
   /* ──────────────────────────────────────────

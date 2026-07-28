@@ -160,6 +160,18 @@
     <div class="view-body" id="siteContent"></div>
   </div>
 
+  <!-- ═══ PROFILE VIEW: личная страница пользователя ═══ -->
+  <div id="view-profile" class="view">
+    <div class="view-header simple-header">
+      <h1 class="view-title">Личное</h1>
+    </div>
+    <div class="view-body" id="profileBody">
+      <div id="profileHead"></div>
+      <!-- Сотрудникам сюда переезжают задачи/заметки/доступы из «Проекта» -->
+      <div id="profileProjectMount"></div>
+    </div>
+  </div>
+
   <!-- ═══ SETTINGS (FAQ) VIEW ═══ -->
   <div id="view-settings" class="view">
     <div class="view-header simple-header">
@@ -215,6 +227,13 @@
         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
       </svg>
       <span class="nav-label">Сайт</span>
+    </button>
+    <button class="nav-btn" data-view="profile">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span class="nav-label">Личное</span>
     </button>
     <!-- Terminal объединён с FAQ: консоль сверху вкладки FAQ -->
     <button class="nav-btn" data-view="settings">
@@ -1204,6 +1223,6 @@
 
 <script src="js/db.js?v=54"></script>
 <script src="js/backup.js?v=45"></script>
-<script src="js/app.js?v=156"></script>
+<script src="js/app.js?v=157"></script>
 </body>
 </html>
