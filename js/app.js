@@ -199,12 +199,48 @@ class App {
     document.querySelectorAll('.nav-btn').forEach(b =>
       b.classList.toggle('hidden', !this.hasAccess(b.dataset.view)));
     this._renderNavSections();
+    this._initSidebarToggle();
     // Задачи/заметки/доступы сотрудника живут на «Личном» — переносим узлы проекта
     this._mountProjectInProfile();
     if (!this.hasAccess(this.currentView)) {
       const first = ['inventory','stats','finance','project','site','terminal','settings'].find(v => this.hasAccess(v));
       if (first) this.renderView(first);
     }
+  }
+
+  /* Сайдбар: полный → только значки → скрыт (кнопка в самом сайдбаре);
+     спрятанный возвращается плавающей кнопкой слева сверху. Выбор
+     запоминается. На мобиле/в Telegram кнопки скрыты CSS-ом. */
+  _initSidebarToggle() {
+    const nav = document.querySelector('.bottom-nav');
+    if (!nav || this._sbInit) return;
+    this._sbInit = true;
+    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/></svg>`;
+    const apply = (m) => {
+      document.body.classList.toggle('sb-icons',  m === 'icons');
+      document.body.classList.toggle('sb-hidden', m === 'hidden');
+      localStorage.setItem('sbMode', m);
+    };
+    const t = document.createElement('button');
+    t.className = 'sb-toggle';
+    t.title = 'Свернуть меню';
+    t.innerHTML = icon;
+    t.addEventListener('click', () => {
+      const cur = document.body.classList.contains('sb-icons') ? 'icons'
+                : document.body.classList.contains('sb-hidden') ? 'hidden' : 'full';
+      apply(cur === 'full' ? 'icons' : cur === 'icons' ? 'hidden' : 'full');
+    });
+    nav.prepend(t);
+    const ex = document.createElement('button');
+    ex.className = 'sb-expand';
+    ex.title = 'Показать меню';
+    ex.innerHTML = icon;
+    ex.addEventListener('click', () => apply('full'));
+    document.body.appendChild(ex);
+    // Тултипы пунктов — в режиме «только значки» подписей нет
+    nav.querySelectorAll('.nav-btn').forEach(b =>
+      b.title = b.querySelector('.nav-label')?.textContent || '');
+    apply(localStorage.getItem('sbMode') || 'full');
   }
 
   /* Подписи групп в сайдбаре (веб, широкий экран): вставляются перед первой

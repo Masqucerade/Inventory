@@ -3023,6 +3023,7 @@ html.is-web #guideModal { height: min(760px, 86vh); }
    тихие пункты, мягкая подсветка активного
    ============================================= */
 .nav-sec { display: none; }   /* подписи секций живут только в сайдбаре */
+.sb-toggle, .sb-expand { display: none; }   /* кнопки сайдбара — только веб */
 
 @media (min-width: 1000px) {
   html.is-web .bottom-nav {
@@ -3083,6 +3084,48 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   html.is-web .view { left: 220px; }
   /* Логотип уже в сайдбаре — в шапке склада не дублируем */
   html.is-web .brand-name { visibility: hidden; }
+
+  /* Кнопка сворачивания в сайдбаре (полный → значки → скрыт) */
+  html.is-web .sb-toggle {
+    display: flex; position: absolute; top: 16px; right: 10px;
+    width: 30px; height: 30px; align-items: center; justify-content: center;
+    border: none; border-radius: 8px; background: none;
+    color: var(--text3); cursor: pointer; transition: background .15s, color .15s;
+  }
+  html.is-web .sb-toggle:hover { background: rgba(255,255,255,.06); color: var(--text); }
+  [data-theme="light"] html.is-web .sb-toggle:hover { background: rgba(0,0,0,.06); }
+
+  /* ── Режим «только значки» ── */
+  html.is-web body.sb-icons .bottom-nav { width: 64px; padding: 52px 8px 12px; }
+  html.is-web body.sb-icons .bottom-nav::before { display: none; }
+  html.is-web body.sb-icons .sb-toggle { top: 14px; right: 50%; transform: translateX(50%); }
+  html.is-web body.sb-icons .nav-label { display: none; }
+  html.is-web body.sb-icons .nav-btn { justify-content: center; padding: 10px 0; gap: 0; }
+  /* Подписи групп превращаются в тонкие разделители */
+  html.is-web body.sb-icons .nav-sec {
+    padding: 0; margin: 10px 10px; height: 1px;
+    background: rgba(255,255,255,.08); color: transparent; overflow: hidden;
+  }
+  [data-theme="light"] html.is-web body.sb-icons .nav-sec { background: rgba(0,0,0,.10); }
+  html.is-web body.sb-icons .view { left: 64px; }
+  html.is-web body.sb-icons .delivery-bar { left: 64px; }
+
+  /* ── Режим «скрыт полностью» ── */
+  html.is-web body.sb-hidden .bottom-nav { display: none; }
+  html.is-web body.sb-hidden .view { left: 0; }
+  html.is-web body.sb-hidden .delivery-bar { left: 0; }
+  html.is-web .sb-expand {
+    position: fixed; top: 14px; left: 16px; z-index: 120;
+    width: 34px; height: 34px; align-items: center; justify-content: center;
+    border-radius: 10px; border: 1px solid var(--sep);
+    background: var(--fill); color: var(--text2); cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  html.is-web body.sb-hidden .sb-expand { display: flex; }
+  html.is-web .sb-expand:hover { background: var(--fill2); color: var(--text); }
+  /* Меню спрятано — логотип возвращается в шапку, заголовки не под кнопкой */
+  html.is-web body.sb-hidden .brand-name { visibility: visible; margin-left: 44px; }
+  html.is-web body.sb-hidden .simple-header { padding-left: 62px; }
   /* Режим выделения прятал нижнюю плашку — сайдбар остаётся на месте,
      а панель массовых действий не налезает на него */
   html.is-web body.select-mode .bottom-nav { display: flex; }
