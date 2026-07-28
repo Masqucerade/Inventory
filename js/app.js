@@ -2563,6 +2563,9 @@ class App {
            display:flex;flex-wrap:wrap;gap:3mm;background:#fff;color:#000}
       .lbl{width:58mm;height:40mm;border:.3mm dashed #bbb;border-radius:2mm;padding:2.4mm 3mm 2.2mm;box-sizing:border-box;
            display:flex;flex-direction:column;page-break-inside:avoid;break-inside:avoid}
+      /* Внутренняя обёртка: в обычных форматах просто заполняет этикетку,
+         в 60×40 (альбомной) — поворачивается на 90° */
+      .li{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
       /* Шильдик: серифный логотип как на витрине, тонкие линии по бокам */
       .brand{display:flex;align-items:center;gap:2mm;white-space:nowrap;
              font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;
@@ -2598,6 +2601,16 @@ class App {
       body.t4030 .list{font-size:1.9mm;max-height:9mm}
       body.t4030 .site{font-size:1.5mm;letter-spacing:.18em;margin-top:.6mm}
 
+      /* 60×40 альбомная на ленте 40×60: принтер печатает книжно, поэтому
+         макет 60×40 поворачивается на 90° внутри страницы 40×60 */
+      body.t4060 .lbl{width:40mm;height:60mm;padding:0;position:relative;overflow:hidden;display:block}
+      body.t4060 .li{
+        position:absolute;left:0;top:0;box-sizing:border-box;
+        width:60mm;height:40mm;padding:2.6mm 3mm 2.2mm;
+        transform:rotate(90deg) translateY(-40mm);transform-origin:top left;
+      }
+      body.t4060 .mid img{width:26mm;height:26mm}
+
       .bar{position:fixed;top:0;left:0;right:0;z-index:10;background:#111;color:#fff;
            display:flex;gap:10px;align-items:center;padding:10px 14px;font-size:14px}
       .bar select{padding:7px 10px;border-radius:8px;border:1px solid #444;background:#222;color:#fff;font-size:14px}
@@ -2608,6 +2621,7 @@ class App {
       <span>Формат:</span>
       <select id="fmt">
         <option value="t5840" selected>Термопринтер 58×40 (XP-365B)</option>
+        <option value="t4060">Термопринтер 60×40 — альбомная на ленте 40×60</option>
         <option value="t4030">Термопринтер 40×30</option>
         <option value="a4">Обычный принтер — сетка на листе</option>
       </select>
@@ -2619,7 +2633,7 @@ class App {
       // /q/<id>: товар с витрины откроется на сайте (удобно на ПВЗ), скрытый — в панели
       const url = location.origin + '/q/' + encodeURIComponent(i.id);
       const sizes = (i.sizes || []).filter(s => s.size).map(s => s.size);
-      return `<div class="lbl">
+      return `<div class="lbl"><div class="li">
         <div class="brand">Masqucerade</div>
         <div class="mid">
           <img src="/qr.svg?d=${encodeURIComponent(url)}" alt="QR">
@@ -2630,7 +2644,7 @@ class App {
           </div>
         </div>
         <div class="site">masqucerade.com</div>
-      </div>`;
+      </div></div>`;
     }).join('') + (items.length > 1 ? (() => {
       // Сводная этикетка посылки: скан выделяет все её товары в панели
       const purl = location.origin + '/admin#items=' + items.map(i => i.id).join(',');
@@ -2639,7 +2653,7 @@ class App {
         return `• ${esc(i.name)}${sz ? ` (${esc(sz)})` : ''}`;
       };
       const shown = items.slice(0, 5);
-      return `<div class="lbl" style="border-style:solid">
+      return `<div class="lbl" style="border-style:solid"><div class="li">
         <div class="brand">Masqucerade</div>
         <div class="mid">
           <img src="/qr.svg?d=${encodeURIComponent(purl)}" alt="QR">
@@ -2649,7 +2663,7 @@ class App {
           </div>
         </div>
         <div class="site">masqucerade.com</div>
-      </div>`;
+      </div></div>`;
     })() : '') + `<script>
       // Клик по размеру: оставить только его; клик по единственному оставшемуся — вернуть все
       function pick(el){
@@ -2664,6 +2678,7 @@ class App {
         document.body.className = v === 'a4' ? '' : 'thermo ' + v;
         document.getElementById('pageStyle').textContent =
           v === 't5840' ? '@page{size:58mm 40mm;margin:0}' :
+          v === 't4060' ? '@page{size:40mm 60mm;margin:0}' :
           v === 't4030' ? '@page{size:40mm 30mm;margin:0}' :
           '@page{size:auto;margin:8mm}';
       };
