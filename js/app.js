@@ -3943,7 +3943,8 @@ class App {
           </div>
           <div style="text-align:right;flex-shrink:0">
             <div style="font-size:14px;font-weight:700;color:var(--text)">${o && !hideCosts
-              ? `<span style="font-weight:500;font-size:12px;color:var(--text3)" title="Чистый закуп">${fmtMoney(Math.round(v.cost))}</span> / <span title="Получит с учётом ${pct || 0}% от прибыли">${fmtMoney(Math.round(disp))}</span> / <span style="font-weight:500;font-size:12px;color:var(--text3)" title="Продажа по выставленным ценам">${fmtMoney(v.val)}</span>`
+              ? `<span title="Чистый закуп: ${fmtMoney(Math.round(v.cost))}">${fmtMoney(Math.round(disp))}</span>${Math.round(disp) !== Math.round(v.val)
+                  ? ` <span style="font-weight:500;font-size:12px;color:var(--text3)">/ ${fmtMoney(v.val)}</span>` : ''}`
               : fmtMoney(Math.round(disp))}</div>
             <div style="font-size:11px;color:var(--hint)">${v.qty} шт · ${v.cnt} поз</div>
           </div>
