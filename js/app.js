@@ -198,11 +198,36 @@ class App {
   _applyAccess() {
     document.querySelectorAll('.nav-btn').forEach(b =>
       b.classList.toggle('hidden', !this.hasAccess(b.dataset.view)));
+    this._renderNavSections();
     // Задачи/заметки/доступы сотрудника живут на «Личном» — переносим узлы проекта
     this._mountProjectInProfile();
     if (!this.hasAccess(this.currentView)) {
       const first = ['inventory','stats','finance','project','site','terminal','settings'].find(v => this.hasAccess(v));
       if (first) this.renderView(first);
+    }
+  }
+
+  /* Подписи групп в сайдбаре (веб, широкий экран): вставляются перед первой
+     видимой кнопкой группы; на мобиле скрыты CSS-ом. У сотрудника «Проект»
+     скрыт — группа «Команда» начинается с «Личного». */
+  _renderNavSections() {
+    const nav = document.querySelector('.bottom-nav');
+    if (!nav) return;
+    nav.querySelectorAll('.nav-sec').forEach(n => n.remove());
+    if (!document.documentElement.classList.contains('is-web')) return;
+    const GROUPS = [['inventory', 'Склад'], ['finance', 'Деньги'], ['project', 'Команда'], ['site', 'Витрина'], ['settings', 'Система']];
+    const visible = v => {
+      const b = nav.querySelector(`.nav-btn[data-view="${v}"]`);
+      return b && !b.classList.contains('hidden') ? b : null;
+    };
+    for (const [view, label] of GROUPS) {
+      let btn = visible(view);
+      if (view === 'project' && !btn) btn = visible('profile');
+      if (!btn) continue;
+      const d = document.createElement('div');
+      d.className = 'nav-sec';
+      d.textContent = label;
+      nav.insertBefore(d, btn);
     }
   }
 

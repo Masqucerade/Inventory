@@ -3018,6 +3018,85 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 }
 
 /* =============================================
+   САЙДБАР СЛЕВА (веб-версия, широкий экран) —
+   стиль крипто-приложений: группы с подписями,
+   тихие пункты, мягкая подсветка активного
+   ============================================= */
+.nav-sec { display: none; }   /* подписи секций живут только в сайдбаре */
+
+@media (min-width: 1000px) {
+  html.is-web .bottom-nav {
+    left: 0; top: 0; bottom: 0; right: auto;
+    transform: none;
+    width: 220px; height: auto;
+    flex-direction: column; align-items: stretch;
+    border-radius: 0;
+    border: none; border-right: 1px solid rgba(255,255,255,.07);
+    background: rgba(255,255,255,.015);
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    box-shadow: none;
+    padding: 20px 12px 16px;
+    gap: 2px;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: none;
+  }
+  html.is-web .bottom-nav::-webkit-scrollbar { display: none; }
+  [data-theme="light"] html.is-web .bottom-nav {
+    background: rgba(0,0,0,.02);
+    border-right-color: rgba(0,0,0,.08);
+  }
+  /* Логотип-шапка сайдбара */
+  html.is-web .bottom-nav::before {
+    content: 'Masqucerade';
+    display: block; flex-shrink: 0;
+    font-size: 17px; font-weight: 800; letter-spacing: -.4px;
+    color: var(--text);
+    padding: 4px 10px 16px;
+  }
+  html.is-web .nav-btn {
+    flex: 0 0 auto;
+    flex-direction: row; justify-content: flex-start;
+    gap: 11px; padding: 9px 11px;
+    border-radius: 12px;
+    color: var(--text3);
+    transition: background .15s, color .15s;
+  }
+  html.is-web .nav-btn:hover { background: rgba(255,255,255,.05); color: var(--text2); }
+  [data-theme="light"] html.is-web .nav-btn:hover { background: rgba(0,0,0,.05); }
+  html.is-web .nav-btn.active {
+    background: linear-gradient(90deg, rgba(124,109,250,.20), rgba(124,109,250,.04));
+    color: var(--text);
+  }
+  html.is-web .nav-btn.active .nav-icon { color: #a99cff; }
+  [data-theme="light"] html.is-web .nav-btn.active { background: linear-gradient(90deg, rgba(124,109,250,.16), rgba(124,109,250,.03)); }
+  html.is-web .nav-icon  { width: 20px; height: 20px; }
+  html.is-web .nav-label { font-size: 13.5px; font-weight: 600; letter-spacing: 0; }
+  /* Подписи групп («Склад», «Команда»…) */
+  html.is-web .nav-sec {
+    display: block; flex-shrink: 0;
+    font-size: 10.5px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--text3); opacity: .75;
+    padding: 16px 11px 6px;
+  }
+  /* Контент — правее сайдбара */
+  html.is-web .view { left: 220px; }
+  /* Логотип уже в сайдбаре — в шапке склада не дублируем */
+  html.is-web .brand-name { visibility: hidden; }
+  /* Режим выделения прятал нижнюю плашку — сайдбар остаётся на месте,
+     а панель массовых действий не налезает на него */
+  html.is-web body.select-mode .bottom-nav { display: flex; }
+  html.is-web .delivery-bar { left: 220px; }
+  /* Фон приложения: глубокий, с мягкими глоу в духе крипто-аппов */
+  html.is-web .app {
+    background:
+      radial-gradient(55% 34% at 26% 0%, rgba(124,109,250,.13), transparent 62%),
+      radial-gradient(46% 30% at 92% 100%, rgba(199,178,120,.06), transparent 60%),
+      var(--bg);
+  }
+}
+
+/* =============================================
    REDESIGN 2.0 — web3 × Apple
    Амбиентный свет, стекло, акценты; поверх базовых стилей
    ============================================= */
