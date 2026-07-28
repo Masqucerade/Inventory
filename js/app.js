@@ -3881,18 +3881,19 @@ class App {
       const qty = i.quantity || 0;
       // Товары бренда Monarc без владельца — отдельной строкой «Monarc»
       const k = i.ownerId || (i.isMonarc ? '__monarc__' : '__none__');
-      if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0, share: 0 };
+      if (!byOwner[k]) byOwner[k] = { qty: 0, val: 0, cnt: 0, share: 0, cost: 0 };
       byOwner[k].qty += qty;
       byOwner[k].val += (i.total || 0);
       byOwner[k].cnt++;
       // Деньги владельца: тело (закуп + доставка) + его % от чистой прибыли.
       // Вещи бренда Monarc — целиком владельцу, без дележа.
       if (i.ownerId) {
+        const cost = (i.buyPrice || 0) + (i.deliveryCost || 0);
+        byOwner[k].cost += qty * cost;                      // чистый закуп инвестора
         if (i.isMonarc) {
           byOwner[k].share += (i.total || 0);
         } else {
-          const pct  = this.owners.find(o => o.id === i.ownerId)?.profitPercent || 0;
-          const cost = (i.buyPrice || 0) + (i.deliveryCost || 0);
+          const pct = this.owners.find(o => o.id === i.ownerId)?.profitPercent || 0;
           byOwner[k].share += qty * (cost + ((i.price || 0) - cost) * pct / 100);
         }
       }
@@ -3941,8 +3942,9 @@ class App {
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:14px;font-weight:700;color:var(--text)">${fmtMoney(Math.round(disp))}${o && !hideCosts && Math.round(disp) !== Math.round(v.val)
-              ? ` <span style="font-weight:500;font-size:12px;color:var(--text3)">/ ${fmtMoney(v.val)}</span>` : ''}</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${o && !hideCosts
+              ? `<span style="font-weight:500;font-size:12px;color:var(--text3)" title="Чистый закуп">${fmtMoney(Math.round(v.cost))}</span> / <span title="Получит с учётом ${pct || 0}% от прибыли">${fmtMoney(Math.round(disp))}</span> / <span style="font-weight:500;font-size:12px;color:var(--text3)" title="Продажа по выставленным ценам">${fmtMoney(v.val)}</span>`
+              : fmtMoney(Math.round(disp))}</div>
             <div style="font-size:11px;color:var(--hint)">${v.qty} шт · ${v.cnt} поз</div>
           </div>
         </div>`;
