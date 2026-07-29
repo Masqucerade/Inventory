@@ -1626,7 +1626,7 @@ class App {
     const el = document.getElementById('catFilterChips');
     const toggle = document.getElementById('catFilterToggle');
     const tops = this.categories.filter(c => !c.parentId).sort((a, b) => (a.order || 0) - (b.order || 0));
-    const GARM = [{ id: 'top', name: 'Верх' }, { id: 'bottom', name: 'Низ' }, { id: 'shoes', name: 'Обувь' }, { id: 'outerwear', name: 'Верхняя одежда' }];
+    const GARM = [{ id: 'top', name: 'Верх' }, { id: 'bottom', name: 'Низ' }, { id: 'shoes', name: 'Обувь' }, { id: 'outerwear', name: 'Верхняя одежда' }, { id: 'bags', name: 'Сумки' }];
     const gShown = GARM.filter(g => this.items.some(i => i.garment === g.id));
     const hasAny = tops.length || gShown.length;
     // Кнопка-фильтр видна, если есть категории или типы одежды; подсвечена при активном фильтре
@@ -3019,6 +3019,9 @@ class App {
 
   /* ── Тип одежды по смыслу: «худи» — всегда верх, «штаны» — низ ── */
   static GARMENT_RULES = [
+    // Сумки первыми: «сумка-шоппер» и подобные не должны улетать в другие типы
+    ['bags', ['сумк', 'рюкзак', 'портфел', 'барсетк', 'клатч', 'шоппер', 'мессенджер', 'слинг',
+              'bag', 'backpack', 'tote', 'messenger', 'crossbody', 'pouch']],
     ['shoes', ['кроссовк', 'кед', 'обув', 'ботинк', 'туфл', 'сандал', 'сланц', 'тапк', 'лофер', 'дерби', 'мокасин', 'угг',
                'sneaker', 'shoe', 'boot', 'loafer', 'slide', 'runner']],
     ['outerwear', ['куртк', 'пуховик', 'пальто', 'плащ', 'ветровк', 'бомбер', 'парка', 'анорак', 'тренч', 'шуб', 'дублёнк', 'дубленк', 'жилет',

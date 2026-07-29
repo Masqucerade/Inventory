@@ -36,6 +36,7 @@ const GARMENTS = [
   { id: 'bottom',    name: 'Низ' },
   { id: 'shoes',     name: 'Обувь' },
   { id: 'outerwear', name: 'Верхняя одежда' },
+  { id: 'bags',      name: 'Сумки' },
 ];
 
 /* ─── Фильтры ↔ URL: ссылками на раздел/бренд/фильтры можно делиться ─── */
@@ -147,14 +148,16 @@ function sectionCat(sec) {
 }
 
 // Товары раздела шапки: поле «Пол» (m/w/uni из панели) + одноимённая категория.
-// Унисекс попадает и в Мужское, и в Женское.
+// Унисекс попадает и в Мужское, и в Женское. Аксессуары собирают сумки по типу.
 function sectionItemsOf(sec) {
   const cat = sectionCat(sec);
   const ids = cat ? catSubtree(cat.id) : null;
   const sx  = sec.id === 'm' ? 'm' : sec.id === 'w' ? 'w' : null;
+  const acc = sec.id === 'a';
   return ITEMS.filter(i =>
     (ids && ids.has(i.categoryId)) ||
-    (sx && (i.sex === sx || i.sex === 'uni')));
+    (sx && (i.sex === sx || i.sex === 'uni')) ||
+    (acc && i.garment === 'bags'));
 }
 
 // Навигация в шапке — точно как у Gurbich: Мужское · Женское · Аксессуары · Другое
@@ -174,10 +177,12 @@ function renderHeaderNav() {
     const dataCat = `__sec-${sec.id}__`;
     const secActive = activeCat === dataCat || (cat ? topActive === cat.id : false);
 
-    // Колонка категорий: подкатегории раздела; если одноимённая категория
-    // не заведена — показываем все верхние категории с товарами
+    // Колонка категорий: подкатегории раздела. Если одноимённая категория не
+    // заведена, все верхние категории показываем только у разделов по полу
+    // (Мужское/Женское) — у Аксессуаров чужие «Одежда/Обувь» выглядели дико
     let catsCol = cat ? (kids[cat.id] || []).filter(s => inUse(s.id)).sort(byOrder) : [];
-    if (!cat) catsCol = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
+    if (!cat && (sec.id === 'm' || sec.id === 'w'))
+      catsCol = CATS.filter(c => !c.parentId && inUse(c.id)).sort(byOrder);
 
     // Типы одежды: встречающиеся в товарах раздела
     const scope = sectionItemsOf(sec);
