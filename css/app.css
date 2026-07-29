@@ -3091,12 +3091,16 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   }
   html.is-web .nav-btn:hover { background: rgba(255,255,255,.05); color: var(--text2); }
   [data-theme="light"] html.is-web .nav-btn:hover { background: rgba(0,0,0,.05); }
+  /* Активный пункт: нейтральная плашка и белая иконка (без фиолета) */
   html.is-web .nav-btn.active {
-    background: linear-gradient(90deg, rgba(124,109,250,.20), rgba(124,109,250,.04));
+    background: rgba(255,255,255,.07);
     color: var(--text);
   }
-  html.is-web .nav-btn.active .nav-icon { color: #a99cff; }
-  [data-theme="light"] html.is-web .nav-btn.active { background: linear-gradient(90deg, rgba(124,109,250,.16), rgba(124,109,250,.03)); }
+  html.is-web .nav-btn.active .nav-icon { color: var(--text); }
+  [data-theme="light"] html.is-web .nav-btn.active { background: rgba(0,0,0,.06); }
+  /* Точка-акцент и фокус-кольцо от клика в сайдбаре не нужны */
+  html.is-web .nav-btn.active::after { display: none; }
+  html.is-web .nav-btn:focus:not(:focus-visible) { outline: none; }
   html.is-web .nav-icon  { width: 20px; height: 20px; }
   html.is-web .nav-label { font-size: 13.5px; font-weight: 600; letter-spacing: 0; }
   /* Подписи групп («Склад», «Команда»…) */
