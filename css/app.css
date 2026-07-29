@@ -542,6 +542,33 @@ html, body {
 .settings-row-icon.teal   { background: rgba(56,189,248,0.12); }
 .settings-row-icon.purple { background: rgba(255,255,255,0.08); }
 .settings-row-icon.gray   { background: var(--fill); }
+/* ─── Мои заметки («Личное»): быстрые записи себе ─── */
+.mynote-add { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 10px; }
+.mynote-add textarea { flex: 1; }
+.mynotes-grid { display: grid; gap: 8px; grid-template-columns: 1fr; margin-bottom: 20px; }
+@media (min-width: 820px) {
+  html.is-web .mynotes-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+}
+.mynote {
+  background: var(--card); border: 1px solid var(--card-b); border-radius: var(--r);
+  padding: 12px 12px 8px; cursor: pointer;
+  transition: border-color .15s;
+}
+.mynote:hover { border-color: var(--sep); }
+.mynote.pinned { border-color: rgba(251,191,36,.45); }
+.mynote-text { font-size: 13.5px; line-height: 1.55; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.mynote-meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; color: var(--text3); }
+.mynote-meta .spacer { flex: 1; }
+.mynote-btn {
+  background: none; border: none; cursor: pointer; padding: 2px 5px;
+  font-size: 13px; color: var(--text3); border-radius: 6px;
+}
+.mynote-btn:hover { color: var(--text); background: var(--fill); }
+.mn-pin { opacity: .38; }
+.mynote.pinned .mn-pin { opacity: 1; }
+.mynote.editing { cursor: default; }
+.mynotes-empty { font-size: 13px; color: var(--text3); padding: 8px 2px 16px; }
+
 /* Мини-превью фото блока в списках (обложка/баннер): шире обычной иконки */
 .settings-row-icon.block-thumb { width: 46px; padding: 0; overflow: hidden; border: 1px solid var(--card-b); }
 .block-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }

@@ -4246,7 +4246,13 @@ class App {
           <button class="btn-line" id="profChangePassBtn">Сменить пароль</button>
         </div>
       </div>
-      ${finHtml}`;
+      ${finHtml}
+      <div class="section-title">Мои заметки <em style="font-style:normal;font-size:11px;color:var(--text3)">· видны только вам</em></div>
+      <div class="mynote-add">
+        <textarea id="myNoteInput" class="form-input form-textarea" rows="2" placeholder="Написать себе: сделать то-то, не забыть, важная инфа…"></textarea>
+        <button class="btn-line" id="myNoteAddBtn">Добавить</button>
+      </div>
+      <div id="myNotesList" class="mynotes-grid"></div>`;
 
     document.getElementById('profChangePassBtn')?.addEventListener('click', async () => {
       const np = await this._prompt('Новый пароль', '', 'Введите новый пароль');
@@ -4255,6 +4261,23 @@ class App {
       catch (e) { this.toast(e.message || 'Ошибка'); }
     });
 
+    const noteInput = document.getElementById('myNoteInput');
+    const addNote = async () => {
+      const text = noteInput.value.trim();
+      if (!text) return;
+      const note = await this.db.saveMyNote({ text });
+      (this._myNotes = this._myNotes || []).push(note);
+      noteInput.value = '';
+      this._renderMyNotes();
+    };
+    document.getElementById('myNoteAddBtn').addEventListener('click', addNote);
+    noteInput.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') addNote();
+    });
+    document.getElementById('myNotesList').addEventListener('click', (e) => this._onMyNoteClick(e));
+    this._myNotes = await this.db.getMyNotes();
+    this._renderMyNotes();
+
     runCountUps(head);
 
     // Сотрудник: ниже — задачи/заметки/доступы (узлы проекта уже перенесены)
@@ -4262,6 +4285,68 @@ class App {
       this._mountProjectInProfile();
       await this.renderProject();
     }
+  }
+
+  /* ── Мои заметки: закреплённые сверху, дальше по свежести ── */
+  _renderMyNotes() {
+    const el = document.getElementById('myNotesList');
+    if (!el) return;
+    const notes = [...(this._myNotes || [])].sort((a, b) =>
+      ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) ||
+      (new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)));
+    el.innerHTML = notes.length ? notes.map(n => `
+      <div class="mynote${n.pinned ? ' pinned' : ''}" data-note-id="${n.id}">
+        <div class="mynote-text">${this.esc(n.text)}</div>
+        <div class="mynote-meta">
+          <span>${this.fmtDate(n.updatedAt || n.createdAt)}</span>
+          <span class="spacer"></span>
+          <button class="mynote-btn mn-pin" title="${n.pinned ? 'Открепить' : 'Закрепить'}">📌</button>
+          <button class="mynote-btn mn-del" title="Удалить">✕</button>
+        </div>
+      </div>`).join('')
+    : '<div class="mynotes-empty">Пока пусто — запишите первое: планы, ссылки, важное.</div>';
+  }
+
+  async _onMyNoteClick(e) {
+    const card = e.target.closest('.mynote');
+    if (!card) return;
+    const id   = card.dataset.noteId;
+    const note = (this._myNotes || []).find(n => n.id === id);
+    if (!note) return;
+    if (e.target.closest('.mn-del')) {
+      if (!await this.confirm('Удалить заметку?')) return;
+      await this.db.deleteMyNote(id);
+      this._myNotes = this._myNotes.filter(n => n.id !== id);
+      this._renderMyNotes();
+      return;
+    }
+    if (e.target.closest('.mn-pin')) {
+      const upd = await this.db.saveMyNote({ id, pinned: !note.pinned });
+      Object.assign(note, upd);
+      this._renderMyNotes();
+      return;
+    }
+    if (e.target.closest('.mn-save')) {
+      const text = card.querySelector('textarea').value.trim();
+      if (text) {
+        const upd = await this.db.saveMyNote({ id, text });
+        Object.assign(note, upd);
+      }
+      this._renderMyNotes();
+      return;
+    }
+    if (e.target.closest('.mn-cancel')) { this._renderMyNotes(); return; }
+    if (e.target.closest('textarea')) return;   // клики в редакторе не перерисовывают
+    // Клик по карточке — редактирование на месте
+    card.classList.add('editing');
+    card.innerHTML = `
+      <textarea class="form-input form-textarea" rows="3">${this.esc(note.text)}</textarea>
+      <div class="mynote-meta">
+        <span class="spacer"></span>
+        <button class="btn-line mn-save">Сохранить</button>
+        <button class="mynote-btn mn-cancel">Отмена</button>
+      </div>`;
+    card.querySelector('textarea').focus();
   }
 
   /* ──────────────────────────────────────────

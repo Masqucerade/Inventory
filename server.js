@@ -1401,6 +1401,41 @@ function logToTelegram(entry) {
   })().catch(() => {});
 }
 
+/* ─── Личные заметки: виджет на «Личном», видны только своему пользователю ─── */
+app.get('/api/mynotes', (req, res) => {
+  res.json((load().mynotes || []).filter(n => n.userId === req.user.id));
+});
+
+app.put('/api/mynotes', (req, res) => {
+  const db = load();
+  if (!db.mynotes) db.mynotes = [];
+  const b = req.body || {};
+  if (b.id) {
+    const ex = db.mynotes.find(x => x.id === b.id && x.userId === req.user.id);
+    if (!ex) return res.status(404).json({ error: 'Заметка не найдена' });
+    if (b.text   != null) ex.text   = String(b.text).slice(0, 4000);
+    if (b.pinned != null) ex.pinned = !!b.pinned;
+    ex.updatedAt = new Date().toISOString();
+    save(db);
+    return res.json(ex);
+  }
+  const note = {
+    id: uid(), userId: req.user.id,
+    text: String(b.text || '').slice(0, 4000),
+    pinned: false, createdAt: new Date().toISOString(),
+  };
+  db.mynotes.push(note);
+  save(db);
+  res.json(note);
+});
+
+app.delete('/api/mynotes/:id', (req, res) => {
+  const db = load();
+  db.mynotes = (db.mynotes || []).filter(n => !(n.id === req.params.id && n.userId === req.user.id));
+  save(db);
+  res.json({ ok: true });
+});
+
 /* ─── LOGS (отдельный файл logs.json — см. loadLogs/addLog) ─── */
 app.get('/api/logs', (req, res) => {
   const limit = Math.min(300, Math.max(1, parseInt(req.query.limit) || 80));

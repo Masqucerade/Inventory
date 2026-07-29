@@ -261,6 +261,20 @@ class InventoryDB {
     if (!r.ok) throw new Error('bulk failed');
     return r.json();
   }
+  /* ─── Личные заметки (виджет на «Личном») ─── */
+  async getMyNotes() {
+    const r = await fetch('/api/mynotes');
+    return r.ok ? r.json() : [];
+  }
+  async saveMyNote(note) {
+    const r = await fetch('/api/mynotes', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(note) });
+    if (!r.ok) throw new Error('Не удалось сохранить заметку');
+    return r.json();
+  }
+  async deleteMyNote(id) {
+    await fetch(`/api/mynotes/${id}`, { method:'DELETE' });
+  }
+
   // Ручной порядок карточек: pos = индекс id в переданном списке
   async reorderItems(ids) {
     const r = await fetch('/api/items/reorder', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ids }) });
