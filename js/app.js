@@ -1566,7 +1566,7 @@ class App {
     const el = document.getElementById('catFilterChips');
     const toggle = document.getElementById('catFilterToggle');
     const tops = this.categories.filter(c => !c.parentId).sort((a, b) => (a.order || 0) - (b.order || 0));
-    const GARM = [{ id: 'top', name: 'Верх' }, { id: 'bottom', name: 'Низ' }, { id: 'shoes', name: 'Обувь' }, { id: 'outerwear', name: 'Верхняя одежда' }, { id: 'bags', name: 'Сумки' }];
+    const GARM = [{ id: 'top', name: 'Верх' }, { id: 'bottom', name: 'Низ' }, { id: 'shoes', name: 'Обувь' }, { id: 'outerwear', name: 'Верхняя одежда' }];
     const gShown = GARM.filter(g => this.items.some(i => i.garment === g.id));
     const hasAny = tops.length || gShown.length;
     // Кнопка-фильтр видна, если есть категории или типы одежды; подсвечена при активном фильтре
@@ -2959,9 +2959,6 @@ class App {
 
   /* ── Тип одежды по смыслу: «худи» — всегда верх, «штаны» — низ ── */
   static GARMENT_RULES = [
-    // Сумки первыми: «сумка-шоппер» и подобные не должны улетать в другие типы
-    ['bags', ['сумк', 'рюкзак', 'портфел', 'барсетк', 'клатч', 'шоппер', 'мессенджер', 'слинг',
-              'bag', 'backpack', 'tote', 'messenger', 'crossbody', 'pouch']],
     ['shoes', ['кроссовк', 'кед', 'обув', 'ботинк', 'туфл', 'сандал', 'сланц', 'тапк', 'лофер', 'дерби', 'мокасин', 'угг',
                'sneaker', 'shoe', 'boot', 'loafer', 'slide', 'runner']],
     ['outerwear', ['куртк', 'пуховик', 'пальто', 'плащ', 'ветровк', 'бомбер', 'парка', 'анорак', 'тренч', 'шуб', 'дублёнк', 'дубленк', 'жилет',
@@ -4160,41 +4157,26 @@ class App {
           <button class="btn-line danger" id="profLogoutBtn">Выйти</button>
         </div>
       </div>
+      <div class="prof-tools" id="profTools">
+        <button class="icon-btn" data-act="tg" title="Бэкап в Telegram · авто раз в 24 ч, последний: ${this.backup.getLastTimeStr()}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+        <button class="icon-btn" data-act="json" title="Скачать JSON"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        ${isRoot ? `<button class="icon-btn" data-act="digest" title="Сводка задач в Telegram">🌙</button>
+        <button class="icon-btn" data-act="restore" title="Восстановить из файла"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>` : ''}
+        <button class="icon-btn" data-act="theme" title="Переключить тему">${(localStorage.getItem('inv_theme') || 'dark') === 'dark' ? '☀️' : '🌙'}</button>
+        <span class="prof-tools-sep"></span>
+        ${isRoot ? `<button class="icon-btn" data-sec="users" title="Пользователи"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></button>` : ''}
+        <button class="icon-btn" data-sec="owners" title="Участники"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
+        <button class="icon-btn" data-sec="cats" title="Категории"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>
+        <button class="icon-btn" data-sec="brands" title="Бренды"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
+      </div>
+      <div id="profileMenuMount" class="prof-mount"></div>
       ${finHtml}
       <div class="section-title">Мои заметки <em style="font-style:normal;font-size:11px;color:var(--text3)">· видны только вам</em></div>
       <div class="mynote-add">
         <textarea id="myNoteInput" class="form-input form-textarea" rows="2" placeholder="Написать себе: сделать то-то, не забыть, важная инфа…"></textarea>
         <button class="btn-line" id="myNoteAddBtn">Добавить</button>
       </div>
-      <div id="myNotesList" class="mynotes-grid"></div>
-      <div class="section-title">Сервис</div>
-      <div class="menu-grid" id="profServiceGrid">
-        <button class="menu-tile" id="profBtnTgBackup">
-          <div class="menu-tile-icon" style="background:rgba(56,189,248,.12);color:#38bdf8"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
-          <span>Бэкап<br>в Telegram</span>
-        </button>
-        <button class="menu-tile" id="profBtnBackup">
-          <div class="menu-tile-icon" style="background:var(--fill2);color:var(--text2)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
-          <span>Скачать<br>JSON</span>
-        </button>
-        ${isRoot ? `<button class="menu-tile" id="profBtnDigest">
-          <div class="menu-tile-icon" style="background:rgba(167,139,250,.12)">🌙</div>
-          <span>Сводка задач<br>в Telegram</span>
-        </button>` : ''}
-        ${isRoot ? `<button class="menu-tile" id="profBtnRestore">
-          <div class="menu-tile-icon" style="background:rgba(251,146,60,.12);color:#fb923c"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-          <span>Восстановить<br>из файла</span>
-        </button>` : ''}
-      </div>
-      <div class="menu-theme-row">
-        <span class="menu-theme-label">Тема оформления</span>
-        <div class="menu-theme-toggle" id="profThemeToggle">
-          <button class="menu-theme-btn${(localStorage.getItem('inv_theme') || 'dark') === 'dark' ? ' active' : ''}" data-t="dark">🌙</button>
-          <button class="menu-theme-btn${(localStorage.getItem('inv_theme') || 'dark') === 'light' ? ' active' : ''}" data-t="light">☀️</button>
-        </div>
-      </div>
-      <div id="profileMenuMount"></div>
-      <div class="mynotes-empty">Авто-бэкап каждые 24 ч · последний: ${this.backup.getLastTimeStr()}</div>`;
+      <div id="myNotesList" class="mynotes-grid"></div>`;
 
     document.getElementById('profChangePassBtn')?.addEventListener('click', async () => {
       const np = await this._prompt('Новый пароль', '', 'Введите новый пароль');
@@ -4208,35 +4190,47 @@ class App {
       this.currentUser = null;
       this.showLogin();
     });
-    document.getElementById('profBtnTgBackup')?.addEventListener('click', async () => {
-      this.toast('Отправляю в Telegram…');
-      try {
-        const r = await fetch('/api/backup/send', { method: 'POST' });
-        const d = await r.json();
-        this.toast(d.ok ? '✓ Бэкап отправлен в Telegram' : '✗ Не удалось — настройте TG_LOG_TOKEN');
-      } catch { this.toast('✗ Ошибка отправки'); }
-    });
-    document.getElementById('profBtnBackup')?.addEventListener('click', () => this.doManualSave());
-    document.getElementById('profBtnDigest')?.addEventListener('click', async () => {
-      this.toast('Отправляю сводку…');
-      try {
-        const r = await fetch('/api/tasks/digest', { method: 'POST' });
-        const d = await r.json();
-        this.toast(d.ok ? `✓ Сводка отправлена (получателей: ${d.sent})` : '✗ Не удалось отправить');
-      } catch { this.toast('✗ Ошибка отправки'); }
-    });
-    document.getElementById('profBtnRestore')?.addEventListener('click', () =>
-      document.getElementById('restoreFileInput').click());
-    document.getElementById('profThemeToggle')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('.menu-theme-btn');
-      if (!btn) return;
-      this.applyTheme(btn.dataset.t);
-      document.querySelectorAll('#profThemeToggle .menu-theme-btn').forEach(b =>
-        b.classList.toggle('active', b === btn));
+    // Тулбар-значки: действия сразу, справочники раскрываются под рядом
+    document.getElementById('profTools')?.addEventListener('click', async (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const act = b.dataset.act, sec = b.dataset.sec;
+      if (act === 'tg') {
+        this.toast('Отправляю в Telegram…');
+        try {
+          const r = await fetch('/api/backup/send', { method: 'POST' });
+          const d = await r.json();
+          this.toast(d.ok ? '✓ Бэкап отправлен в Telegram' : '✗ Не удалось — настройте TG_LOG_TOKEN');
+        } catch { this.toast('✗ Ошибка отправки'); }
+      } else if (act === 'json') {
+        this.doManualSave();
+      } else if (act === 'digest') {
+        this.toast('Отправляю сводку…');
+        try {
+          const r = await fetch('/api/tasks/digest', { method: 'POST' });
+          const d = await r.json();
+          this.toast(d.ok ? `✓ Сводка отправлена (получателей: ${d.sent})` : '✗ Не удалось отправить');
+        } catch { this.toast('✗ Ошибка отправки'); }
+      } else if (act === 'restore') {
+        document.getElementById('restoreFileInput').click();
+      } else if (act === 'theme') {
+        const next = (localStorage.getItem('inv_theme') || 'dark') === 'dark' ? 'light' : 'dark';
+        this.applyTheme(next);
+        b.textContent = next === 'dark' ? '☀️' : '🌙';
+      } else if (sec) {
+        const mount = document.getElementById('profileMenuMount');
+        const target = mount.querySelector(`.menu-acc[data-acc="${sec}"]`);
+        if (!target) return;
+        const wasShown = target.classList.contains('shown');
+        mount.querySelectorAll('.menu-acc').forEach(a => a.classList.remove('shown', 'open'));
+        document.querySelectorAll('#profTools [data-sec]').forEach(x => x.classList.remove('active'));
+        if (!wasShown) { target.classList.add('shown', 'open'); b.classList.add('active'); }
+      }
     });
 
     // Справочники (Пользователи/Участники/Категории/Бренды) — из бывшего
-    // бургер-меню: рендерим его сюда и убираем то, что на профиле уже есть
+    // бургер-меню: рендерим сюда, дубли профильных блоков вычищаем, секции
+    // скрыты до клика по значку в тулбаре
     const mount = document.getElementById('profileMenuMount');
     if (mount) {
       this.renderMenuPanel(mount);

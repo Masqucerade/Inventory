@@ -542,6 +542,17 @@ html, body {
 .settings-row-icon.teal   { background: rgba(56,189,248,0.12); }
 .settings-row-icon.purple { background: rgba(255,255,255,0.08); }
 .settings-row-icon.gray   { background: var(--fill); }
+/* ─── Тулбар «Личного»: сервис и справочники значками, прижаты вправо ─── */
+.prof-tools {
+  display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+  flex-wrap: wrap; margin: 12px 0 6px;
+}
+.prof-tools .icon-btn.active { background: var(--fill); color: var(--text); border-color: var(--sep); }
+.prof-tools-sep { width: 1px; height: 18px; background: var(--sep2); margin: 0 3px; }
+.prof-mount { margin-bottom: 6px; }
+.prof-mount .menu-acc { display: none; }
+.prof-mount .menu-acc.shown { display: block; }
+
 /* ─── Мои заметки («Личное»): быстрые записи себе ─── */
 .mynote-add { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 10px; }
 .mynote-add textarea { flex: 1; }
