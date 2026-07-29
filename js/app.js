@@ -367,8 +367,8 @@ class App {
     document.getElementById('menuBackdrop').classList.add('hidden');
   }
 
-  renderMenuPanel() {
-    const el     = document.getElementById('headerMenuBody');
+  // Контент бывшего бургер-меню; теперь рендерится на «Личном» (mount)
+  renderMenuPanel(el = document.getElementById('headerMenuBody')) {
     const lastBk = this.backup.getLastTimeStr();
     const theme  = localStorage.getItem('inv_theme') || 'dark';
 
@@ -387,48 +387,9 @@ class App {
     const chevron = `<svg class="menu-acc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>`;
     const plus    = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
 
+    // Профильное и сервисное (аккаунт, бэкапы, тема) живёт на «Личном» —
+    // здесь только справочники, связанные с товарами
     el.innerHTML = `
-      <div class="account-hero">
-        <div class="account-hero-avatar">${(u.name || u.login || '?')[0].toUpperCase()}</div>
-        <div class="account-hero-info">
-          <div class="account-hero-name">${this.esc(u.name || '')}</div>
-          <div class="account-hero-role">
-            <span class="account-badge ${isRoot ? 'root' : ''}">${isRoot ? 'Root-админ' : 'Сотрудник'}</span>
-            <span>@${this.esc(u.login || '')}</span>
-          </div>
-        </div>
-        <div class="hero-actions">
-          <button class="hero-action-btn danger" id="mLogoutBtn" title="Выйти">${svgLogout}</button>
-        </div>
-      </div>
-
-      <div class="menu-grid">
-        <button class="menu-tile" id="mBtnTgBackup">
-          <div class="menu-tile-icon" style="background:rgba(56,189,248,.12);color:#38bdf8">${svgSend}</div>
-          <span>Бэкап<br>в Telegram</span>
-        </button>
-        <button class="menu-tile" id="mBtnBackup">
-          <div class="menu-tile-icon" style="background:var(--fill2);color:var(--text2)">${svgDownload}</div>
-          <span>Скачать<br>JSON</span>
-        </button>
-        ${isRoot ? `<button class="menu-tile" id="mBtnDigest">
-          <div class="menu-tile-icon" style="background:rgba(167,139,250,.12)">🌙</div>
-          <span>Сводка задач<br>в Telegram</span>
-        </button>` : ''}
-        ${isRoot ? `<button class="menu-tile" id="mBtnRestore">
-          <div class="menu-tile-icon" style="background:rgba(251,146,60,.12);color:#fb923c">${svgUpload}</div>
-          <span>Восстановить<br>из файла</span>
-        </button>` : ''}
-      </div>
-
-      <div class="menu-theme-row">
-        <span class="menu-theme-label">Тема оформления</span>
-        <div class="menu-theme-toggle" id="menuThemeToggle">
-          <button class="menu-theme-btn${theme === 'dark'  ? ' active' : ''}" data-t="dark">🌙</button>
-          <button class="menu-theme-btn${theme === 'light' ? ' active' : ''}" data-t="light">☀️</button>
-        </div>
-      </div>
-
       ${isRoot ? `
       <div class="menu-acc" data-acc="users">
         <button class="menu-acc-head">
@@ -471,7 +432,6 @@ class App {
       </div>
 
       <div class="menu-foot">
-        <span>Авто-бэкап каждые 24 ч · последний: ${lastBk}</span>
         <span>Masqucerade INC. · v1.2</span>
       </div>
     `;
@@ -490,60 +450,12 @@ class App {
       el.querySelector(`.menu-acc[data-acc="${k}"]`)?.classList.add('open');
     });
 
-    document.getElementById('menuThemeToggle').addEventListener('click', e => {
-      const btn = e.target.closest('.menu-theme-btn');
-      if (!btn) return;
-      this.applyTheme(btn.dataset.t);
-      document.querySelectorAll('.menu-theme-btn').forEach(b =>
-        b.classList.toggle('active', b === btn)
-      );
-    });
-
-    document.getElementById('mBtnTgBackup').addEventListener('click', async () => {
-      this.closeMenu();
-      this.toast('Отправляю в Telegram…');
-      try {
-        const r = await fetch('/api/backup/send', { method: 'POST' });
-        const d = await r.json();
-        this.toast(d.ok ? '✓ Бэкап отправлен в Telegram' : '✗ Не удалось — настройте TG_LOG_TOKEN');
-      } catch { this.toast('✗ Ошибка отправки'); }
-    });
-
-    document.getElementById('mBtnBackup').addEventListener('click', () => {
-      this.closeMenu();
-      this.doManualSave();
-    });
-
-    document.getElementById('mBtnDigest')?.addEventListener('click', async () => {
-      this.closeMenu();
-      this.toast('Отправляю сводку…');
-      try {
-        const r = await fetch('/api/tasks/digest', { method: 'POST' });
-        const d = await r.json();
-        this.toast(d.ok ? `✓ Сводка отправлена (получателей: ${d.sent})` : '✗ Не удалось отправить');
-      } catch { this.toast('✗ Ошибка отправки'); }
-    });
-
-    document.getElementById('mBtnRestore')?.addEventListener('click', () => {
-      this.closeMenu();
-      document.getElementById('restoreFileInput').click();
-    });
-
     document.getElementById('mAddOwnerBtn').addEventListener('click', () => {
       this.closeMenu();
       this.openOwnerModal();
     });
     document.getElementById('mAddCatBtn').addEventListener('click', () => this._openCatPrompt());
     document.getElementById('mAddBrandBtn').addEventListener('click', () => this._openBrandPrompt());
-
-    document.getElementById('mLogoutBtn').addEventListener('click', async () => {
-      const ok = await this.confirm('Выйти из аккаунта?');
-      if (!ok) return;
-      await this.db.logout();
-      this.currentUser = null;
-      this.closeMenu();
-      this.showLogin();
-    });
 
     document.getElementById('mAddUserBtn')?.addEventListener('click', () => this.openUserModal());
 
@@ -946,8 +858,9 @@ class App {
     });
 
     /* Hamburger menu */
-    document.getElementById('menuBtn').addEventListener('click', () => this.toggleMenu());
-    document.getElementById('profileBtn')?.addEventListener('click', () => this.toggleMenu());
+    // Бургер-меню упразднено: его содержимое живёт на «Личном»
+    document.getElementById('menuBtn')?.addEventListener('click', () => this.toggleMenu());
+    document.getElementById('profileBtn')?.addEventListener('click', () => this.renderView('profile'));
     document.getElementById('menuBackdrop').addEventListener('click', () => this.closeMenu());
 
     /* Restore file input (permanent in DOM) */
@@ -4244,6 +4157,7 @@ class App {
         </div>
         <div class="hero-actions">
           <button class="btn-line" id="profChangePassBtn">Сменить пароль</button>
+          <button class="btn-line danger" id="profLogoutBtn">Выйти</button>
         </div>
       </div>
       ${finHtml}
@@ -4252,7 +4166,35 @@ class App {
         <textarea id="myNoteInput" class="form-input form-textarea" rows="2" placeholder="Написать себе: сделать то-то, не забыть, важная инфа…"></textarea>
         <button class="btn-line" id="myNoteAddBtn">Добавить</button>
       </div>
-      <div id="myNotesList" class="mynotes-grid"></div>`;
+      <div id="myNotesList" class="mynotes-grid"></div>
+      <div class="section-title">Сервис</div>
+      <div class="menu-grid" id="profServiceGrid">
+        <button class="menu-tile" id="profBtnTgBackup">
+          <div class="menu-tile-icon" style="background:rgba(56,189,248,.12);color:#38bdf8"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+          <span>Бэкап<br>в Telegram</span>
+        </button>
+        <button class="menu-tile" id="profBtnBackup">
+          <div class="menu-tile-icon" style="background:var(--fill2);color:var(--text2)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+          <span>Скачать<br>JSON</span>
+        </button>
+        ${isRoot ? `<button class="menu-tile" id="profBtnDigest">
+          <div class="menu-tile-icon" style="background:rgba(167,139,250,.12)">🌙</div>
+          <span>Сводка задач<br>в Telegram</span>
+        </button>` : ''}
+        ${isRoot ? `<button class="menu-tile" id="profBtnRestore">
+          <div class="menu-tile-icon" style="background:rgba(251,146,60,.12);color:#fb923c"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+          <span>Восстановить<br>из файла</span>
+        </button>` : ''}
+      </div>
+      <div class="menu-theme-row">
+        <span class="menu-theme-label">Тема оформления</span>
+        <div class="menu-theme-toggle" id="profThemeToggle">
+          <button class="menu-theme-btn${(localStorage.getItem('inv_theme') || 'dark') === 'dark' ? ' active' : ''}" data-t="dark">🌙</button>
+          <button class="menu-theme-btn${(localStorage.getItem('inv_theme') || 'dark') === 'light' ? ' active' : ''}" data-t="light">☀️</button>
+        </div>
+      </div>
+      <div id="profileMenuMount"></div>
+      <div class="mynotes-empty">Авто-бэкап каждые 24 ч · последний: ${this.backup.getLastTimeStr()}</div>`;
 
     document.getElementById('profChangePassBtn')?.addEventListener('click', async () => {
       const np = await this._prompt('Новый пароль', '', 'Введите новый пароль');
@@ -4260,6 +4202,47 @@ class App {
       try { await this.db.changeMyPassword(np); this.toast('Пароль изменён ✓'); }
       catch (e) { this.toast(e.message || 'Ошибка'); }
     });
+    document.getElementById('profLogoutBtn')?.addEventListener('click', async () => {
+      if (!await this.confirm('Выйти из аккаунта?')) return;
+      await this.db.logout();
+      this.currentUser = null;
+      this.showLogin();
+    });
+    document.getElementById('profBtnTgBackup')?.addEventListener('click', async () => {
+      this.toast('Отправляю в Telegram…');
+      try {
+        const r = await fetch('/api/backup/send', { method: 'POST' });
+        const d = await r.json();
+        this.toast(d.ok ? '✓ Бэкап отправлен в Telegram' : '✗ Не удалось — настройте TG_LOG_TOKEN');
+      } catch { this.toast('✗ Ошибка отправки'); }
+    });
+    document.getElementById('profBtnBackup')?.addEventListener('click', () => this.doManualSave());
+    document.getElementById('profBtnDigest')?.addEventListener('click', async () => {
+      this.toast('Отправляю сводку…');
+      try {
+        const r = await fetch('/api/tasks/digest', { method: 'POST' });
+        const d = await r.json();
+        this.toast(d.ok ? `✓ Сводка отправлена (получателей: ${d.sent})` : '✗ Не удалось отправить');
+      } catch { this.toast('✗ Ошибка отправки'); }
+    });
+    document.getElementById('profBtnRestore')?.addEventListener('click', () =>
+      document.getElementById('restoreFileInput').click());
+    document.getElementById('profThemeToggle')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.menu-theme-btn');
+      if (!btn) return;
+      this.applyTheme(btn.dataset.t);
+      document.querySelectorAll('#profThemeToggle .menu-theme-btn').forEach(b =>
+        b.classList.toggle('active', b === btn));
+    });
+
+    // Справочники (Пользователи/Участники/Категории/Бренды) — из бывшего
+    // бургер-меню: рендерим его сюда и убираем то, что на профиле уже есть
+    const mount = document.getElementById('profileMenuMount');
+    if (mount) {
+      this.renderMenuPanel(mount);
+      mount.querySelectorAll('.account-hero, .menu-grid, .menu-theme-row, .menu-foot')
+        .forEach(n => n.remove());
+    }
 
     const noteInput = document.getElementById('myNoteInput');
     const addNote = async () => {

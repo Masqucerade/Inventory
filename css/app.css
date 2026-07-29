@@ -568,6 +568,11 @@ html, body {
 .mynote.pinned .mn-pin { opacity: 1; }
 .mynote.editing { cursor: default; }
 .mynotes-empty { font-size: 13px; color: var(--text3); padding: 8px 2px 16px; }
+/* Сервисные плитки на «Личном»: на широком экране в один ряд */
+#profServiceGrid { margin-bottom: 12px; }
+@media (min-width: 820px) {
+  html.is-web #profServiceGrid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+}
 
 /* Мини-превью фото блока в списках (обложка/баннер): шире обычной иконки */
 .settings-row-icon.block-thumb { width: 46px; padding: 0; overflow: hidden; border: 1px solid var(--card-b); }
