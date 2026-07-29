@@ -615,6 +615,7 @@ app.get('/api/public/collections', (req, res) => {
       title:       c.title,
       order:       c.order || 0,   // общий порядок с блоками — для чередования
       description: c.description || '',
+      logo:        c.logo || '',
       itemIds:     (c.itemIds || []).filter(id => pub.has(id)),
     }))
     .filter(c => c.itemIds.length));
@@ -1736,7 +1737,7 @@ app.delete('/api/categories/:id', (req, res) => {
 
 /* ─── COLLECTIONS (подборки товаров на сайте) ─── */
 app.get('/api/collections', (req, res) => res.json(load().collections || []));
-app.put('/api/collections', (req, res) => {
+app.put('/api/collections', async (req, res) => {
   const db = load();
   if (!db.collections) db.collections = [];
   // Частичный мердж: приходит либо полная форма, либо только {id, order} при
@@ -1744,6 +1745,9 @@ app.put('/api/collections', (req, res) => {
   const c = { ...req.body };
   if (c.title != null)       c.title = String(c.title).trim();
   if (c.description != null) c.description = String(c.description).trim();
+  // Логотип: base64 → файл на volume (как у картинок блоков)
+  if (typeof c.logo === 'string' && c.logo.startsWith('data:'))
+    c.logo = (await saveDataUrl(c.logo)) || c.logo;
   if (c.itemIds != null && !Array.isArray(c.itemIds)) c.itemIds = [];
   if (!c.id) {
     c.id = uid();

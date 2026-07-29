@@ -721,6 +721,17 @@
         <label class="form-label">Описание (необязательно)</label>
         <textarea class="form-input form-textarea" id="colDesc" placeholder="Короткий текст под заголовком блока…" rows="2"></textarea>
       </div>
+      <div class="form-group">
+        <label class="form-label">Логотип <span style="color:var(--text3);font-weight:400">— PNG на прозрачном фоне; встанет справа от названия</span></label>
+        <div class="blk-banner-upload">
+          <div class="blk-thumb" id="colLogoThumb"><span>Нет лого</span></div>
+          <div class="blk-upload-actions">
+            <button type="button" class="btn-line" id="colLogoBtn">Загрузить</button>
+            <button type="button" class="btn-line danger hidden" id="colLogoClear">Убрать</button>
+          </div>
+          <input type="file" id="colLogoInput" accept="image/*" hidden>
+        </div>
+      </div>
       <div class="form-group" id="colOrderGroup" hidden>
         <label class="form-label">Порядок в подборке</label>
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Так товары идут на сайте — двигайте стрелками</div>
@@ -1224,6 +1235,6 @@
 
 <script src="js/db.js?v=54"></script>
 <script src="js/backup.js?v=45"></script>
-<script src="js/app.js?v=160"></script>
+<script src="js/app.js?v=161"></script>
 </body>
 </html>

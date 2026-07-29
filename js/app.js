@@ -1155,6 +1155,33 @@ class App {
       const mv = e.target.closest('.col-ord-move');
       if (mv && !mv.disabled) this._moveColItem(mv.dataset.id, mv.dataset.dir);
     });
+    // Логотип подборки: ужимаем до 600px в PNG — прозрачность сохраняется
+    // (общий resizeImage отдаёт JPEG и залил бы фон белым)
+    document.getElementById('colLogoBtn').addEventListener('click', () =>
+      document.getElementById('colLogoInput').click());
+    document.getElementById('colLogoClear').addEventListener('click', () => {
+      this._colLogo = ''; this._renderColLogo();
+    });
+    document.getElementById('colLogoInput').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const k = Math.min(1, 600 / Math.max(img.width, img.height));
+          const c = Object.assign(document.createElement('canvas'),
+            { width: Math.round(img.width * k), height: Math.round(img.height * k) });
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          this._colLogo = c.toDataURL('image/png');
+          this._renderColLogo();
+        };
+        img.onerror = () => this.toast('Не удалось прочитать файл');
+        img.src = ev.target.result;
+      };
+      r.readAsDataURL(f);
+    });
 
     /* Блоки на сайте */
     document.getElementById('blocksModalClose').addEventListener('click', () => this.closeModal('blocksModal'));
@@ -5563,6 +5590,8 @@ class App {
   openCollectionModal(col = null) {
     this._editingColId = col?.id || null;
     this._colPicked    = new Set(col?.itemIds || []);
+    this._colLogo      = col?.logo || '';
+    this._renderColLogo();
     document.getElementById('collectionModalTitle').textContent = col ? 'Изменить подборку' : 'Новая подборка';
     document.getElementById('colTitle').value = col?.title || '';
     document.getElementById('colDesc').value  = col?.description || '';
@@ -5624,6 +5653,18 @@ class App {
     }).join('');
   }
 
+  _renderColLogo() {
+    const thumb = document.getElementById('colLogoThumb');
+    const clear = document.getElementById('colLogoClear');
+    const btn   = document.getElementById('colLogoBtn');
+    if (!thumb) return;
+    thumb.innerHTML = this._colLogo
+      ? `<img src="${this.esc(this._colLogo)}" alt="" style="object-fit:contain">`
+      : '<span>Нет лого</span>';
+    clear?.classList.toggle('hidden', !this._colLogo);
+    if (btn) btn.textContent = this._colLogo ? 'Заменить' : 'Загрузить';
+  }
+
   _moveColItem(id, dir) {
     const arr = [...this._colPicked];
     const i = arr.indexOf(id);
@@ -5642,6 +5683,7 @@ class App {
       ...(this._editingColId ? { id: this._editingColId } : { order: this._nextStreamOrder() }),
       title,
       description: document.getElementById('colDesc').value.trim(),
+      logo:        this._colLogo || '',
       itemIds:     [...this._colPicked],
     });
     this.db.logAction('site_col', `Подборка «${title}» ${isNewCol ? 'создана' : 'изменена'} (${this._colPicked.size} тов.)`);

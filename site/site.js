@@ -805,11 +805,17 @@ function blockToHtml(b) {
 }
 
 function collectionHtml(c, items) {
+  // Логотип бренда (из панели) — крупно справа от названия подборки
   return `<section class="collection-block">
-    <div class="collection-head">
-      <p class="collection-kicker">Подборка</p>    </div>
-    <h2>${esc(c.title)}</h2>
-    ${c.description ? `<p class="collection-desc">${esc(c.description)}</p>` : ''}
+    <div class="collection-top">
+      <div class="collection-top-text">
+        <div class="collection-head">
+          <p class="collection-kicker">Подборка</p>    </div>
+        <h2>${esc(c.title)}</h2>
+        ${c.description ? `<p class="collection-desc">${esc(c.description)}</p>` : ''}
+      </div>
+      ${c.logo ? `<img class="collection-logo" src="${esc(c.logo)}" alt="" loading="lazy" draggable="false">` : ''}
+    </div>
     <div class="collection-carousel">
       <div class="goods-grid collection-grid">${items.map(cardHTML).join('')}</div>
       <button class="carousel-prev" aria-label="Листать назад" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></button>
