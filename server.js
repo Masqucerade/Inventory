@@ -34,7 +34,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: '25mb' }));
+// 60mb: фото уходят оригиналами (до 8 МБ каждое, base64 +33%, штук пять за раз)
+app.use(express.json({ limit: '60mb' }));
 
 // Страницы: / — витрина, /monarc и /type — каталог, /admin — Mini App.
 const sendHtml = (res, file) =>
@@ -282,7 +283,8 @@ app.use('/photos', express.static(PHOTOS_DIR, { immutable: true, maxAge: '365d' 
 
 // data:image/…;base64,… → файл /photos/<hash>.webp (или исходный формат, если
 // sharp недоступен / конвертация не дала выигрыша). Дедуп по хэшу исходных байт.
-// WebP q92 визуально неотличим от исходного JPEG, но на 30–50% легче.
+// Клиент шлёт ОРИГИНАЛ фото — ресайз до 2560px и WebP q92 делаются здесь одним
+// проходом (единственное поколение сжатия, sharp конвертирует цветовой профиль).
 async function saveDataUrl(dataUrl) {
   const m = /^data:image\/([a-z]+);base64,(.+)$/is.exec(dataUrl);
   if (!m) return null;
@@ -290,12 +292,14 @@ async function saveDataUrl(dataUrl) {
   const ext  = extRaw === 'jpeg' ? 'jpg' : extRaw;
   const hash = crypto.createHash('sha1').update(m[2]).digest('hex').slice(0, 16);
   const buf  = Buffer.from(m[2], 'base64');
-  if (sharp && (ext === 'jpg' || ext === 'png')) {
+  if (sharp && (ext === 'jpg' || ext === 'png' || ext === 'webp')) {
     const webpFile = path.join(PHOTOS_DIR, hash + '.webp');
     try {
       if (fs.existsSync(webpFile)) return '/photos/' + hash + '.webp';
       // .rotate() применяет EXIF-ориентацию (иначе фото с телефона лежат боком)
-      const out = await sharp(buf).rotate().webp({ quality: 92, effort: 5 }).toBuffer();
+      const out = await sharp(buf).rotate()
+        .resize({ width: 2560, height: 2560, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 92, effort: 5 }).toBuffer();
       // Пишем webp только если он реально легче — качество важнее галочки
       if (out.length < buf.length * 0.95) {
         fs.writeFileSync(webpFile, out);
@@ -2539,6 +2543,45 @@ async function migrateThumbs() {
   console.log(`Thumb migration: ${n} thumb(s) → 520px webp`);
 }
 
+/* Миграция: миниатюры 520 → 800px (чётко на retina-сетках). Перегенерация
+   из имеющихся full-фото; старые -t520 станут сиротами и уйдут чисткой. */
+async function migrateThumbs800() {
+  if (!sharp) return;
+  const db = load();
+  if (db.meta?.thumbs800) return;
+  let n = 0;
+  for (const it of db.items || []) {
+    const fulls = Array.isArray(it.photos) && it.photos.length ? it.photos : (it.photo ? [it.photo] : []);
+    if (!fulls.length) continue;
+    const thumbs = [];
+    for (const [i, ref] of fulls.entries()) {
+      let t = (Array.isArray(it.thumbs) && it.thumbs[i]) || ref;
+      try {
+        const base = path.basename(String(ref));
+        const src  = path.join(PHOTOS_DIR, base);
+        if (String(ref).startsWith('/photos/') && fs.existsSync(src)) {
+          const outName = base.replace(/\.\w+$/, '') + '-t800.webp';
+          const out = path.join(PHOTOS_DIR, outName);
+          if (!fs.existsSync(out)) {
+            const webp = await sharp(src).rotate()
+              .resize({ width: 800, height: 800, fit: 'inside', withoutEnlargement: true })
+              .webp({ quality: 87 }).toBuffer();
+            fs.writeFileSync(out, webp);
+          }
+          t = '/photos/' + outName;
+          n++;
+        }
+      } catch (e) { console.error('thumb800 migrate failed:', e.message); }
+      thumbs.push(t);
+    }
+    it.thumbs = thumbs;
+  }
+  if (!db.meta) db.meta = {};
+  db.meta.thumbs800 = true;
+  save(db);
+  if (n) console.log(`Thumb migration: ${n} thumb(s) → 800px webp`);
+}
+
 /* Миграция: восстановить потерянный createdAt (старый PUT затирал его при
    каждом редактировании). id = Date.now().toString(36) + 5 случайных символов,
    так что точное время создания восстановимо из самого id. Идемпотентна. */
@@ -2678,7 +2721,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Masqucerade INC. v2 on :${PORT}`);
   migrateCreatedAt();
-  migratePhotos().then(() => migratePhotosToWebp()).then(() => migrateThumbs())
+  migratePhotos().then(() => migratePhotosToWebp()).then(() => migrateThumbs()).then(() => migrateThumbs800())
     .catch(e => console.error('migration error:', e.message));
   avitoRegisterWebhook();
   migrateSiteAccess();

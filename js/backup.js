@@ -167,18 +167,24 @@ function _scaleToDataUrl(img, max, q) {
   return c.toDataURL('image/jpeg', q);
 }
 
-// Из файла делаем две версии: full (≤1600px — чётко на retina и десктопе)
-// и thumb (≤520px) для сеток. Вес держит серверная конвертация в WebP.
+// Из файла делаем две версии: full и thumb (≤800px для сеток, чётко на retina).
+// Full: оригинал уходит на сервер КАК ЕСТЬ (JPEG/PNG/WebP ≤ 8 МБ) — ресайз до
+// 2560px и WebP делает sharp одним проходом, без второго поколения сжатия и
+// с нормальной цветопередачей. Слишком большие или экзотические форматы —
+// фолбэк на canvas 2560px q0.95.
+const PASS_TYPES  = ['image/jpeg', 'image/png', 'image/webp'];
+const PASS_MAX_MB = 8;
 function makePhotoVariants(file) {
   return new Promise((resolve, reject) => {
+    const passThrough = PASS_TYPES.includes(file.type) && file.size <= PASS_MAX_MB * 1024 * 1024;
     const reader = new FileReader();
     reader.onerror = reject;
     reader.onload  = (e) => {
       const img = new Image();
       img.onerror = reject;
       img.onload  = () => resolve({
-        full:  _scaleToDataUrl(img, 1600, 0.9),
-        thumb: _scaleToDataUrl(img, 520, 0.8),
+        full:  passThrough ? e.target.result : _scaleToDataUrl(img, 2560, 0.95),
+        thumb: _scaleToDataUrl(img, 800, 0.85),
       });
       img.src = e.target.result;
     };
@@ -186,7 +192,7 @@ function makePhotoVariants(file) {
   });
 }
 
-function resizeImage(file, maxW = 1600, maxH = 1600, q = 0.88) {
+function resizeImage(file, maxW = 1600, maxH = 1600, q = 0.92) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
