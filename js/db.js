@@ -89,6 +89,31 @@ class InventoryDB {
     return d;
   }
 
+  /* ─── РОЛИ И ПРАВА (root) ─── */
+  async getRoles() {
+    try { const r = await fetch('/api/roles'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async addRole(role) {
+    const r = await fetch('/api/roles', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(role) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Не удалось создать роль');
+    return d;
+  }
+  async updateRole(id, patch) {
+    const r = await fetch(`/api/roles/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Не удалось изменить роль');
+    return d;
+  }
+  async deleteRole(id) { await fetch(`/api/roles/${id}`, { method:'DELETE' }); }
+  async applyRole(id) {
+    const r = await fetch(`/api/roles/${id}/apply`, { method:'POST' });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Не удалось применить роль');
+    return d;
+  }
+
   uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }

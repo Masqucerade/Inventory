@@ -37,6 +37,7 @@ const UI_PATHS = {
   heart:      '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
   alert:      '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
   lock:       '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  shield:     '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
   sun:        '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>',
   moon:       '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
   pin:        '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/>',
@@ -234,6 +235,7 @@ class App {
     if (!u) return false;
     if (section === 'profile') return true;        // личная страница есть у каждого
     if (section === 'overview') return true;       // дашборд-сводка есть у каждого
+    if (section === 'roles') return u.role === 'root';   // роли и права — только root
     if (u.role === 'root') return true;
     // Сотрудник: вкладки «Проект» нет — её содержимое живёт на «Личном»
     if (section === 'project') return false;
@@ -335,7 +337,7 @@ class App {
     if (!nav) return;
     nav.querySelectorAll('.nav-sec').forEach(n => n.remove());
     if (!document.documentElement.classList.contains('is-web')) return;
-    const GROUPS = [['overview', 'Главная'], ['inventory', 'Склад'], ['finance', 'Деньги'], ['project', 'Команда'], ['site', 'Витрина'], ['settings', 'Система']];
+    const GROUPS = [['overview', 'Главная'], ['inventory', 'Склад'], ['finance', 'Деньги'], ['project', 'Команда'], ['site', 'Витрина'], ['roles', 'Система']];
     const visible = v => {
       const b = nav.querySelector(`.nav-btn[data-view="${v}"]`);
       return b && !b.classList.contains('hidden') ? b : null;
@@ -343,6 +345,7 @@ class App {
     for (const [view, label] of GROUPS) {
       let btn = visible(view);
       if (view === 'project' && !btn) btn = visible('profile');
+      if (view === 'roles'   && !btn) btn = visible('settings');   // у сотрудника «Система» начинается с Терминала
       if (!btn) continue;
       const d = document.createElement('div');
       d.className = 'nav-sec';
@@ -479,18 +482,8 @@ class App {
 
     // Профильное и сервисное (аккаунт, бэкапы, тема) живёт на «Личном» —
     // здесь только справочники, связанные с товарами
+    // Пользователи и их права живут на вкладке «Роли и права»
     el.innerHTML = `
-      ${isRoot ? `
-      <div class="menu-acc" data-acc="users">
-        <button class="menu-acc-head">
-          <span class="menu-acc-title">Пользователи</span>
-          <span class="menu-acc-count">${(this.users || []).length}</span>
-          <span class="menu-acc-add" id="mAddUserBtn" title="Добавить пользователя">${plus}</span>
-          ${chevron}
-        </button>
-        <div class="menu-acc-body"><div id="menuUsersList"></div></div>
-      </div>` : ''}
-
       <div class="menu-acc" data-acc="owners">
         <button class="menu-acc-head">
           <span class="menu-acc-title">Участники</span>
@@ -547,56 +540,167 @@ class App {
     document.getElementById('mAddCatBtn').addEventListener('click', () => this._openCatPrompt());
     document.getElementById('mAddBrandBtn').addEventListener('click', () => this._openBrandPrompt());
 
-    document.getElementById('mAddUserBtn')?.addEventListener('click', () => this.openUserModal());
-
     this.renderOwners('menuOwnersList');
     this._renderMenuCats();
     this._renderMenuBrands();
-    if (this.currentUser?.role === 'root') this.renderUsersList();
   }
 
   /* ──────────────────────────────────────────
      USERS (root)
      ────────────────────────────────────────── */
-  renderUsersList() {
-    const el = document.getElementById('menuUsersList');
+  /* Вкладка «Роли и права»: роли-пресеты прав + пользователи панели */
+  async renderRolesView() {
+    const el = document.getElementById('rolesContent');
     if (!el) return;
-    const users  = this.users || [];
-    const svgDel  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
-    const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    el.innerHTML = `<div class="ov-skel">
+      <div class="skel-block" style="height:64px"></div>
+      <div class="skel-block" style="height:64px"></div>
+      <div class="skel-block" style="height:64px"></div>
+    </div>`;
+    const [roles, users] = await Promise.all([this.db.getRoles(), this.db.getUsers()]);
+    if (this.currentView !== 'roles') return;
+    this._roles = roles;
+    this.users  = users;
 
-    el.innerHTML = `<div class="settings-section">${users.map(usr => `
-      <div class="settings-row" style="cursor:default">
-        <div class="settings-row-icon" style="background:rgba(124,109,250,.12);color:var(--accent);font-weight:700">${(usr.name || usr.login || '?')[0].toUpperCase()}</div>
+    const SEC_N = 6;
+    const roleUsers = r => users.filter(u => u.roleId === r.id);
+    const accessSub = (access, hideCosts) =>
+      `${!Array.isArray(access) || access.length >= SEC_N ? 'все разделы' : `разделов: ${access.length}/${SEC_N}`}${hideCosts ? ' · без закупа' : ''}`;
+
+    const rolesRows = roles.map(r => {
+      const n = roleUsers(r).length;
+      return `<div class="settings-row role-row" data-role-id="${r.id}">
+        <div class="settings-row-icon" style="background:rgba(56,189,248,.12)">${uiIcon('shield', 14)}</div>
         <div class="settings-row-info">
-          <div class="settings-row-title">${this.esc(usr.name || usr.login)}${usr.role === 'root' ? ' · root' : ''}</div>
-          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · ${!Array.isArray(usr.access) || usr.access.length >= 6 ? 'все разделы' : `разделов: ${usr.access.length}/6`}${usr.hideCosts ? ' · без закупа' : ''}${usr.notify?.length ? ` · увед. ${usr.notify.length}` : ''}`}</div>
+          <div class="settings-row-title">${this.esc(r.name)}</div>
+          <div class="settings-row-sub">${accessSub(r.access, r.hideCosts)} · пользователей: ${n}${r.note ? ` · ${this.esc(r.note)}` : ''}</div>
+        </div>
+        <div class="block-row-actions">
+          ${n ? `<button class="btn-line role-apply" data-id="${r.id}" title="Обновить права всех пользователей с этой ролью">Применить · ${n}</button>` : ''}
+          <button class="block-toggle role-edit" data-id="${r.id}" title="Изменить">${uiIcon('edit', 12)}</button>
+          <button class="block-delete-btn role-del" data-id="${r.id}" title="Удалить">${uiIcon('trash', 13)}</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    const userRows = users.map(usr => {
+      const role = roles.find(r => r.id === usr.roleId);
+      return `<div class="settings-row" style="cursor:default">
+        <div class="settings-row-icon" style="background:var(--fill2);color:var(--text);font-weight:700">${(usr.name || usr.login || '?')[0].toUpperCase()}</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">${this.esc(usr.name || usr.login)}${usr.role === 'root' ? '<span class="promo-badge on" style="margin-left:8px">root</span>' : role ? `<span class="promo-badge off" style="margin-left:8px">${this.esc(role.name)}</span>` : ''}</div>
+          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? ' · полный доступ' : ` · ${accessSub(usr.access, usr.hideCosts)}${usr.notify?.length ? ` · увед. ${usr.notify.length}` : ''}`}</div>
         </div>
         ${usr.role === 'root' ? '' : `
-          <button class="menu-del-btn user-edit-btn" data-uid="${usr.id}">${svgEdit}</button>
-          <button class="menu-del-btn user-del-btn" data-uid="${usr.id}">${svgDel}</button>`}
-      </div>`).join('')}
-    </div>`;
+          <div class="block-row-actions">
+            <button class="block-toggle user-edit-btn" data-uid="${usr.id}" title="Изменить">${uiIcon('edit', 12)}</button>
+            <button class="block-delete-btn user-del-btn" data-uid="${usr.id}" title="Удалить">${uiIcon('trash', 13)}</button>
+          </div>`}
+      </div>`;
+    }).join('');
 
+    el.innerHTML = `
+      <div class="site-sec-head">
+        <div>
+          <div class="site-sec-title">Роли</div>
+          <div class="site-sec-hint">Готовые наборы прав: назначаются пользователю при создании, «Применить» обновляет всех после правки роли</div>
+        </div>
+        <div class="site-sec-actions"><button class="site-mini-add" id="roleAddBtn">＋ Роль</button></div>
+      </div>
+      ${roles.length
+        ? `<div class="settings-section">${rolesRows}</div>`
+        : `<div class="faq-empty"><div style="opacity:.5">${uiIcon('shield', 30)}</div>
+             <p>Ролей пока нет.<br>Создайте, например, «Менеджер витрины» — только Товары и Сайт, без закупа.</p></div>`}
+
+      <div class="site-sec-head" style="margin-top:22px">
+        <div>
+          <div class="site-sec-title">Пользователи</div>
+          <div class="site-sec-hint">Аккаунты панели: доступы, видимость цен и уведомления в Telegram</div>
+        </div>
+        <div class="site-sec-actions"><button class="site-mini-add" id="userAddBtn">＋ Пользователь</button></div>
+      </div>
+      <div class="settings-section">${userRows}</div>`;
+
+    document.getElementById('roleAddBtn')?.addEventListener('click', () => this.openRoleModal());
+    document.getElementById('userAddBtn')?.addEventListener('click', () => this.openUserModal());
+    el.querySelectorAll('.role-edit').forEach(b => b.addEventListener('click', () =>
+      this.openRoleModal(this._roles.find(x => x.id === b.dataset.id))));
+    el.querySelectorAll('.role-apply').forEach(b => b.addEventListener('click', async () => {
+      const r = this._roles.find(x => x.id === b.dataset.id);
+      if (!await this.confirm(`Обновить права всех пользователей с ролью «${r.name}» по её текущим настройкам?`)) return;
+      const d = await this.db.applyRole(r.id);
+      this.toast(`Роль применена к ${d.applied} польз. ✓`);
+      this.renderRolesView();
+    }));
+    el.querySelectorAll('.role-del').forEach(b => b.addEventListener('click', async () => {
+      const r = this._roles.find(x => x.id === b.dataset.id);
+      if (!await this.confirm(`Удалить роль «${r.name}»? Права пользователей останутся как есть, снимется только метка.`)) return;
+      await this.db.deleteRole(r.id);
+      this.toast('Роль удалена ✓');
+      this.renderRolesView();
+    }));
     el.querySelectorAll('.user-edit-btn').forEach(btn =>
       btn.addEventListener('click', () => {
         const usr = users.find(x => x.id === btn.dataset.uid);
         if (usr) this.openUserModal(usr);
-      })
-    );
+      }));
     el.querySelectorAll('.user-del-btn').forEach(btn =>
       btn.addEventListener('click', async () => {
         const usr = users.find(x => x.id === btn.dataset.uid);
-        const ok  = await this.confirm(`Удалить пользователя «${usr?.name || usr?.login}»?`);
-        if (!ok) return;
+        if (!await this.confirm(`Удалить пользователя «${usr?.name || usr?.login}»?`)) return;
         try {
           await this.db.deleteUser(btn.dataset.uid);
-          await this.loadData();
-          this.renderUsersList();
           this.toast('Пользователь удалён ✓');
+          this.renderRolesView();
         } catch (e) { this.toast(e.message || 'Ошибка'); }
-      })
-    );
+      }));
+  }
+
+  /* ── Модалка роли ── */
+  openRoleModal(role = null) {
+    this._editingRoleId = role?.id || null;
+    document.getElementById('roleModalTitle').textContent = role ? 'Роль' : 'Новая роль';
+    document.getElementById('roleModalSave').textContent  = role ? 'Сохранить' : 'Создать';
+    document.getElementById('roleName').value = role?.name || '';
+    document.getElementById('roleNote').value = role?.note || '';
+    this._renderAccessChips(role?.access || null, 'roleAccessChips');
+    this._setRoleHideCosts(!!role?.hideCosts);
+    this._bindRoleModal();
+    this.openModal('roleModal');
+    if (!role) setTimeout(() => document.getElementById('roleName')?.focus(), 150);
+  }
+
+  _setRoleHideCosts(on) {
+    this._roleHideCosts = on;
+    const track = document.getElementById('roleHideCostsToggle');
+    if (!track) return;
+    track.style.background = on ? 'var(--accent)' : 'var(--muted)';
+    track.querySelector('.toggle-thumb').style.transform = `translateX(${on ? 18 : 0}px)`;
+  }
+
+  _bindRoleModal() {
+    if (this._roleModalBound) return;
+    this._roleModalBound = true;
+    document.getElementById('roleModalClose').addEventListener('click', () => this.closeModal('roleModal'));
+    document.getElementById('roleHideCostsRow').addEventListener('click', () => this._setRoleHideCosts(!this._roleHideCosts));
+    document.getElementById('roleModalSave').addEventListener('click', async () => {
+      const name = document.getElementById('roleName').value.trim();
+      if (!name) { this.toast('Введите название роли'); return; }
+      const access = [...document.querySelectorAll('#roleAccessChips .vis-chip.active')].map(c => c.dataset.acc);
+      if (!access.length) { this.toast('Откройте хотя бы один раздел'); return; }
+      const data = { name, access, hideCosts: !!this._roleHideCosts, note: document.getElementById('roleNote').value.trim() };
+      try {
+        if (this._editingRoleId) {
+          await this.db.updateRole(this._editingRoleId, data);
+          this.toast('Роль обновлена ✓');
+        } else {
+          await this.db.addRole(data);
+          this.toast(`Роль «${name}» создана ✓`);
+        }
+        this.closeModal('roleModal');
+        this.renderRolesView();
+      } catch (e) { this.toast(e.message); }
+    });
   }
 
   openUserModal(usr = null) {
@@ -609,6 +713,18 @@ class App {
     document.getElementById('userPassword').value = '';
     document.getElementById('userPassword').placeholder = usr ? 'Новый пароль (пусто — не менять)' : 'Пароль';
     document.getElementById('userTgChat').value   = usr?.tgChatId || '';
+    // Роль-пресет: выбор подставляет доступы и видимость цен
+    const sel = document.getElementById('userRoleSelect');
+    if (sel) {
+      sel.innerHTML = `<option value="">— Своя настройка —</option>` +
+        (this._roles || []).map(r => `<option value="${r.id}"${usr?.roleId === r.id ? ' selected' : ''}>${this.esc(r.name)}</option>`).join('');
+      sel.onchange = () => {
+        const r = (this._roles || []).find(x => x.id === sel.value);
+        if (!r) return;
+        this._renderAccessChips(r.access);
+        this._setHideCostsToggle(!!r.hideCosts);
+      };
+    }
     this._renderAccessChips(usr?.access || null);
     this._setHideCostsToggle(!!usr?.hideCosts);
     this._renderNotifyChips(usr?.notify || []);
@@ -645,8 +761,8 @@ class App {
   }
 
   // Чипы «доступ к разделам»: null = все включены
-  _renderAccessChips(access) {
-    const el = document.getElementById('userAccessChips');
+  _renderAccessChips(access, containerId = 'userAccessChips') {
+    const el = document.getElementById(containerId);
     if (!el) return;
     const LABELS = { inventory: 'Товары', stats: 'Статистика', finance: 'Счёт', project: 'Проект', site: 'Сайт', faq: 'Терминал' };
     const on = s => !Array.isArray(access) || access.includes(s);
@@ -675,7 +791,8 @@ class App {
     if (!password && !this._editingUserId) { this.toast('Введите пароль'); return; }
     if (!access.length) { this.toast('Откройте хотя бы один раздел'); return; }
     if (notify.length && !tgChatId) { this.toast('Укажите Chat ID для уведомлений'); return; }
-    const payload = { name, login, access, hideCosts, tgChatId, notify };
+    const payload = { name, login, access, hideCosts, tgChatId, notify,
+      roleId: document.getElementById('userRoleSelect')?.value || '' };
     if (password) payload.password = password;   // при редактировании пустое поле = пароль не меняется
     try {
       if (this._editingUserId) {
@@ -688,7 +805,7 @@ class App {
       this._editingUserId = null;
       this.closeModal('userModal');
       await this.loadData();
-      this.renderUsersList();
+      if (this.currentView === 'roles') this.renderRolesView();
     } catch (e) { this.toast(e.message || 'Ошибка'); }
   }
 
@@ -1567,6 +1684,7 @@ class App {
       case 'project':   this.renderProject();       break;
       case 'site':      this.renderSiteView();      break;
       case 'promos':    this.renderPromos();        break;
+      case 'roles':     this.renderRolesView();     break;
       case 'profile':   this.renderProfile();       break;
       case 'terminal':  this.renderTerminal();      break;
       case 'settings':  this.renderGuides();         break;
@@ -4691,7 +4809,6 @@ class App {
           <button class="icon-btn" data-act="restore" title="Восстановить из файла"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
           <button class="icon-btn" data-act="theme" title="Переключить тему">${uiIcon((localStorage.getItem('inv_theme') || 'dark') === 'dark' ? 'sun' : 'moon', 15)}</button>
           <span class="prof-tools-sep"></span>
-          <button class="icon-btn" data-sec="users" title="Пользователи"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></button>
           <button class="icon-btn" data-sec="owners" title="Участники"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
           <button class="icon-btn" data-sec="cats" title="Категории"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>
           <button class="icon-btn" data-sec="brands" title="Бренды"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>

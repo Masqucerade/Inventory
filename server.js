@@ -1163,6 +1163,7 @@ app.get('/api/users', (req, res) => {
     hideCosts: !!u.hideCosts,
     tgChatId:  u.tgChatId || '',
     notify:    u.notify   || [],
+    roleId:    u.roleId   || '',
   })));
 });
 
@@ -1181,6 +1182,7 @@ app.post('/api/users', (req, res) => {
     hideCosts: !!req.body.hideCosts,
     tgChatId:  String(req.body.tgChatId || '').trim(),
     notify:    Array.isArray(req.body.notify) ? req.body.notify.filter(c => NOTIFY_CATS.includes(c)) : [],
+    roleId:    String(req.body.roleId || '').trim(),
     createdAt: new Date().toISOString(),
   };
   db.users.push(user);
@@ -1204,6 +1206,7 @@ app.put('/api/users/:id', (req, res) => {
   if (req.body.hideCosts != null) u.hideCosts = !!req.body.hideCosts;
   if (req.body.tgChatId  != null) u.tgChatId  = String(req.body.tgChatId).trim();
   if (Array.isArray(req.body.notify)) u.notify = req.body.notify.filter(c => NOTIFY_CATS.includes(c));
+  if (req.body.roleId != null) u.roleId = String(req.body.roleId).trim();
   save(db);
   const { password: _p, ...safe } = u;
   res.json(safe);
@@ -1217,6 +1220,85 @@ app.delete('/api/users/:id', (req, res) => {
   db.users = (db.users || []).filter(x => x.id !== req.params.id);
   save(db);
   res.json({ ok: true });
+});
+
+/* ─── РОЛИ И ПРАВА (root) ───
+   Роль — именованный пресет прав: access[] + hideCosts. Назначение роли
+   пользователю копирует её настройки (и запоминает roleId для бейджа);
+   «применить» после правки роли обновляет всех её пользователей разом. */
+app.get('/api/roles', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  res.json(load().roles || []);
+});
+
+app.post('/api/roles', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const name = String(req.body.name || '').trim().slice(0, 60);
+  if (!name) return res.status(400).json({ error: 'Название роли обязательно' });
+  const db = load();
+  if (!db.roles) db.roles = [];
+  if (db.roles.some(r => r.name.toLowerCase() === name.toLowerCase()))
+    return res.status(409).json({ error: 'Роль с таким названием уже есть' });
+  const role = {
+    id: uid(), name,
+    access: Array.isArray(req.body.access) ? req.body.access.filter(s => SECTIONS.includes(s)) : [...SECTIONS],
+    hideCosts: !!req.body.hideCosts,
+    note: String(req.body.note || '').trim().slice(0, 200),
+    createdAt: new Date().toISOString(),
+  };
+  db.roles.push(role);
+  addLog({ id: uid(), ts: role.createdAt, type: 'owner_add', user: req.user.name || req.user.login,
+    desc: `Роль «${name}» создана`, meta: { level: 'warn' } });
+  save(db);
+  res.json(role);
+});
+
+app.put('/api/roles/:id', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  const r  = (db.roles || []).find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ error: 'not found' });
+  if (req.body.name != null) {
+    const name = String(req.body.name).trim().slice(0, 60);
+    if (name && db.roles.some(x => x.id !== r.id && x.name.toLowerCase() === name.toLowerCase()))
+      return res.status(409).json({ error: 'Роль с таким названием уже есть' });
+    if (name) r.name = name;
+  }
+  if (Array.isArray(req.body.access)) r.access = req.body.access.filter(s => SECTIONS.includes(s));
+  if (req.body.hideCosts != null) r.hideCosts = !!req.body.hideCosts;
+  if (req.body.note != null) r.note = String(req.body.note).trim().slice(0, 200);
+  save(db);
+  res.json(r);
+});
+
+app.delete('/api/roles/:id', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  const r  = (db.roles || []).find(x => x.id === req.params.id);
+  db.roles = (db.roles || []).filter(x => x.id !== req.params.id);
+  // Права пользователей остаются как были — снимается только метка роли
+  (db.users || []).forEach(u => { if (u.roleId === req.params.id) delete u.roleId; });
+  if (r) addLog({ id: uid(), ts: new Date().toISOString(), type: 'owner_delete', user: req.user.name || req.user.login,
+    desc: `Роль «${r.name}» удалена`, meta: { level: 'warn' } });
+  save(db);
+  res.json({ ok: true });
+});
+
+// Применить текущие настройки роли ко всем её пользователям
+app.post('/api/roles/:id/apply', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  const r  = (db.roles || []).find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ error: 'not found' });
+  let n = 0;
+  (db.users || []).forEach(u => {
+    if (u.roleId !== r.id || u.role === 'root') return;
+    u.access = [...r.access];
+    u.hideCosts = !!r.hideCosts;
+    n++;
+  });
+  save(db);
+  res.json({ applied: n });
 });
 
 /* ─── ITEMS ─── */

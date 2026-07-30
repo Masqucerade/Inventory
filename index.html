@@ -220,6 +220,16 @@
     <div class="view-body" id="siteContent"></div>
   </div>
 
+  <!-- ═══ ROLES VIEW: роли и права (root) ═══ -->
+  <div id="view-roles" class="view">
+    <div class="view-header simple-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Роли и права</span></div>
+      <h1 class="view-title">Роли и права</h1>
+      <p class="view-sub">Пользователи панели, категории прав и настройки доступа</p>
+    </div>
+    <div class="view-body" id="rolesContent"></div>
+  </div>
+
   <!-- ═══ PROMOS VIEW: скидки и промокоды ═══ -->
   <div id="view-promos" class="view">
     <div class="view-header simple-header">
@@ -326,6 +336,13 @@
         <circle cx="17.5" cy="17.5" r="2.5"/>
       </svg>
       <span class="nav-label">Промокоды</span>
+    </button>
+    <!-- Роли и права — только root; скрывается _applyAccess -->
+    <button class="nav-btn" data-view="roles">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span class="nav-label">Роли и права</span>
     </button>
     <!-- Terminal объединён с FAQ: консоль сверху вкладки FAQ -->
     <button class="nav-btn" data-view="settings">
@@ -865,6 +882,46 @@
   </div>
 </div>
 
+<!-- Роль: создание / правка (root) -->
+<div class="modal" id="roleModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="roleModalClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title" id="roleModalTitle">Новая роль</span>
+      <button class="modal-action-btn" id="roleModalSave">Создать</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Название роли <span class="required">*</span></label>
+        <input type="text" class="form-input" id="roleName" placeholder="Например: Менеджер витрины" autocomplete="off" maxlength="60">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Доступ к разделам</label>
+        <div class="vis-chips" id="roleAccessChips"></div>
+        <div class="form-hint">Выключенные разделы пользователь с этой ролью не увидит вообще</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Видимость цен</label>
+        <div class="settings-row" id="roleHideCostsRow" style="cursor:pointer;padding:10px 0;min-height:0">
+          <div class="settings-row-info">
+            <div class="settings-row-title">Скрывать закупочные цены</div>
+            <div class="settings-row-sub">Не видит закуп, доставку, маржу и историю цен</div>
+          </div>
+          <div class="toggle-track" id="roleHideCostsToggle">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Заметка</label>
+        <input type="text" class="form-input" id="roleNote" placeholder="Кому выдаётся эта роль…" autocomplete="off" maxlength="200">
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Промокод: создание / правка -->
 <div class="modal" id="promoModal">
   <div class="modal-sheet">
@@ -1269,6 +1326,13 @@
           <input type="text" class="form-input" id="userPassword" placeholder="Пароль" autocomplete="off">
         </div>
         <div class="form-group">
+          <label class="form-label">Роль</label>
+          <select class="form-input form-select" id="userRoleSelect">
+            <option value="">— Своя настройка —</option>
+          </select>
+          <div class="form-hint">Выбор роли подставит её доступы и видимость цен; чипы ниже можно скорректировать вручную</div>
+        </div>
+        <div class="form-group">
           <label class="form-label">Доступ к разделам</label>
           <div class="vis-chips" id="userAccessChips"></div>
           <div class="form-hint">Выключенные разделы пользователь не увидит вообще</div>
@@ -1377,8 +1441,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=56"></script>
+<script src="js/db.js?v=57"></script>
 <script src="js/backup.js?v=46"></script>
-<script src="js/app.js?v=169"></script>
+<script src="js/app.js?v=170"></script>
 </body>
 </html>
