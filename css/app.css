@@ -4647,3 +4647,43 @@ body.select-mode .row-check { display: block; }
   font-size: 11.5px; font-weight: 600;
   padding: 0 10px; margin-right: 4px;
 }
+
+/* =============================================
+   МОБИЛЬНАЯ НАВИГАЦИЯ — вторичные вкладки в «Ещё»
+   ============================================= */
+/* В пилюле скрыты; в веб-сайдбаре (≥1000px) показаны все */
+.nav-btn.nav-secondary { display: none; }
+.nav-more-btn.hidden { display: none; }
+
+.more-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 205; }
+.more-backdrop.hidden { display: none; }
+.more-sheet {
+  position: fixed; left: 12px; right: 12px;
+  bottom: calc(var(--nav-h) + var(--safe-bot) + 26px);
+  z-index: 210;
+  background: var(--nav-bg);
+  -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+  border: 1px solid var(--card-b); border-radius: 18px;
+  padding: 8px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.5);
+  opacity: 0; transform: translateY(10px) scale(.98); pointer-events: none;
+  transition: opacity .18s, transform .22s cubic-bezier(.22,1,.36,1);
+}
+.more-sheet.open { opacity: 1; transform: none; pointer-events: auto; }
+.more-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 14px; border: none; border-radius: 12px;
+  background: none; color: var(--text2);
+  font-family: inherit; font-size: 14px; font-weight: 600; text-align: left;
+  cursor: pointer; transition: background .13s, color .13s;
+}
+.more-row .nav-icon { width: 19px; height: 19px; stroke-width: 1.8; }
+.more-row.active { background: var(--fill2); color: var(--text); }
+[data-theme="light"] .more-sheet { box-shadow: 0 18px 44px rgba(0,0,0,.22); }
+
+@media (min-width: 1000px) {
+  html.is-web .nav-btn.nav-secondary { display: flex; }
+  html.is-web .nav-more-btn,
+  html.is-web .more-sheet,
+  html.is-web .more-backdrop { display: none !important; }
+}

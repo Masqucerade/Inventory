@@ -249,6 +249,7 @@ class App {
       b.classList.toggle('hidden', !this.hasAccess(b.dataset.view)));
     this._renderNavSections();
     this._initSidebarToggle();
+    this._setupMoreNav();
     // Задачи/заметки/доступы сотрудника живут на «Личном» — переносим узлы проекта
     this._mountProjectInProfile();
     if (!this.hasAccess(this.currentView)) {
@@ -316,6 +317,47 @@ class App {
         tb?.focus(); tb?.select();
       }
     });
+  }
+
+  /* Мобильная пилюля: вторичные вкладки (Проект/Сайт/Промокоды/Роли/Терминал)
+     живут в листе «Ещё» — иначе низ нагромождён. В веб-сайдбаре видны все. */
+  _setupMoreNav() {
+    const btn   = document.getElementById('navMoreBtn');
+    const sheet = document.getElementById('moreSheet');
+    const back  = document.getElementById('moreBackdrop');
+    if (!btn || !sheet || !back) return;
+    if (!btn._bound) {
+      btn._bound = true;
+      const close = () => { sheet.classList.remove('open'); back.classList.add('hidden'); };
+      this._closeMoreNav = close;
+      btn.addEventListener('click', () => {
+        if (sheet.classList.contains('open')) { close(); return; }
+        this._renderMoreSheet();
+        sheet.classList.add('open');
+        back.classList.remove('hidden');
+      });
+      back.addEventListener('click', close);
+    }
+    this._renderMoreSheet();
+  }
+
+  _renderMoreSheet() {
+    const body = document.getElementById('moreSheetBody');
+    const btn  = document.getElementById('navMoreBtn');
+    if (!body || !btn) return;
+    const views = ['project', 'site', 'promos', 'roles', 'settings'].filter(v => this.hasAccess(v));
+    btn.classList.toggle('hidden', !views.length);
+    // Иконки и подписи берём у самих кнопок навигации — один источник правды
+    body.innerHTML = views.map(v => {
+      const src   = document.querySelector(`.nav-btn[data-view="${v}"]`);
+      const icon  = src?.querySelector('.nav-icon')?.outerHTML || '';
+      const label = src?.querySelector('.nav-label')?.textContent || v;
+      return `<button class="more-row${this.currentView === v ? ' active' : ''}" data-view="${v}" type="button">${icon}<span>${label}</span></button>`;
+    }).join('');
+    body.querySelectorAll('.more-row').forEach(r => r.addEventListener('click', () => {
+      this._closeMoreNav?.();
+      this.renderView(r.dataset.view);
+    }));
   }
 
   /* Подписи групп в сайдбаре (веб, широкий экран): вставляются перед первой
@@ -1658,6 +1700,9 @@ class App {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`view-${view}`)?.classList.add('active');
     document.querySelector(`.nav-btn[data-view="${view}"]`)?.classList.add('active');
+    // «Ещё» подсвечена, когда активная вкладка спрятана внутри (мобильная пилюля)
+    document.getElementById('navMoreBtn')?.classList.toggle('active',
+      ['project', 'site', 'promos', 'roles', 'settings'].includes(view));
     const isRoot = this.currentUser?.role === 'root';
     // На вкладке «Гайды» создавать может только root; «Личное» сотрудника
     // включает задачи проекта — FAB для создания задачи нужен и там

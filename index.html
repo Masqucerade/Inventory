@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=127">
+  <link rel="stylesheet" href="css/app.css?v=128">
 </head>
 <body>
 
@@ -304,7 +304,7 @@
       </svg>
       <span class="nav-label">Счёт</span>
     </button>
-    <button class="nav-btn" data-view="project">
+    <button class="nav-btn nav-secondary" data-view="project">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
         <polyline points="14 2 14 8 20 8"/>
@@ -321,7 +321,7 @@
       </svg>
       <span class="nav-label">Личное</span>
     </button>
-    <button class="nav-btn" data-view="site">
+    <button class="nav-btn nav-secondary" data-view="site">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <circle cx="12" cy="12" r="10"/>
         <line x1="2" y1="12" x2="22" y2="12"/>
@@ -329,7 +329,7 @@
       </svg>
       <span class="nav-label">Сайт</span>
     </button>
-    <button class="nav-btn" data-view="promos">
+    <button class="nav-btn nav-secondary" data-view="promos">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <line x1="19" y1="5" x2="5" y2="19"/>
         <circle cx="6.5" cy="6.5" r="2.5"/>
@@ -338,21 +338,32 @@
       <span class="nav-label">Промокоды</span>
     </button>
     <!-- Роли и права — только root; скрывается _applyAccess -->
-    <button class="nav-btn" data-view="roles">
+    <button class="nav-btn nav-secondary" data-view="roles">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
       </svg>
       <span class="nav-label">Роли и права</span>
     </button>
     <!-- Terminal объединён с FAQ: консоль сверху вкладки FAQ -->
-    <button class="nav-btn" data-view="settings">
+    <button class="nav-btn nav-secondary" data-view="settings">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
       </svg>
       <span class="nav-label">Терминал</span>
     </button>
+    <!-- «Ещё» — только мобильная пилюля: собирает вторичные вкладки -->
+    <button class="nav-btn nav-more-btn" id="navMoreBtn" type="button">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>
+      </svg>
+      <span class="nav-label">Ещё</span>
+    </button>
   </nav>
+
+  <!-- Лист «Ещё» для мобильной навигации -->
+  <div class="more-backdrop hidden" id="moreBackdrop"></div>
+  <div class="more-sheet" id="moreSheet"><div id="moreSheetBody"></div></div>
 
   <!-- FAB -->
   <button class="fab" id="fabBtn">
@@ -1443,6 +1454,6 @@
 
 <script src="js/db.js?v=57"></script>
 <script src="js/backup.js?v=46"></script>
-<script src="js/app.js?v=173"></script>
+<script src="js/app.js?v=174"></script>
 </body>
 </html>
