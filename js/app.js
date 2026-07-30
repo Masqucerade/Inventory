@@ -273,27 +273,7 @@ class App {
                 : document.body.classList.contains('sb-hidden') ? 'hidden' : 'full';
       apply(cur === 'full' ? 'icons' : cur === 'icons' ? 'hidden' : 'full');
     });
-    // Карточка профиля внизу сайдбара (веб): аватар · имя · роль,
-    // клик — «Личное», иконка справа — выход
-    const card = document.createElement('div');
-    card.className = 'nav-profile';
-    card.innerHTML = `
-      <span class="nav-profile-ava" id="sbAva">?</span>
-      <span class="nav-profile-info"><b id="sbName"></b><i id="sbRole"></i></span>
-      <button class="nav-profile-out" id="sbLogout" type="button" title="Выйти из аккаунта">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      </button>`;
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('#sbLogout')) return;
-      this.renderView('profile');
-    });
-    card.querySelector('#sbLogout').addEventListener('click', async () => {
-      if (!await this.confirm('Выйти из аккаунта?', 'Выйти')) return;
-      await this.db.logout();
-      location.reload();
-    });
-    nav.appendChild(card);
-    this._updateProfileBadge();   // карточка создана после первого обновления бейджей
+    // Профиль живёт в топбаре справа вверху; низ сайдбара — чистый
     // Тултипы пунктов — в режиме «только значки» подписей нет
     nav.querySelectorAll('.nav-btn').forEach(b =>
       b.title = b.querySelector('.nav-label')?.textContent || '');
@@ -390,13 +370,6 @@ class App {
     const nm  = document.getElementById('tbName');
     if (ava) ava.textContent = initial;
     if (nm)  nm.textContent = u.name || u.login || '';
-    // Карточка профиля внизу сайдбара
-    const sa = document.getElementById('sbAva');
-    const sn = document.getElementById('sbName');
-    const sr = document.getElementById('sbRole');
-    if (sa) sa.textContent = initial;
-    if (sn) sn.textContent = u.name || u.login || '';
-    if (sr) sr.textContent = u.role === 'root' ? 'Root-админ' : `@${u.login || ''}`;
   }
 
   showLogin() {
@@ -4785,10 +4758,6 @@ class App {
       finHtml = `
         <div class="section-title">Мои финансы${pct ? ` <em style="font-style:normal;font-size:11px;color:var(--text3)">· ${pct}% от прибыли</em>` : ''}</div>
         <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value" data-count="${Math.round(cost)}" data-fmt="money">0 ₽</div>
-            <div class="stat-label">Вложено сейчас (закуп + доставка)</div>
-          </div>
           <div class="stat-card">
             <div class="stat-value" data-count="${Math.round(share)}" data-fmt="money">0 ₽</div>
             <div class="stat-label">Получу при продаже всего</div>

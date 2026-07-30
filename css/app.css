@@ -3079,7 +3079,6 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 
 /* Топбар и «Выйти» в сайдбаре существуют только в веб-версии на широком экране */
 .topbar { display: none; }
-.nav-profile { display: none; }
 
 @media (min-width: 1000px) {
   /* ── ТОПБАР (Aniq-ui): логотип · поиск · тема · профиль ── */
@@ -3203,40 +3202,6 @@ html.is-web #guideModal { height: min(760px, 86vh); }
     padding: 16px 11px 6px;
   }
   html.is-web .nav-sec:first-of-type { padding-top: 8px; }
-  /* Карточка профиля — прижата к низу сайдбара */
-  html.is-web .nav-profile {
-    display: flex; align-items: center; gap: 9px;
-    margin-top: auto; flex-shrink: 0;
-    padding: 8px 9px;
-    border: 1px solid var(--sep); border-radius: 12px;
-    background: var(--card);
-    cursor: pointer;
-    transition: background .15s, border-color .15s;
-  }
-  html.is-web .nav-profile:hover { background: var(--fill); border-color: rgba(127,127,127,.35); }
-  html.is-web .nav-profile-ava {
-    display: flex; align-items: center; justify-content: center;
-    width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
-    background: var(--fill2); color: var(--text);
-    font-size: 12.5px; font-weight: 700;
-  }
-  html.is-web .nav-profile-info { min-width: 0; flex: 1; }
-  html.is-web .nav-profile-info b {
-    display: block; font-size: 13px; font-weight: 650; letter-spacing: -.2px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  html.is-web .nav-profile-info i {
-    display: block; font-style: normal; font-size: 10.5px; color: var(--text3); margin-top: 1px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  html.is-web .nav-profile-out {
-    display: flex; align-items: center; justify-content: center;
-    width: 26px; height: 26px; flex-shrink: 0;
-    border: none; border-radius: 8px; background: none;
-    color: var(--text3); cursor: pointer;
-    transition: background .13s, color .13s;
-  }
-  html.is-web .nav-profile-out:hover { background: rgba(248,113,113,.12); color: #f87171; }
   /* Контент — правее сайдбара и ниже топбара */
   html.is-web .view { left: 220px; top: 57px; }
   /* Логотип и поиск живут в топбаре — в шапке склада не дублируем */
@@ -3252,10 +3217,6 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   html.is-web body.sb-icons .bottom-nav { width: 64px; padding: 10px 8px 12px; }
   html.is-web body.sb-icons .nav-label { display: none; }
   html.is-web body.sb-icons .nav-btn { justify-content: center; padding: 10px 0; gap: 0; }
-  /* Режим «только значки»: от карточки остаётся один аватар */
-  html.is-web body.sb-icons .nav-profile { justify-content: center; padding: 6px 0; gap: 0; border: none; background: none; }
-  html.is-web body.sb-icons .nav-profile-info,
-  html.is-web body.sb-icons .nav-profile-out { display: none; }
   /* Подписи групп превращаются в тонкие разделители */
   html.is-web body.sb-icons .nav-sec {
     padding: 0; margin: 10px 10px; height: 1px;
