@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=119">
+  <link rel="stylesheet" href="css/app.css?v=120">
 </head>
 <body>
 
@@ -60,6 +60,30 @@
     </div>
   </header>
 
+  <!-- ═══ OVERVIEW VIEW — дашборд-сводка (веб) ═══ -->
+  <div id="view-overview" class="view">
+    <div class="view-header simple-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Обзор</span></div>
+      <h1 class="view-title">Обзор</h1>
+      <p class="view-sub">Сводка по складу, финансам и задачам</p>
+    </div>
+    <div class="view-body" id="overviewContent">
+      <div class="ov-skel">
+        <div class="skel-block" style="height:150px"></div>
+        <div class="skel-row">
+          <div class="skel-block" style="height:92px"></div>
+          <div class="skel-block" style="height:92px"></div>
+          <div class="skel-block" style="height:92px"></div>
+          <div class="skel-block" style="height:92px"></div>
+        </div>
+        <div class="skel-row">
+          <div class="skel-block" style="height:280px"></div>
+          <div class="skel-block" style="height:280px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ INVENTORY VIEW ═══ -->
   <div id="view-inventory" class="view active">
     <div class="view-header inv-header">
@@ -69,6 +93,15 @@
       <div class="header-row">
         <h1 class="brand-name">Masqucerade</h1>
         <div class="header-actions">
+          <!-- Вид списка: карточки / таблица (веб-онли) -->
+          <div class="inv-mode-seg" id="invModeSeg">
+            <button type="button" data-mode="cards" class="on" title="Карточки">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            </button>
+            <button type="button" data-mode="table" title="Таблица">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+          </div>
           <button class="icon-btn" id="scanQrBtn" title="Сканировать QR-этикетку">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="17"/><line x1="14" y1="21" x2="17" y2="21"/><line x1="21" y1="14" x2="21" y2="21"/><line x1="17" y1="14" x2="21" y2="14"/></svg>
           </button>
@@ -223,6 +256,14 @@
 
   <!-- ═══ BOTTOM NAV (floating pill) ═══ -->
   <nav class="bottom-nav">
+    <!-- «Обзор» — только веб-раскладка, на мобиле скрыт CSS-ом -->
+    <button class="nav-btn nav-web-only" data-view="overview">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span class="nav-label">Обзор</span>
+    </button>
     <button class="nav-btn active" data-view="inventory">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -1267,6 +1308,6 @@
 
 <script src="js/db.js?v=55"></script>
 <script src="js/backup.js?v=45"></script>
-<script src="js/app.js?v=166"></script>
+<script src="js/app.js?v=167"></script>
 </body>
 </html>

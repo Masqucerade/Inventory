@@ -162,7 +162,11 @@ class App {
     }
     this._updateProfileBadge();
     await this.loadData();
-    const startView = ['inventory','stats','finance','project','site','settings'].find(v => this.hasAccess(v)) || 'inventory';
+    // Веб-версия на широком экране открывается с дашборда «Обзор»
+    const isWebWide = document.documentElement.classList.contains('is-web')
+      && window.matchMedia('(min-width: 1000px)').matches;
+    const startView = isWebWide ? 'overview'
+      : (['inventory','stats','finance','project','site','settings'].find(v => this.hasAccess(v)) || 'inventory');
     this.renderView(startView);
     this._applyAccess();
     this.backup.checkAutoBackup();
@@ -187,6 +191,7 @@ class App {
     const u = this.currentUser;
     if (!u) return false;
     if (section === 'profile') return true;        // личная страница есть у каждого
+    if (section === 'overview') return true;       // дашборд-сводка есть у каждого
     if (u.role === 'root') return true;
     // Сотрудник: вкладки «Проект» нет — её содержимое живёт на «Личном»
     if (section === 'project') return false;
@@ -288,7 +293,7 @@ class App {
     if (!nav) return;
     nav.querySelectorAll('.nav-sec').forEach(n => n.remove());
     if (!document.documentElement.classList.contains('is-web')) return;
-    const GROUPS = [['inventory', 'Склад'], ['finance', 'Деньги'], ['project', 'Команда'], ['site', 'Витрина'], ['settings', 'Система']];
+    const GROUPS = [['overview', 'Главная'], ['inventory', 'Склад'], ['finance', 'Деньги'], ['project', 'Команда'], ['site', 'Витрина'], ['settings', 'Система']];
     const visible = v => {
       const b = nav.querySelector(`.nav-btn[data-view="${v}"]`);
       return b && !b.classList.contains('hidden') ? b : null;
@@ -936,6 +941,23 @@ class App {
       this.renderInventoryList();
     });
 
+    /* Вид списка товаров: карточки / таблица (веб) */
+    this._invMode = localStorage.getItem('invViewMode') || 'cards';
+    const seg = document.getElementById('invModeSeg');
+    if (seg) {
+      const applySeg = () => seg.querySelectorAll('button').forEach(b =>
+        b.classList.toggle('on', b.dataset.mode === this._invMode));
+      applySeg();
+      seg.addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-mode]');
+        if (!b || b.dataset.mode === this._invMode) return;
+        this._invMode = b.dataset.mode;
+        localStorage.setItem('invViewMode', this._invMode);
+        applySeg();
+        this.renderInventoryList();
+      });
+    }
+
     /* Status filter chips (static) */
     document.getElementById('statusFilterChips').addEventListener('click', (e) => {
       const chip = e.target.closest('[data-status]');
@@ -972,7 +994,7 @@ class App {
 
     /* Inventory list item click (delegated) */
     document.getElementById('inventoryList').addEventListener('click', (e) => {
-      const card = e.target.closest('.item-card');
+      const card = e.target.closest('.item-card, .item-row');
       if (!card) return;
       if (card.closest('.items-list')?._justDragged) return;   // это был drag, не тап
       if (this._selectMode) this.toggleSelectItem(card.dataset.id);
@@ -1496,6 +1518,7 @@ class App {
     document.getElementById('fabBtn').classList.toggle('hidden', fabHidden);
 
     switch (view) {
+      case 'overview':  this.renderOverview();      break;
       case 'inventory': this.renderInventoryView(); break;
       case 'stats':     this.renderStats();         break;
       case 'finance':   this.renderFinance();       break;
@@ -1505,6 +1528,225 @@ class App {
       case 'terminal':  this.renderTerminal();      break;
       case 'settings':  this.renderGuides();         break;
     }
+  }
+
+  /* ──────────────────────────────────────────
+     OVERVIEW — дашборд-сводка (Aniq-ui)
+     ────────────────────────────────────────── */
+  async renderOverview() {
+    const el = document.getElementById('overviewContent');
+    if (!el) return;
+    el.innerHTML = `
+      <div class="ov-skel">
+        <div class="skel-block" style="height:150px"></div>
+        <div class="skel-row">
+          <div class="skel-block" style="height:92px"></div><div class="skel-block" style="height:92px"></div>
+          <div class="skel-block" style="height:92px"></div><div class="skel-block" style="height:92px"></div>
+        </div>
+        <div class="skel-row"><div class="skel-block" style="height:280px"></div><div class="skel-block" style="height:280px"></div></div>
+      </div>`;
+
+    const hasFin   = this.hasAccess('finance');
+    const hasStats = this.hasAccess('stats');
+    const hasSite  = this.hasAccess('site');
+    const [sales, payments, empPayments, orders, tasks] = await Promise.all([
+      (hasStats || hasFin) ? this.db.getSales() : Promise.resolve([]),
+      hasFin ? this.db.getPayments() : Promise.resolve([]),
+      (hasFin && this.owners.length) ? this.db.getEmployeePayments() : Promise.resolve([]),
+      hasSite ? this.db.getOrders() : Promise.resolve([]),
+      this.db.getTasks(),
+    ]);
+    if (this.currentView !== 'overview') return;   // пока грузили — ушли на другую вкладку
+
+    const items    = this.items.filter(i => i.orderStatus !== 'done');
+    const totalVal = items.reduce((s, i) => s + (i.total || 0), 0);
+    const totalQty = items.reduce((s, i) => s + (i.quantity || 0), 0);
+    const inStock  = items.filter(i => i.orderStatus === 'in_stock').reduce((s, i) => s + (i.quantity || 0), 0);
+    const newWeek  = items.filter(i => new Date(i.createdAt || 0).getTime() > Date.now() - 7 * 864e5).length;
+
+    // Баланс компании — та же формула, что на «Счёте»
+    const payBalance  = payments.reduce((s, p) => p.type === 'deposit' ? s + (p.amount || 0) : s - (p.amount || 0), 0);
+    const salesProfit = sales.reduce((s, x) => s + (x.netProfit || 0), 0);
+    const paidDebt    = empPayments.reduce((s, p) => (p.isExpense && p.reimbursed) ? s + (p.amount || 0) : s, 0);
+    const balance     = payBalance + salesProfit - paidDebt;
+
+    // Продажи за 30 дней и дельта к предыдущим 30 — честный тренд
+    const now   = Date.now();
+    const tOf   = s => new Date(s.soldAt || 0).getTime();
+    const cur30  = sales.filter(s => tOf(s) > now - 30 * 864e5).reduce((s, x) => s + (x.salePrice || 0), 0);
+    const prev30 = sales.filter(s => { const t = tOf(s); return t <= now - 30 * 864e5 && t > now - 60 * 864e5; })
+                        .reduce((s, x) => s + (x.salePrice || 0), 0);
+    const salesDelta = prev30 ? Math.round((cur30 - prev30) / prev30 * 100) : null;
+
+    const newOrders = orders.filter(o => o.status === 'new').length;
+    const active    = tasks.filter(t => !t.done);
+
+    /* ── Hero: приветствие + живые часы ── */
+    const d    = new Date();
+    const hour = d.getHours();
+    const greet = hour < 6 ? 'Доброй ночи' : hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер';
+    const name  = this.currentUser?.name || this.currentUser?.login || '';
+    const p2    = n => String(n).padStart(2, '0');
+    const WDAYS  = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+    const MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+
+    /* ── Стат-карточки (по доступам, максимум 4) ── */
+    const ic = {
+      box:   `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+      check: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+      card:  `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
+      trend: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+      inbox: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`,
+    };
+    const cards = [];
+    cards.push({ icon: ic.box, label: 'Стоимость склада', val: fmtMoney(totalVal),
+                 sub: `${items.length} позиций`, delta: newWeek ? `+${newWeek} за неделю` : '' });
+    cards.push({ icon: ic.check, label: 'В наличии', val: `${inStock} шт`, sub: `из ${totalQty} всего` });
+    if (hasFin) cards.push({ icon: ic.card, label: 'Баланс компании', val: fmtMoney(balance),
+                             cls: balance >= 0 ? '' : 'neg' });
+    if ((hasStats || hasFin) && sales.length)
+      cards.push({ icon: ic.trend, label: 'Продажи · 30 дней', val: fmtMoney(cur30),
+                   delta: salesDelta === null ? '' : `${salesDelta >= 0 ? '↗ +' : '↘ '}${salesDelta}%`,
+                   deltaCls: salesDelta >= 0 ? 'pos' : 'neg' });
+    if (hasSite) cards.push({ icon: ic.inbox, label: 'Заявки с сайта', val: String(newOrders),
+                              sub: newOrders ? 'ждут обработки' : 'новых нет', nav: 'site' });
+    const cardsHtml = cards.slice(0, 4).map(c => `
+      <div class="ov-stat${c.nav ? ' clickable' : ''}"${c.nav ? ` data-nav="${c.nav}"` : ''}>
+        <div class="ov-stat-top">${c.icon}<span>${c.label}</span></div>
+        <div class="ov-stat-val ${c.cls || ''}">${c.val}</div>
+        ${c.delta ? `<div class="ov-stat-delta ${c.deltaCls || 'pos'}">${c.delta}</div>`
+                  : (c.sub ? `<div class="ov-stat-sub">${c.sub}</div>` : '')}
+      </div>`).join('');
+
+    /* ── Задачи (до 5 активных) ── */
+    const isRoot = this.currentUser?.role === 'root';
+    const nameOf = id => this.users.find(u => u.id === id)?.name || this.owners.find(o => o.id === id)?.name || '';
+    const KINDC  = { urgent: '#f87171', duty: '#a1a1aa', goal: '#38bdf8' };
+    const tasksHtml = active.length ? `<div class="ov-task-list">${active.slice(0, 5).map(t => `
+        <div class="ov-task">
+          <span class="ov-task-dot" style="background:${KINDC[t.kind || 'duty'] || KINDC.duty}"></span>
+          <span class="ov-task-title">${this.esc(t.title || t.text || '')}</span>
+          ${t.assigneeId ? `<span class="ov-task-who">${this.esc(nameOf(t.assigneeId))}</span>` : ''}
+        </div>`).join('')}</div>`
+      : `<div class="ov-empty">Все задачи закрыты 🎉</div>`;
+
+    /* ── Insights: три кольца ── */
+    const pctStock = totalQty ? Math.round(inStock / totalQty * 100) : 0;
+    const pctSite  = items.length ? Math.round(items.filter(i => i.showOnSite).length / items.length * 100) : 0;
+    const pctTasks = tasks.length ? Math.round(tasks.filter(t => t.done).length / tasks.length * 100) : 0;
+    const ring = (r, pct, color) => {
+      const C = 2 * Math.PI * r;
+      return `<circle cx="70" cy="70" r="${r}" fill="none" stroke="var(--fill2)" stroke-width="8"/>
+        <circle cx="70" cy="70" r="${r}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round"
+          stroke-dasharray="${(C * pct / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 70 70)"/>`;
+    };
+    const legend = (color, label, val) => `
+      <div class="ov-leg"><span class="ov-leg-dot" style="background:${color}"></span>
+        <span class="ov-leg-label">${label}</span><span class="ov-leg-val">${val}%</span></div>`;
+
+    /* ── Последние продажи ── */
+    const lastSales = sales.slice(-4).reverse();
+    const salesListHtml = (hasStats || hasFin) && lastSales.length ? `
+      <div class="ov-card">
+        <div class="ov-card-head"><span>Последние продажи</span></div>
+        ${lastSales.map(s => `
+          <div class="ov-sale">
+            <div class="ov-sale-info">
+              <div class="ov-sale-name">${this.esc(s.itemName || '')}${s.size ? ` · ${this.esc(s.size)}` : ''}</div>
+              <div class="ov-sale-date">${this.fmtDate(s.soldAt)}</div>
+            </div>
+            <span class="ov-sale-profit ${(s.netProfit || 0) >= 0 ? 'pos' : 'neg'}">${(s.netProfit || 0) >= 0 ? '+' : ''}${fmtMoney(s.netProfit || 0)}</span>
+          </div>`).join('')}
+      </div>` : '';
+
+    this._calOff = 0;
+    el.innerHTML = `
+      <div class="ov-grid">
+        <div class="ov-main">
+          <div class="ov-hero">
+            <div class="ov-hero-left">
+              <div class="ov-greet">${greet}, ${this.esc(name)}!</div>
+              <div class="ov-greet-sub">Готовы к продуктивному дню? 🚀</div>
+              <div class="ov-clock" id="ovClock">${p2(d.getHours())}:${p2(d.getMinutes())}</div>
+            </div>
+            <div class="ov-hero-right">
+              <div class="ov-date-day">${WDAYS[d.getDay()]}</div>
+              <div class="ov-date">${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}</div>
+              ${active.length ? `<div class="ov-hero-tag">${active.length} акт. ${active.length === 1 ? 'задача' : active.length < 5 ? 'задачи' : 'задач'}</div>` : ''}
+            </div>
+          </div>
+          <div class="ov-stats">${cardsHtml}</div>
+          <div class="ov-widgets">
+            <div class="ov-card">
+              <div class="ov-card-head"><span>Задачи</span>
+                <button class="ov-add" id="ovAddTask" title="Новая задача">＋</button>
+              </div>
+              ${tasksHtml}
+              <button class="ov-link" id="ovAllTasks">Все задачи →</button>
+            </div>
+            <div class="ov-card">
+              <div class="ov-card-head"><span>Календарь</span>
+                <span class="ov-cal-nav"><button id="ovCalPrev">‹</button><button id="ovCalNext">›</button></span>
+              </div>
+              <div id="ovCalWrap">${this._ovCalHtml()}</div>
+            </div>
+          </div>
+        </div>
+        <div class="ov-side">
+          <div class="ov-card">
+            <div class="ov-card-head"><span>Показатели</span></div>
+            <div class="ov-donut-wrap">
+              <svg width="140" height="140" viewBox="0 0 140 140">
+                ${ring(58, pctStock, '#4ade80')}${ring(46, pctSite, '#38bdf8')}${ring(34, pctTasks, '#a1a1aa')}
+              </svg>
+              <div class="ov-donut-center">${pctStock}%</div>
+            </div>
+            ${legend('#4ade80', 'Товар в наличии', pctStock)}
+            ${legend('#38bdf8', 'Выставлено на сайт', pctSite)}
+            ${legend('#a1a1aa', 'Задачи закрыты', pctTasks)}
+          </div>
+          ${salesListHtml}
+        </div>
+      </div>`;
+
+    /* Живые часы — обновляются, пока вкладка открыта */
+    clearInterval(this._ovTimer);
+    this._ovTimer = setInterval(() => {
+      const c = document.getElementById('ovClock');
+      if (!c) { clearInterval(this._ovTimer); return; }
+      const n = new Date();
+      c.textContent = `${p2(n.getHours())}:${p2(n.getMinutes())}`;
+    }, 15000);
+
+    /* Бинды */
+    document.getElementById('ovAddTask')?.addEventListener('click', () => this.openTaskModal());
+    document.getElementById('ovAllTasks')?.addEventListener('click', () => this.renderView(isRoot ? 'project' : 'profile'));
+    const reCal = () => { const w = document.getElementById('ovCalWrap'); if (w) w.innerHTML = this._ovCalHtml(); };
+    document.getElementById('ovCalPrev')?.addEventListener('click', () => { this._calOff--; reCal(); });
+    document.getElementById('ovCalNext')?.addEventListener('click', () => { this._calOff++; reCal(); });
+    el.querySelectorAll('.ov-stat[data-nav]').forEach(c =>
+      c.addEventListener('click', () => this.renderView(c.dataset.nav)));
+  }
+
+  /* Календарь месяца: пн-вс, сегодня — белая точка */
+  _ovCalHtml() {
+    const MON = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    const today = new Date();
+    const view  = new Date(today.getFullYear(), today.getMonth() + (this._calOff || 0), 1);
+    const y = view.getFullYear(), m = view.getMonth();
+    const firstDow = (view.getDay() + 6) % 7;              // пн = 0
+    const daysIn   = new Date(y, m + 1, 0).getDate();
+    const isToday  = d => !this._calOff && d === today.getDate();
+    let cells = '';
+    for (let i = 0; i < firstDow; i++) cells += `<span class="ov-cal-day dim"></span>`;
+    for (let d = 1; d <= daysIn; d++)
+      cells += `<span class="ov-cal-day${isToday(d) ? ' today' : ''}">${d}</span>`;
+    return `
+      <div class="ov-cal-month">${MON[m]} ${y}</div>
+      <div class="ov-cal-grid">
+        ${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(w => `<span class="ov-cal-wd">${w}</span>`).join('')}
+        ${cells}
+      </div>`;
   }
 
   /* ──────────────────────────────────────────
@@ -1711,10 +1953,24 @@ class App {
     }
 
     const ownerMap = Object.fromEntries(this.owners.map(o => [o.id, o]));
+
+    // Табличный вид — только веб-раскладка; на мобиле всегда карточки
+    const asTable = this._invMode === 'table'
+      && document.documentElement.classList.contains('is-web')
+      && window.matchMedia('(min-width: 1000px)').matches;
+    const tableHead = `<div class="item-row-head">
+      <span class="row-check"></span><span class="row-thumb"></span>
+      <span>Товар</span><span>Бренд</span><span>Владелец</span><span>Размеры</span>
+      <span>Статус</span><span class="row-qty">Шт</span><span class="row-price">Цена</span><span class="row-total">Итого</span>
+    </div>`;
+    const listHtml = arr => asTable
+      ? `<div class="items-table">${tableHead}${arr.map(i => this._itemRowHtml(i, ownerMap)).join('')}</div>`
+      : `<div class="items-list">${arr.map((item, idx) => this._itemCardHtml(item, idx, ownerMap)).join('')}</div>`;
+
     let html = '';
 
     if (activeItems.length) {
-      html += `<div class="items-list">${activeItems.map((item, idx) => this._itemCardHtml(item, idx, ownerMap)).join('')}</div>`;
+      html += listHtml(activeItems);
     }
 
     if (archivedItems.length) {
@@ -1729,7 +1985,7 @@ class App {
             </svg>
           </button>
           <div id="archiveListWrap"${this._archiveOpen ? '' : ' class="hidden"'}>
-            <div class="items-list">${archivedItems.map((item, idx) => this._itemCardHtml(item, idx, ownerMap)).join('')}</div>
+            ${listHtml(archivedItems)}
           </div>
         </div>`;
     }
@@ -1993,6 +2249,31 @@ class App {
         </div>` : ''}
         ${this._selectMode ? '<div class="select-check"></div>' : ''}
       </div>
+    </div>`;
+  }
+
+  /* Строка товара в табличном виде (веб) */
+  _itemRowHtml(item, ownerMap) {
+    const st    = statusById(item.orderStatus);
+    const owner = ownerMap[item.ownerId];
+    const cover = item.thumbs?.[0] || item.photos?.[0] || item.photo;
+    const sizesArr = item.sizes?.length > 0 ? item.sizes : (item.size ? [{ size: item.size, qty: item.quantity || 0 }] : []);
+    const sizes = sizesArr.filter(s => s.size || s.qty)
+      .map(s => `${this.esc(s.size || '?')}${s.qty !== 1 ? '×' + s.qty : ''}`).join(' · ');
+    const siteTag = item.showOnSite
+      ? `<svg class="row-site" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="На сайте"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`
+      : '';
+    return `<div class="item-row${this._selectMode && this._selectedIds.has(item.id) ? ' selected' : ''}" data-id="${item.id}">
+      <span class="row-check"></span>
+      <span class="row-thumb">${cover ? `<img src="${cover}" loading="lazy" alt="">` : ''}</span>
+      <span class="row-name"><b>${this.esc(item.name)}${siteTag}</b><i>${this.esc(this.categories.find(c => c.id === item.categoryId)?.name || '')}</i></span>
+      <span class="row-brand">${this.esc(item.brand || '—')}</span>
+      <span class="row-owner">${owner ? `<span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}` : '—'}</span>
+      <span class="row-sizes">${sizes || '—'}</span>
+      <span><span class="status-badge ${item.orderStatus}">${st.label}</span></span>
+      <span class="row-qty">${item.quantity || 0}</span>
+      <span class="row-price">${item.price ? fmtMoney(item.price) : '—'}</span>
+      <span class="row-total">${item.total ? fmtMoney(item.total) : '—'}</span>
     </div>`;
   }
 
@@ -2577,7 +2858,7 @@ class App {
   toggleSelectItem(id) {
     if (this._selectedIds.has(id)) this._selectedIds.delete(id);
     else this._selectedIds.add(id);
-    const card = document.querySelector(`.item-card[data-id="${id}"]`);
+    const card = document.querySelector(`.item-card[data-id="${id}"], .item-row[data-id="${id}"]`);
     if (card) card.classList.toggle('selected', this._selectedIds.has(id));
     this.updateDeliveryBar();
   }
@@ -3223,12 +3504,18 @@ class App {
      ────────────────────────────────────────── */
   async renderFinance() {
     const el = document.getElementById('financeContent');
+    el.innerHTML = `<div class="ov-skel">
+      <div class="skel-block" style="height:190px"></div>
+      <div class="skel-row"><div class="skel-block" style="height:70px"></div><div class="skel-block" style="height:70px"></div><div class="skel-block" style="height:70px"></div></div>
+      <div class="skel-block" style="height:140px"></div>
+    </div>`;
     const [payments, empPayments, plans, sales] = await Promise.all([
       this.db.getPayments(),
       this.owners.length ? this.db.getEmployeePayments() : Promise.resolve([]),
       this.db.getPlans(),
       this.db.getSales(),
     ]);
+    if (this.currentView !== 'finance') return;
 
     const payBalance   = payments.reduce((s, p) =>
       p.type === 'deposit' ? s + (p.amount || 0) : s - (p.amount || 0), 0);
@@ -3906,7 +4193,13 @@ class App {
      ────────────────────────────────────────── */
   async renderStats() {
     const el    = document.getElementById('statsContent');
+    el.innerHTML = `<div class="ov-skel">
+      <div class="skel-block" style="height:96px"></div>
+      <div class="skel-row"><div class="skel-block" style="height:76px"></div><div class="skel-block" style="height:76px"></div></div>
+      <div class="skel-block" style="height:180px"></div>
+    </div>`;
     const [allItems, sales] = await Promise.all([this.db.getItems(), this.db.getSales()]);
+    if (this.currentView !== 'stats') return;
     // Завершённые (проданные) товары не учитываются в деньгах и складе —
     // их выручка живёт в «Продажах». В статистике остаются только активные.
     const items = allItems.filter(i => i.orderStatus !== 'done');

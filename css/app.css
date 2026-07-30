@@ -4428,3 +4428,175 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   html.is-web .inv-header .view-sub { margin-bottom: 14px; }
   html.is-web .inv-header { padding-top: 14px; }
 }
+
+/* =============================================
+   ANIQ-UI 2 — Обзор, таблица товаров, скелетоны
+   ============================================= */
+/* Пункт «Обзор» и переключатель вида — только веб-раскладка */
+.nav-btn.nav-web-only { display: none; }
+.inv-mode-seg { display: none; }
+
+/* ── Скелетоны с шиммером ── */
+.ov-skel { display: flex; flex-direction: column; gap: 12px; }
+.skel-row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 12px; }
+.skel-block {
+  border-radius: 14px;
+  border: 1px solid var(--card-b);
+  background: linear-gradient(90deg, var(--card) 25%, rgba(255,255,255,.08) 50%, var(--card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+[data-theme="light"] .skel-block {
+  background: linear-gradient(90deg, rgba(0,0,0,.04) 25%, rgba(0,0,0,.085) 50%, rgba(0,0,0,.04) 75%);
+  background-size: 200% 100%;
+}
+
+/* ── ОБЗОР ── */
+.ov-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: start; }
+@media (max-width: 1240px) { .ov-grid { grid-template-columns: 1fr; } }
+.ov-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.ov-side { display: flex; flex-direction: column; gap: 14px; }
+
+.ov-hero {
+  position: relative; display: flex; justify-content: space-between; align-items: flex-start;
+  background: var(--card); border: 1px solid var(--card-b); border-radius: 18px;
+  padding: 20px 22px 18px; overflow: hidden;
+}
+.ov-hero::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(80% 130% at 88% -25%, rgba(255,255,255,.07), transparent 60%);
+}
+[data-theme="light"] .ov-hero::before { background: radial-gradient(80% 130% at 88% -25%, rgba(0,0,0,.04), transparent 60%); }
+.ov-greet { font-size: 20px; font-weight: 750; letter-spacing: -.4px; }
+.ov-greet-sub { font-size: 13px; color: var(--text2); margin-top: 3px; }
+.ov-clock { font-size: 46px; font-weight: 800; letter-spacing: -2.2px; margin-top: 14px; line-height: 1; font-variant-numeric: tabular-nums; }
+.ov-hero-right { position: relative; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; }
+.ov-date-day { font-size: 14px; font-weight: 650; }
+.ov-date { font-size: 12.5px; color: var(--text2); }
+.ov-hero-tag { margin-top: 8px; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--fill2); color: var(--text2); }
+
+.ov-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 12px; }
+.ov-stat { background: var(--card); border: 1px solid var(--card-b); border-radius: 14px; padding: 14px 15px; }
+.ov-stat.clickable { cursor: pointer; transition: border-color .15s; }
+.ov-stat.clickable:hover { border-color: rgba(127,127,127,.45); }
+.ov-stat-top { display: flex; align-items: center; gap: 7px; font-size: 10.5px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 9px; }
+.ov-stat-top svg { flex-shrink: 0; opacity: .85; }
+.ov-stat-val { font-size: 22px; font-weight: 800; letter-spacing: -.8px; font-variant-numeric: tabular-nums; }
+.ov-stat-val.neg { color: #f87171; }
+.ov-stat-delta { font-size: 11.5px; font-weight: 650; margin-top: 4px; }
+.ov-stat-delta.pos { color: #4ade80; }
+.ov-stat-delta.neg { color: #f87171; }
+.ov-stat-sub { font-size: 11.5px; color: var(--text3); margin-top: 4px; }
+
+.ov-widgets { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 700px) { .ov-widgets { grid-template-columns: 1fr; } }
+.ov-card { background: var(--card); border: 1px solid var(--card-b); border-radius: 16px; padding: 14px 16px; }
+.ov-card-head { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; font-weight: 650; margin-bottom: 10px; }
+.ov-add {
+  width: 24px; height: 24px; border: none; border-radius: 7px;
+  background: var(--fill2); color: var(--text); font-size: 14px; line-height: 1;
+  cursor: pointer; transition: background .15s;
+}
+.ov-add:hover { background: var(--fill3); }
+
+.ov-task-list { display: flex; flex-direction: column; }
+.ov-task { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--sep2); min-width: 0; }
+.ov-task:last-child { border-bottom: none; }
+.ov-task-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.ov-task-title { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-task-who { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.ov-empty { padding: 18px 0; font-size: 13px; color: var(--text3); text-align: center; }
+.ov-link {
+  display: block; width: 100%; margin-top: 8px; padding: 7px;
+  border: none; border-radius: 9px; background: var(--fill);
+  color: var(--text2); font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .15s, color .15s;
+}
+.ov-link:hover { background: var(--fill2); color: var(--text); }
+
+.ov-cal-nav { display: flex; gap: 4px; }
+.ov-cal-nav button {
+  width: 22px; height: 22px; border: none; border-radius: 6px;
+  background: var(--fill); color: var(--text2); font-size: 13px; line-height: 1;
+  cursor: pointer; transition: background .13s, color .13s;
+}
+.ov-cal-nav button:hover { background: var(--fill2); color: var(--text); }
+.ov-cal-month { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+.ov-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.ov-cal-wd { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; padding: 3px 0; }
+.ov-cal-day { font-size: 12px; color: var(--text2); padding: 5px 0; border-radius: 8px; font-variant-numeric: tabular-nums; }
+.ov-cal-day.today { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+
+.ov-donut-wrap { position: relative; width: 140px; margin: 4px auto 12px; }
+.ov-donut-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; letter-spacing: -.5px; }
+.ov-leg { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--sep2); font-size: 12.5px; }
+.ov-leg:last-child { border-bottom: none; }
+.ov-leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ov-leg-label { flex: 1; color: var(--text2); }
+.ov-leg-val { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.ov-sale { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--sep2); }
+.ov-sale:last-child { border-bottom: none; }
+.ov-sale-info { flex: 1; min-width: 0; }
+.ov-sale-name { font-size: 12.5px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-sale-date { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.ov-sale-profit { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ov-sale-profit.pos { color: #4ade80; }
+.ov-sale-profit.neg { color: #f87171; }
+
+/* ── ТАБЛИЦА ТОВАРОВ (веб) ── */
+.items-table {
+  background: var(--card); border: 1px solid var(--card-b);
+  border-radius: var(--r); overflow: hidden;
+}
+.item-row-head, .item-row {
+  display: grid;
+  grid-template-columns: 44px minmax(170px, 2fr) 1fr 1fr 1fr 108px 44px 88px 88px;
+  align-items: center; gap: 10px;
+  padding: 8px 14px;
+}
+body.select-mode .item-row-head,
+body.select-mode .item-row {
+  grid-template-columns: 20px 44px minmax(170px, 2fr) 1fr 1fr 1fr 108px 44px 88px 88px;
+}
+.item-row-head {
+  font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text3); border-bottom: 1px solid var(--sep);
+  padding-top: 10px; padding-bottom: 10px;
+}
+.item-row { border-bottom: 1px solid var(--sep2); cursor: pointer; transition: background .12s; font-size: 13px; }
+.item-row:last-child { border-bottom: none; }
+.item-row:hover { background: rgba(255,255,255,.03); }
+[data-theme="light"] .item-row:hover { background: rgba(0,0,0,.03); }
+.item-row.selected { background: rgba(255,255,255,.07); }
+[data-theme="light"] .item-row.selected { background: rgba(0,0,0,.06); }
+.row-check { display: none; width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--text3); }
+body.select-mode .row-check { display: block; }
+.item-row.selected .row-check { background: var(--accent); border-color: var(--accent); }
+.row-thumb { width: 44px; height: 44px; border-radius: 9px; overflow: hidden; background: var(--fill); }
+.row-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.row-name { min-width: 0; }
+.row-name b { display: flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 650; letter-spacing: -.2px; overflow: hidden; white-space: nowrap; }
+.row-name i { display: block; font-style: normal; font-size: 11.5px; color: var(--text3); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-site { color: #4ade80; flex-shrink: 0; }
+.row-brand, .row-sizes { color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-owner { display: flex; align-items: center; gap: 6px; color: var(--text2); overflow: hidden; white-space: nowrap; }
+.row-qty { text-align: right; font-variant-numeric: tabular-nums; }
+.row-price, .row-total { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; }
+.row-total { color: var(--text2); font-weight: 500; }
+
+@media (min-width: 1000px) {
+  html.is-web .nav-btn.nav-web-only { display: flex; }
+  html.is-web .inv-mode-seg {
+    display: flex; gap: 2px;
+    background: var(--fill); border: 1px solid var(--sep); border-radius: 9px; padding: 2px;
+  }
+  html.is-web .inv-mode-seg button {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 24px; border: none; border-radius: 7px;
+    background: none; color: var(--text3); cursor: pointer;
+    transition: background .13s, color .13s;
+  }
+  html.is-web .inv-mode-seg button:hover { color: var(--text); }
+  html.is-web .inv-mode-seg button.on { background: var(--fill3); color: var(--text); }
+}
