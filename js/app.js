@@ -274,7 +274,27 @@ class App {
                 : document.body.classList.contains('sb-hidden') ? 'hidden' : 'full';
       apply(cur === 'full' ? 'icons' : cur === 'icons' ? 'hidden' : 'full');
     });
-    // Профиль живёт в топбаре справа вверху; низ сайдбара — чистый
+    // Карточка профиля внизу сайдбара: клик — «Личное» (пункта в меню нет),
+    // иконка справа — выход
+    const card = document.createElement('div');
+    card.className = 'nav-profile';
+    card.innerHTML = `
+      <span class="nav-profile-ava" id="sbAva">?</span>
+      <span class="nav-profile-info"><b id="sbName"></b><i id="sbRole"></i></span>
+      <button class="nav-profile-out" id="sbLogout" type="button" title="Выйти из аккаунта">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>`;
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('#sbLogout')) return;
+      this.renderView('profile');
+    });
+    card.querySelector('#sbLogout').addEventListener('click', async () => {
+      if (!await this.confirm('Выйти из аккаунта?', 'Выйти')) return;
+      await this.db.logout();
+      location.reload();
+    });
+    nav.appendChild(card);
+    this._updateProfileBadge();   // карточка создана после первого обновления бейджей
     // Тултипы пунктов — в режиме «только значки» подписей нет
     nav.querySelectorAll('.nav-btn').forEach(b =>
       b.title = b.querySelector('.nav-label')?.textContent || '');
@@ -299,7 +319,6 @@ class App {
       this.applyTheme(next);
       setThemeIcon();
     });
-    document.getElementById('tbProfile')?.addEventListener('click', () => this.renderView('profile'));
     // Поиск в топбаре зеркалит поиск склада
     const tb = document.getElementById('tbSearch');
     const si = document.getElementById('searchInput');
@@ -375,8 +394,9 @@ class App {
     };
     for (const [view, label] of GROUPS) {
       let btn = visible(view);
-      if (view === 'project' && !btn) btn = visible('profile');
-      if (view === 'roles'   && !btn) btn = visible('settings');   // у сотрудника «Система» начинается с Терминала
+      // «Личное» в веб-сайдбаре скрыто (вход через карточку профиля внизу) —
+      // у сотрудника без «Проекта» группа «Команда» просто не вставляется
+      if (view === 'roles' && !btn) btn = visible('settings');   // у сотрудника «Система» начинается с Терминала
       if (!btn) continue;
       const d = document.createElement('div');
       d.className = 'nav-sec';
@@ -408,10 +428,13 @@ class App {
       btn.title = `${u.name || ''}${u.role === 'root' ? ' · root' : ''}`;
       btn.classList.toggle('is-root', u.role === 'root');
     }
-    const ava = document.getElementById('tbAva');
-    const nm  = document.getElementById('tbName');
-    if (ava) ava.textContent = initial;
-    if (nm)  nm.textContent = u.name || u.login || '';
+    // Карточка профиля внизу сайдбара
+    const sa = document.getElementById('sbAva');
+    const sn = document.getElementById('sbName');
+    const sr = document.getElementById('sbRole');
+    if (sa) sa.textContent = initial;
+    if (sn) sn.textContent = u.name || u.login || '';
+    if (sr) sr.textContent = u.role === 'root' ? 'Root-админ' : `@${u.login || ''}`;
   }
 
   showLogin() {
@@ -1703,6 +1726,8 @@ class App {
     // «Ещё» подсвечена, когда активная вкладка спрятана внутри (мобильная пилюля)
     document.getElementById('navMoreBtn')?.classList.toggle('active',
       ['project', 'site', 'promos', 'roles', 'settings'].includes(view));
+    // Карточка профиля в сайдбаре подсвечена на «Личном»
+    document.querySelector('.nav-profile')?.classList.toggle('active', view === 'profile');
     const isRoot = this.currentUser?.role === 'root';
     // На вкладке «Гайды» создавать может только root; «Личное» сотрудника
     // включает задачи проекта — FAB для создания задачи нужен и там

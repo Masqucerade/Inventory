@@ -3132,24 +3132,6 @@ html.is-web #guideModal { height: min(760px, 86vh); }
     font-family: inherit; font-size: 10.5px; font-weight: 600; color: var(--text3);
   }
   [data-theme="light"] html.is-web .tb-kbd { border-color: rgba(0,0,0,.12); background: rgba(0,0,0,.04); }
-  html.is-web .topbar-profile {
-    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-    height: 36px; padding: 0 10px 0 5px;
-    border: 1px solid rgba(255,255,255,.09); border-radius: 999px;
-    background: rgba(255,255,255,.03);
-    color: var(--text2); font-family: inherit; cursor: pointer;
-    transition: background .15s, border-color .15s, color .15s;
-  }
-  html.is-web .topbar-profile:hover { background: rgba(255,255,255,.06); color: var(--text); }
-  [data-theme="light"] html.is-web .topbar-profile { border-color: rgba(0,0,0,.10); background: rgba(0,0,0,.03); }
-  [data-theme="light"] html.is-web .topbar-profile:hover { background: rgba(0,0,0,.06); }
-  html.is-web .topbar-ava {
-    display: flex; align-items: center; justify-content: center;
-    width: 27px; height: 27px; border-radius: 50%;
-    background: var(--fill3); color: var(--text);
-    font-size: 12px; font-weight: 700;
-  }
-  html.is-web .topbar-name { font-size: 13px; font-weight: 600; color: var(--text); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ── САЙДБАР — под топбаром ── */
   html.is-web .bottom-nav {
@@ -4700,3 +4682,47 @@ body.select-mode .row-check { display: block; }
 .detail-tgpost-btn:hover { background: var(--fill); border-color: rgba(127,127,127,.4); }
 .detail-tgpost-btn:disabled { opacity: .5; pointer-events: none; }
 .detail-tgpost-btn .tgpost-when { font-size: 11px; color: var(--text3); font-weight: 500; margin-left: 2px; }
+
+/* ── Карточка профиля внизу сайдбара (веб); пункт «Личное» скрыт из меню ── */
+.nav-profile { display: none; }
+@media (min-width: 1000px) {
+  html.is-web .nav-btn[data-view="profile"] { display: none; }
+  html.is-web .nav-profile {
+    display: flex; align-items: center; gap: 9px;
+    margin-top: auto; flex-shrink: 0;
+    padding: 8px 9px;
+    border: 1px solid var(--sep); border-radius: 12px;
+    background: var(--card);
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  html.is-web .nav-profile:hover { background: var(--fill); border-color: rgba(127,127,127,.35); }
+  html.is-web .nav-profile.active { background: var(--fill2); border-color: rgba(127,127,127,.45); }
+  html.is-web .nav-profile-ava {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+    background: var(--fill2); color: var(--text);
+    font-size: 12.5px; font-weight: 700;
+  }
+  html.is-web .nav-profile-info { min-width: 0; flex: 1; }
+  html.is-web .nav-profile-info b {
+    display: block; font-size: 13px; font-weight: 650; letter-spacing: -.2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  html.is-web .nav-profile-info i {
+    display: block; font-style: normal; font-size: 10.5px; color: var(--text3); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  html.is-web .nav-profile-out {
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; flex-shrink: 0;
+    border: none; border-radius: 8px; background: none;
+    color: var(--text3); cursor: pointer;
+    transition: background .13s, color .13s;
+  }
+  html.is-web .nav-profile-out:hover { background: rgba(248,113,113,.12); color: #f87171; }
+  /* Режим «только значки»: от карточки остаётся один аватар */
+  html.is-web body.sb-icons .nav-profile { justify-content: center; padding: 6px 0; gap: 0; border: none; background: none; }
+  html.is-web body.sb-icons .nav-profile-info,
+  html.is-web body.sb-icons .nav-profile-out { display: none; }
+}
