@@ -208,39 +208,76 @@ class App {
     }
   }
 
-  /* Сайдбар: полный → только значки → скрыт (кнопка в самом сайдбаре);
-     спрятанный возвращается плавающей кнопкой слева сверху. Выбор
-     запоминается. На мобиле/в Telegram кнопки скрыты CSS-ом. */
+  /* Сайдбар: полный → только значки → скрыт (бургер в топбаре).
+     Выбор запоминается. На мобиле/в Telegram топбар скрыт CSS-ом. */
   _initSidebarToggle() {
     const nav = document.querySelector('.bottom-nav');
     if (!nav || this._sbInit) return;
     this._sbInit = true;
-    const icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/></svg>`;
     const apply = (m) => {
       document.body.classList.toggle('sb-icons',  m === 'icons');
       document.body.classList.toggle('sb-hidden', m === 'hidden');
       localStorage.setItem('sbMode', m);
     };
-    const t = document.createElement('button');
-    t.className = 'sb-toggle';
-    t.title = 'Свернуть меню';
-    t.innerHTML = icon;
-    t.addEventListener('click', () => {
+    document.getElementById('tbBurger')?.addEventListener('click', () => {
       const cur = document.body.classList.contains('sb-icons') ? 'icons'
                 : document.body.classList.contains('sb-hidden') ? 'hidden' : 'full';
       apply(cur === 'full' ? 'icons' : cur === 'icons' ? 'hidden' : 'full');
     });
-    nav.prepend(t);
-    const ex = document.createElement('button');
-    ex.className = 'sb-expand';
-    ex.title = 'Показать меню';
-    ex.innerHTML = icon;
-    ex.addEventListener('click', () => apply('full'));
-    document.body.appendChild(ex);
+    // «Выйти» внизу сайдбара (виден только в веб-раскладке)
+    const lo = document.createElement('button');
+    lo.className = 'nav-logout';
+    lo.type = 'button';
+    lo.title = 'Выйти из аккаунта';
+    lo.innerHTML = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Выйти</span>`;
+    lo.addEventListener('click', async () => {
+      if (!await this.confirm('Выйти из аккаунта?')) return;
+      await this.db.logout();
+      location.reload();
+    });
+    nav.appendChild(lo);
     // Тултипы пунктов — в режиме «только значки» подписей нет
     nav.querySelectorAll('.nav-btn').forEach(b =>
       b.title = b.querySelector('.nav-label')?.textContent || '');
     apply(localStorage.getItem('sbMode') || 'full');
+    this._initTopbar();
+  }
+
+  /* Топбар веб-версии: тема, профиль, глобальный поиск с ⌘K */
+  _initTopbar() {
+    if (this._tbInit) return;
+    this._tbInit = true;
+    const themeBtn = document.getElementById('tbTheme');
+    const setThemeIcon = () => {
+      const dark = (localStorage.getItem('inv_theme') || 'dark') === 'dark';
+      if (themeBtn) themeBtn.innerHTML = dark
+        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+        : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+    };
+    setThemeIcon();
+    themeBtn?.addEventListener('click', () => {
+      const next = (localStorage.getItem('inv_theme') || 'dark') === 'dark' ? 'light' : 'dark';
+      this.applyTheme(next);
+      setThemeIcon();
+    });
+    document.getElementById('tbProfile')?.addEventListener('click', () => this.renderView('profile'));
+    // Поиск в топбаре зеркалит поиск склада
+    const tb = document.getElementById('tbSearch');
+    const si = document.getElementById('searchInput');
+    tb?.addEventListener('input', () => {
+      if (this.currentView !== 'inventory') this.renderView('inventory');
+      if (si) { si.value = tb.value; si.dispatchEvent(new Event('input')); }
+    });
+    tb?.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { tb.value = ''; tb.dispatchEvent(new Event('input')); tb.blur(); }
+    });
+    // ⌘K / Ctrl+K — фокус в поиск
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyK') {
+        e.preventDefault();
+        tb?.focus(); tb?.select();
+      }
+    });
   }
 
   /* Подписи групп в сайдбаре (веб, широкий экран): вставляются перед первой
@@ -279,15 +316,21 @@ class App {
     if (target && nodes[0].parentElement !== target) target.append(...nodes);
   }
 
-  // Аватар текущего профиля справа вверху
+  // Аватар текущего профиля справа вверху (+ чип в топбаре)
   _updateProfileBadge() {
     const el = document.getElementById('profileInitial');
     const btn = document.getElementById('profileBtn');
-    if (!el || !btn) return;
     const u = this.currentUser || {};
-    el.textContent = (u.name || u.login || '?')[0].toUpperCase();
-    btn.title = `${u.name || ''}${u.role === 'root' ? ' · root' : ''}`;
-    btn.classList.toggle('is-root', u.role === 'root');
+    const initial = (u.name || u.login || '?')[0].toUpperCase();
+    if (el && btn) {
+      el.textContent = initial;
+      btn.title = `${u.name || ''}${u.role === 'root' ? ' · root' : ''}`;
+      btn.classList.toggle('is-root', u.role === 'root');
+    }
+    const ava = document.getElementById('tbAva');
+    const nm  = document.getElementById('tbName');
+    if (ava) ava.textContent = initial;
+    if (nm)  nm.textContent = u.name || u.login || '';
   }
 
   showLogin() {
@@ -3942,7 +3985,7 @@ class App {
       .map(([oid, v]) => {
         const o = this.owners.find(o => o.id === oid);
         const n = o ? o.name : (oid === '__monarc__' ? 'Monarc' : 'Без владельца');
-        const c = o ? o.color : (oid === '__monarc__' ? '#7c6dfa' : '#6b7280');
+        const c = o ? o.color : (oid === '__monarc__' ? '#a1a1aa' : '#6b7280');
         const pct  = o?.profitPercent || 0;
         const disp = ownerDisp(oid, v);
         return `<div class="owner-stat-row">

@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=118">
+  <link rel="stylesheet" href="css/app.css?v=119">
 </head>
 <body>
 
@@ -37,9 +37,35 @@
 
   <div class="bg-fx" aria-hidden="true"></div>
 
+  <!-- ═══ TOPBAR — верхний хедер веб-версии (стиль Aniq-ui) ═══ -->
+  <header class="topbar" id="topbar">
+    <div class="topbar-left">
+      <button class="topbar-icon-btn" id="tbBurger" title="Свернуть меню" type="button">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-logo">Masqucerade <span class="brand-inc">INC.</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-search" id="tbSearchWrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="tbSearch" placeholder="Поиск…" autocomplete="off" spellcheck="false">
+        <kbd class="tb-kbd">⌘K</kbd>
+      </div>
+      <button class="topbar-icon-btn" id="tbTheme" title="Сменить тему" type="button"></button>
+      <button class="topbar-profile" id="tbProfile" type="button" title="Личное">
+        <span class="topbar-ava" id="tbAva">?</span>
+        <span class="topbar-name" id="tbName"></span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+  </header>
+
   <!-- ═══ INVENTORY VIEW ═══ -->
   <div id="view-inventory" class="view active">
     <div class="view-header inv-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Товары</span></div>
+      <h1 class="view-title web-page-title">Товары</h1>
+      <p class="view-sub">Склад: карточки, статусы, цены и этикетки</p>
       <div class="header-row">
         <h1 class="brand-name">Masqucerade</h1>
         <div class="header-actions">
@@ -115,7 +141,9 @@
   <!-- ═══ STATS VIEW ═══ -->
   <div id="view-stats" class="view">
     <div class="view-header simple-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Статистика</span></div>
       <h1 class="view-title">Статистика</h1>
+      <p class="view-sub">Продажи, обороты и ключевые показатели</p>
     </div>
     <div class="view-body" id="statsContent"></div>
   </div>
@@ -123,7 +151,9 @@
   <!-- ═══ FINANCE VIEW ═══ -->
   <div id="view-finance" class="view">
     <div class="view-header simple-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Счёт компании</span></div>
       <h1 class="view-title">Счёт компании</h1>
+      <p class="view-sub">Бюджет, долги и движения средств</p>
     </div>
     <div class="view-body" id="financeContent"></div>
   </div>
@@ -131,7 +161,9 @@
   <!-- ═══ PROJECT VIEW ═══ -->
   <div id="view-project" class="view">
     <div class="view-header simple-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Проект</span></div>
       <h1 class="view-title">Проект</h1>
+      <p class="view-sub">Задачи, заметки и доступы команды</p>
     </div>
     <div class="view-body" id="projectBody">
       <div class="proj-hero" id="projHero"></div>
@@ -148,7 +180,9 @@
   <!-- ═══ SITE VIEW ═══ -->
   <div id="view-site" class="view">
     <div class="view-header simple-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Сайт</span></div>
       <h1 class="view-title">Сайт</h1>
+      <p class="view-sub">Витрина, заявки, подборки и Авито</p>
     </div>
     <div class="view-body" id="siteContent"></div>
   </div>
@@ -156,7 +190,9 @@
   <!-- ═══ PROFILE VIEW: личная страница пользователя ═══ -->
   <div id="view-profile" class="view">
     <div class="view-header simple-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Личное</span></div>
       <h1 class="view-title">Личное</h1>
+      <p class="view-sub">Профиль, финансы и личные записи</p>
     </div>
     <div class="view-body" id="profileBody">
       <div id="profileHead"></div>
@@ -168,7 +204,9 @@
   <!-- ═══ SETTINGS (FAQ) VIEW ═══ -->
   <div id="view-settings" class="view">
     <div class="view-header simple-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Терминал</span></div>
       <h1 class="view-title">Терминал</h1>
+      <p class="view-sub">Журнал системы, Авито и гайды</p>
     </div>
     <div class="view-body" id="settingsContent"></div>
   </div>
@@ -176,7 +214,9 @@
   <!-- ═══ TERMINAL VIEW ═══ -->
   <div id="view-terminal" class="view">
     <div class="view-header simple-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Terminal</span></div>
       <h1 class="view-title">Terminal</h1>
+      <p class="view-sub">Консоль журнала системы</p>
     </div>
     <div class="view-body" id="terminalContent"></div>
   </div>
@@ -1227,6 +1267,6 @@
 
 <script src="js/db.js?v=55"></script>
 <script src="js/backup.js?v=45"></script>
-<script src="js/app.js?v=165"></script>
+<script src="js/app.js?v=166"></script>
 </body>
 </html>
