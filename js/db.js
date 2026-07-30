@@ -96,20 +96,20 @@ class InventoryDB {
   }
   async addRole(role) {
     const r = await fetch('/api/roles', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(role) });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Не удалось создать роль');
     return d;
   }
   async updateRole(id, patch) {
     const r = await fetch(`/api/roles/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Не удалось изменить роль');
     return d;
   }
   async deleteRole(id) { await fetch(`/api/roles/${id}`, { method:'DELETE' }); }
   async applyRole(id) {
     const r = await fetch(`/api/roles/${id}/apply`, { method:'POST' });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Не удалось применить роль');
     return d;
   }
@@ -333,7 +333,7 @@ class InventoryDB {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dangerPassword }),
     });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
     if (!r.ok) {
       const err = new Error(d.error || 'Не удалось опубликовать');
       err.code = d.code;
@@ -349,7 +349,7 @@ class InventoryDB {
   }
   async setDangerPassword(password) {
     const r = await fetch('/api/danger/password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ password }) });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Не удалось сохранить пароль');
     return d;
   }
@@ -362,13 +362,13 @@ class InventoryDB {
   }
   async addPromo(promo) {
     const r = await fetch('/api/promos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(promo) });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Не удалось создать промокод');
     return d;
   }
   async patchPromo(id, patch) {
     const r = await fetch(`/api/promos/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Не удалось изменить промокод');
     return d;
   }

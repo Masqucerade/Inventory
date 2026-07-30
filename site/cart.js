@@ -96,7 +96,7 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: savedCode, ids: live.map(c => c.id) }),
         });
-        const d = await r.json();
+        const d = await r.json().catch(() => ({}));
         if (r.ok && d.ok) promo = d;
         else { writePromo(''); promoMsg = d.error || 'Промокод больше не действует'; }
       } catch (_) { /* сеть моргнула — не сбрасываем код */ }
@@ -163,7 +163,7 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, ids: read().map(c => c.id) }),
         });
-        const d = await r.json();
+        const d = await r.json().catch(() => ({}));
         if (!r.ok || !d.ok) throw new Error(d.error || 'Промокод не найден');
         writePromo(d.code);
         render();
@@ -196,7 +196,7 @@
             promoCode: readPromo() || undefined,
           }),
         });
-        const d = await r.json();
+        const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.error || 'Ошибка');
         write([]);
         writePromo('');

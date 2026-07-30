@@ -1516,10 +1516,11 @@ function checkDanger(req, res) {
   const hits = (_dangerRate.get(ip) || []).filter(t => now - t < 600_000);
   if (hits.length >= 10) { res.status(429).json({ error: 'Слишком много попыток — подождите 10 минут' }); return false; }
   const pass = String(req.body?.dangerPassword || '');
-  if (!pass) { res.status(401).json({ error: 'Опасная зона — нужен пароль подтверждения', code: 'danger_password' }); return false; }
+  // 403, не 401: клиентская обёртка fetch на 401 считает сессию истёкшей
+  if (!pass) { res.status(403).json({ error: 'Опасная зона — нужен пароль подтверждения', code: 'danger_password' }); return false; }
   if (!verifyPassword(pass, hash)) {
     hits.push(now); _dangerRate.set(ip, hits);
-    res.status(401).json({ error: 'Неверный пароль', code: 'danger_password' });
+    res.status(403).json({ error: 'Неверный пароль', code: 'danger_password' });
     return false;
   }
   _dangerRate.delete(ip);
