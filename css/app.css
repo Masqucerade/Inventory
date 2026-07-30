@@ -4687,3 +4687,16 @@ body.select-mode .row-check { display: block; }
   html.is-web .more-sheet,
   html.is-web .more-backdrop { display: none !important; }
 }
+
+/* Кнопка «Опубликовать в канал» в карточке товара */
+.detail-tgpost-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: 10px; padding: 13px;
+  border: 1px solid var(--card-b); border-radius: 14px;
+  background: var(--card); color: var(--text);
+  font-family: inherit; font-size: 14px; font-weight: 650; letter-spacing: -.2px;
+  cursor: pointer; transition: background .15s, border-color .15s;
+}
+.detail-tgpost-btn:hover { background: var(--fill); border-color: rgba(127,127,127,.4); }
+.detail-tgpost-btn:disabled { opacity: .5; pointer-events: none; }
+.detail-tgpost-btn .tgpost-when { font-size: 11px; color: var(--text3); font-weight: 500; margin-left: 2px; }

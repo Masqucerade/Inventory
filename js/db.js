@@ -323,6 +323,18 @@ class InventoryDB {
   }
   async deleteOrder(id) { await fetch(`/api/orders/${id}`, { method:'DELETE' }); }
 
+  /* ─── ПОСТ О ТОВАРЕ В TG-КАНАЛ ─── */
+  async getTgChannelStatus() {
+    try { const r = await fetch('/api/tg-channel/status'); return r.ok ? r.json() : { configured: false }; }
+    catch { return { configured: false }; }
+  }
+  async tgPostItem(id) {
+    const r = await fetch(`/api/items/${id}/tg-post`, { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Не удалось опубликовать');
+    return d;
+  }
+
   /* ─── СКИДКИ И ПРОМОКОДЫ ─── */
   async getPromos() {
     try { const r = await fetch('/api/promos'); return r.ok ? r.json() : []; }

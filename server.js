@@ -1475,6 +1475,74 @@ app.put('/api/items', async (req, res) => {
   res.json(item);
 });
 
+/* ─── ПОСТ О ТОВАРЕ В TELEGRAM-КАНАЛ ───
+   Канал — env TG_CHANNEL (@username или -100…id); бот TG_LOG_TOKEN должен
+   быть админом канала. Фото уходит JPEG-ом через /avito-img (Telegram
+   капризен к webp). Доступ — раздел «Сайт»: это продвижение витрины. */
+app.get('/api/tg-channel/status', (req, res) => {
+  res.json({
+    configured: !!(process.env.TG_LOG_TOKEN && process.env.TG_CHANNEL),
+    channel: process.env.TG_CHANNEL || '',
+  });
+});
+
+app.post('/api/items/:id/tg-post', async (req, res) => {
+  if (!hasAccess(req.user, 'site')) return res.status(403).json({ error: 'Нет доступа к разделу' });
+  const token   = process.env.TG_LOG_TOKEN;
+  const channel = (process.env.TG_CHANNEL || '').trim();
+  if (!token || !channel)
+    return res.status(400).json({ error: 'Канал не настроен: добавьте TG_CHANNEL в Railway (бот — админ канала)' });
+  const db = load();
+  const it = (db.items || []).find(i => i.id === req.params.id);
+  if (!it) return res.status(404).json({ error: 'Товар не найден' });
+  if (!it.showOnSite) return res.status(400).json({ error: 'Товар скрыт с сайта — сначала включите «На сайте»' });
+
+  const fmtR  = n => new Intl.NumberFormat('ru-RU').format(n);
+  const COND  = { new: 'Новое с биркой', excellent: 'Отличное состояние', good: 'Хорошее состояние' };
+  const sizes = (it.sizes || []).filter(s => (parseInt(s.qty) || 0) > 0).map(s => s.size).filter(Boolean);
+  const url   = `https://${CANONICAL_HOST}/product/${encodeURIComponent(it.id)}`;
+  const price = it.oldPrice && it.oldPrice > (it.price || 0)
+    ? `<s>${fmtR(it.oldPrice)} ₽</s>  <b>${fmtR(it.price || 0)} ₽</b>`
+    : `<b>${fmtR(it.price || 0)} ₽</b>`;
+  const caption = [
+    `<b>${escAttr(it.name)}</b>`,
+    [it.brand, COND[it.condition]].filter(Boolean).map(escAttr).join(' · '),
+    sizes.length ? `Размеры: ${escAttr(sizes.join(' · '))}` : '',
+    '',
+    price,
+    '',
+    `<a href="${url}">Смотреть на сайте →</a>`,
+  ].filter(l => l !== '').join('\n').replace(/\n{3,}/g, '\n\n');
+
+  const photoRef = (Array.isArray(it.photos) && it.photos[0]) || it.photo;
+  const photoUrl = photoRef && String(photoRef).startsWith('/photos/')
+    ? `https://${CANONICAL_HOST}/avito-img/${path.basename(String(photoRef)).replace(/\.\w+$/, '')}.jpg`
+    : null;
+
+  try {
+    const method = photoUrl ? 'sendPhoto' : 'sendMessage';
+    const body = photoUrl
+      ? { chat_id: channel, photo: photoUrl, caption, parse_mode: 'HTML' }
+      : { chat_id: channel, text: caption, parse_mode: 'HTML' };
+    const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body), signal: AbortSignal.timeout(15_000),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!d.ok) throw new Error(d.description || 'Telegram отклонил сообщение');
+    it.tgPostedAt = new Date().toISOString();
+    addLog({ id: uid(), ts: it.tgPostedAt, type: 'tg_post',
+      user: req.user.name || req.user.login, desc: `Пост в канал: ${it.name}`, meta: { id: it.id } });
+    save(db);
+    // Ссылка на пост доступна только у публичных каналов с @username
+    const link = /^@/.test(channel) && d.result?.message_id
+      ? `https://t.me/${channel.slice(1)}/${d.result.message_id}` : null;
+    res.json({ ok: true, link });
+  } catch (e) {
+    res.status(502).json({ error: 'Не удалось отправить: ' + e.message });
+  }
+});
+
 app.delete('/api/items/:id', (req, res) => {
   const db = load();
   db.items = (db.items || []).filter(i => i.id !== req.params.id);

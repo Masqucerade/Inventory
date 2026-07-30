@@ -2754,6 +2754,11 @@ class App {
       </div>
       ${item.notes ? `<div class="detail-notes">${this.esc(item.notes)}</div>` : ''}
       ${this._itemHistoryHtml(item)}
+      ${item.showOnSite && this.hasAccess('site') ? `
+      <button class="detail-tgpost-btn" id="detailTgPostBtn" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Опубликовать в канал${item.tgPostedAt ? `<span class="tgpost-when">· был пост ${this.fmtDate(item.tgPostedAt)}</span>` : ''}
+      </button>` : ''}
       <button class="detail-sell-btn" id="detailSellBtn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
           <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
@@ -2779,6 +2784,21 @@ class App {
     document.getElementById('detailSellBtn').addEventListener('click', () => {
       this.closeModal('detailModal');
       this.openSaleModal(id);
+    });
+
+    /* Пост о товаре в Telegram-канал (env TG_CHANNEL) */
+    document.getElementById('detailTgPostBtn')?.addEventListener('click', async () => {
+      const again = item.tgPostedAt ? ' ещё раз' : '';
+      if (!await this.confirm(`Опубликовать пост о товаре в Telegram-канал${again}?`, 'Опубликовать', false)) return;
+      const btn = document.getElementById('detailTgPostBtn');
+      btn.disabled = true;
+      try {
+        await this.db.tgPostItem(item.id);
+        item.tgPostedAt = new Date().toISOString();
+        this.toast('Пост опубликован в канал ✓');
+      } catch (e) {
+        this.toast(e.message);
+      } finally { btn.disabled = false; }
     });
 
     document.getElementById('detailDeleteBtn').addEventListener('click', () => this.deleteItem(id));
