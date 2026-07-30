@@ -1475,6 +1475,57 @@ app.put('/api/items', async (req, res) => {
   res.json(item);
 });
 
+/* ─── ОПАСНЫЕ ЗОНЫ: пароль-подтверждение критичных действий ───
+   Пароль задаёт только root («Роли и права»), хранится хэшем в
+   db.meta.dangerPassword. Пока пароль не задан — зоны открыты.
+   Перебор ограничен: 10 неверных попыток с IP за 10 минут. */
+app.get('/api/danger/status', (req, res) => {
+  res.json({ set: !!load().meta?.dangerPassword });
+});
+
+app.post('/api/danger/password', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const pass = String(req.body.password || '');
+  if (pass.length < 4) return res.status(400).json({ error: 'Пароль — минимум 4 символа' });
+  const db = load();
+  if (!db.meta) db.meta = {};
+  db.meta.dangerPassword = hashPassword(pass);
+  addLog({ id: uid(), ts: new Date().toISOString(), type: 'danger', user: req.user.name || req.user.login,
+    desc: 'Пароль опасных зон обновлён', meta: { level: 'warn' } });
+  save(db);
+  res.json({ ok: true });
+});
+
+app.delete('/api/danger/password', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  if (db.meta) delete db.meta.dangerPassword;
+  addLog({ id: uid(), ts: new Date().toISOString(), type: 'danger', user: req.user.name || req.user.login,
+    desc: 'Пароль опасных зон снят — зоны открыты', meta: { level: 'warn' } });
+  save(db);
+  res.json({ ok: true });
+});
+
+const _dangerRate = new Map();
+// true — пропускаем; false — ответ уже отправлен (нужен пароль / неверный / лимит)
+function checkDanger(req, res) {
+  const hash = load().meta?.dangerPassword;
+  if (!hash) return true;
+  const ip  = req.ip || 'x';
+  const now = Date.now();
+  const hits = (_dangerRate.get(ip) || []).filter(t => now - t < 600_000);
+  if (hits.length >= 10) { res.status(429).json({ error: 'Слишком много попыток — подождите 10 минут' }); return false; }
+  const pass = String(req.body?.dangerPassword || '');
+  if (!pass) { res.status(401).json({ error: 'Опасная зона — нужен пароль подтверждения', code: 'danger_password' }); return false; }
+  if (!verifyPassword(pass, hash)) {
+    hits.push(now); _dangerRate.set(ip, hits);
+    res.status(401).json({ error: 'Неверный пароль', code: 'danger_password' });
+    return false;
+  }
+  _dangerRate.delete(ip);
+  return true;
+}
+
 /* ─── ПОСТ О ТОВАРЕ В TELEGRAM-КАНАЛ ───
    Канал — env TG_CHANNEL (@username или -100…id); бот TG_LOG_TOKEN должен
    быть админом канала. Фото уходит JPEG-ом через /avito-img (Telegram
@@ -1496,6 +1547,7 @@ app.post('/api/items/:id/tg-post', async (req, res) => {
   const it = (db.items || []).find(i => i.id === req.params.id);
   if (!it) return res.status(404).json({ error: 'Товар не найден' });
   if (!it.showOnSite) return res.status(400).json({ error: 'Товар скрыт с сайта — сначала включите «На сайте»' });
+  if (!checkDanger(req, res)) return;   // публикация в канал — опасная зона
 
   const fmtR  = n => new Intl.NumberFormat('ru-RU').format(n);
   const COND  = { new: 'Новое с биркой', excellent: 'Отличное состояние', good: 'Хорошее состояние' };

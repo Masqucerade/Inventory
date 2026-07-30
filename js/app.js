@@ -611,7 +611,9 @@ class App {
       <div class="skel-block" style="height:64px"></div>
       <div class="skel-block" style="height:64px"></div>
     </div>`;
-    const [roles, users] = await Promise.all([this.db.getRoles(), this.db.getUsers()]);
+    const [roles, users, danger] = await Promise.all([
+      this.db.getRoles(), this.db.getUsers(), this.db.getDangerStatus(),
+    ]);
     if (this.currentView !== 'roles') return;
     this._roles = roles;
     this.users  = users;
@@ -673,7 +675,31 @@ class App {
         </div>
         <div class="site-sec-actions"><button class="site-mini-add" id="userAddBtn">＋ Пользователь</button></div>
       </div>
-      <div class="settings-section">${userRows}</div>`;
+      <div class="settings-section">${userRows}</div>
+
+      <div class="site-sec-head" style="margin-top:22px">
+        <div>
+          <div class="site-sec-title">Опасные зоны</div>
+          <div class="site-sec-hint">Критичные действия требуют отдельный пароль-подтверждение — его вводят все, включая root</div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-row" style="cursor:default">
+          <div class="settings-row-icon" style="background:rgba(248,113,113,.12)">${uiIcon('lock', 14)}</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Пароль опасных зон
+              <span class="promo-badge ${danger.set ? 'on' : 'off'}" style="margin-left:8px">${danger.set ? 'Задан' : 'Не задан'}</span>
+            </div>
+            <div class="settings-row-sub">${danger.set
+              ? 'Защищено: публикация в Telegram-канал'
+              : 'Пока не задан — опасные действия выполняются без подтверждения'}</div>
+          </div>
+          <div class="block-row-actions">
+            <button class="btn-line" id="dangerSetBtn" style="height:26px;padding:0 10px;font-size:11.5px;font-weight:600;white-space:nowrap">${danger.set ? 'Сменить' : 'Задать пароль'}</button>
+            ${danger.set ? `<button class="block-delete-btn" id="dangerClearBtn" title="Снять пароль — открыть зоны">${uiIcon('trash', 13)}</button>` : ''}
+          </div>
+        </div>
+      </div>`;
 
     document.getElementById('roleAddBtn')?.addEventListener('click', () => this.openRoleModal());
     document.getElementById('userAddBtn')?.addEventListener('click', () => this.openUserModal());
@@ -708,6 +734,64 @@ class App {
           this.renderRolesView();
         } catch (e) { this.toast(e.message || 'Ошибка'); }
       }));
+
+    /* Опасные зоны */
+    document.getElementById('dangerSetBtn')?.addEventListener('click', () => this._openDangerSetModal());
+    document.getElementById('dangerClearBtn')?.addEventListener('click', async () => {
+      if (!await this.confirm('Снять пароль опасных зон? Критичные действия перестанут требовать подтверждение.')) return;
+      await this.db.clearDangerPassword();
+      this.toast('Пароль снят ✓');
+      this.renderRolesView();
+    });
+  }
+
+  _openDangerSetModal() {
+    document.getElementById('dangerSetPass').value  = '';
+    document.getElementById('dangerSetPass2').value = '';
+    if (!this._dangerSetBound) {
+      this._dangerSetBound = true;
+      document.getElementById('dangerSetClose').addEventListener('click', () => this.closeModal('dangerSetModal'));
+      document.getElementById('dangerSetSave').addEventListener('click', async () => {
+        const p1 = document.getElementById('dangerSetPass').value;
+        const p2 = document.getElementById('dangerSetPass2').value;
+        if (p1.length < 4) { this.toast('Пароль — минимум 4 символа'); return; }
+        if (p1 !== p2)     { this.toast('Пароли не совпадают'); return; }
+        try {
+          await this.db.setDangerPassword(p1);
+          this.closeModal('dangerSetModal');
+          this.toast('Пароль опасных зон сохранён ✓');
+          this.renderRolesView();
+        } catch (e) { this.toast(e.message); }
+      });
+    }
+    this.openModal('dangerSetModal');
+    setTimeout(() => document.getElementById('dangerSetPass')?.focus(), 150);
+  }
+
+  /* ── Опасные зоны: модалка ввода пароля-подтверждения ── */
+  askDangerPassword(actionLabel) {
+    return new Promise((resolve) => {
+      const inp = document.getElementById('dangerAskInput');
+      document.getElementById('dangerAskText').textContent = actionLabel;
+      inp.value = '';
+      const done = (val) => {
+        this._dangerAskRes = null;
+        this.closeModal('dangerAskModal');
+        resolve(val);
+      };
+      this._dangerAskRes = done;
+      if (!this._dangerAskBound) {
+        this._dangerAskBound = true;
+        document.getElementById('dangerAskClose').addEventListener('click', () => this._dangerAskRes?.(null));
+        document.getElementById('dangerAskOk').addEventListener('click', () =>
+          this._dangerAskRes?.(document.getElementById('dangerAskInput').value));
+        inp.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') this._dangerAskRes?.(inp.value);
+        });
+      }
+      this.openModal('dangerAskModal');
+      setTimeout(() => inp.focus(), 150);
+    });
   }
 
   /* ── Модалка роли ── */
@@ -2811,18 +2895,33 @@ class App {
       this.openSaleModal(id);
     });
 
-    /* Пост о товаре в Telegram-канал (env TG_CHANNEL) */
+    /* Пост о товаре в Telegram-канал (env TG_CHANNEL).
+       Публикация — опасная зона: если задан пароль, сервер попросит его
+       (code danger_password) — спрашиваем и повторяем запрос. */
     document.getElementById('detailTgPostBtn')?.addEventListener('click', async () => {
       const again = item.tgPostedAt ? ' ещё раз' : '';
       if (!await this.confirm(`Опубликовать пост о товаре в Telegram-канал${again}?`, 'Опубликовать', false)) return;
       const btn = document.getElementById('detailTgPostBtn');
       btn.disabled = true;
       try {
-        await this.db.tgPostItem(item.id);
-        item.tgPostedAt = new Date().toISOString();
-        this.toast('Пост опубликован в канал ✓');
-      } catch (e) {
-        this.toast(e.message);
+        let dp = '';
+        while (true) {
+          try {
+            await this.db.tgPostItem(item.id, dp);
+            item.tgPostedAt = new Date().toISOString();
+            this.toast('Пост опубликован в канал ✓');
+            break;
+          } catch (e) {
+            if (e.code === 'danger_password') {
+              if (dp) this.toast('Неверный пароль');
+              dp = await this.askDangerPassword('Публикация поста в Telegram-канал');
+              if (dp === null || dp === undefined) break;
+              continue;
+            }
+            this.toast(e.message);
+            break;
+          }
+        }
       } finally { btn.disabled = false; }
     });
 

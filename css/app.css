@@ -4622,7 +4622,7 @@ body.select-mode .row-check { display: block; }
 
 /* Кнопка «Применить · N» в строке роли: текстовая, не наследует
    квадратные 30×30 от иконок .block-row-actions */
-.role-row .block-row-actions { flex-shrink: 0; }
+.settings-row .block-row-actions { flex-shrink: 0; }
 .block-row-actions .role-apply {
   width: auto; height: 26px;
   white-space: nowrap; flex-shrink: 0;
@@ -4726,3 +4726,13 @@ body.select-mode .row-check { display: block; }
   html.is-web body.sb-icons .nav-profile-info,
   html.is-web body.sb-icons .nav-profile-out { display: none; }
 }
+
+/* Опасные зоны: плашка в модалке ввода пароля */
+.danger-badge {
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 13px; margin-bottom: 14px;
+  border: 1px solid rgba(248,113,113,.30); border-radius: 12px;
+  background: rgba(248,113,113,.08);
+  color: #f87171; font-size: 13px; font-weight: 600;
+}
+.danger-badge svg { flex-shrink: 0; }

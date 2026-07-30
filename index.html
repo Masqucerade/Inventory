@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=130">
+  <link rel="stylesheet" href="css/app.css?v=132">
 </head>
 <body>
 
@@ -889,6 +889,53 @@
   </div>
 </div>
 
+<!-- Опасная зона: ввод пароля-подтверждения -->
+<div class="modal" id="dangerAskModal">
+  <div class="modal-sheet danger-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="dangerAskClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title">Опасная зона</span>
+      <button class="modal-action-btn" id="dangerAskOk">Подтвердить</button>
+    </div>
+    <div class="modal-body">
+      <div class="danger-badge">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span id="dangerAskText">Действие требует подтверждения</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Пароль опасных зон</label>
+        <input type="password" class="form-input" id="dangerAskInput" placeholder="••••" autocomplete="off">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Опасные зоны: установка пароля (root) -->
+<div class="modal" id="dangerSetModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="dangerSetClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title">Пароль опасных зон</span>
+      <button class="modal-action-btn" id="dangerSetSave">Сохранить</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Новый пароль <span class="required">*</span></label>
+        <input type="password" class="form-input" id="dangerSetPass" placeholder="Минимум 4 символа" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ещё раз <span class="required">*</span></label>
+        <input type="password" class="form-input" id="dangerSetPass2" placeholder="Повторите пароль" autocomplete="new-password">
+      </div>
+      <div class="form-hint">Этот пароль будут вводить все (включая вас) перед действиями в опасных зонах — сейчас это публикация в Telegram-канал. Он не связан с паролями входа.</div>
+    </div>
+  </div>
+</div>
+
 <!-- Роль: создание / правка (root) -->
 <div class="modal" id="roleModal">
   <div class="modal-sheet">
@@ -1448,8 +1495,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=58"></script>
+<script src="js/db.js?v=59"></script>
 <script src="js/backup.js?v=46"></script>
-<script src="js/app.js?v=176"></script>
+<script src="js/app.js?v=177"></script>
 </body>
 </html>

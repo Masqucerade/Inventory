@@ -328,12 +328,32 @@ class InventoryDB {
     try { const r = await fetch('/api/tg-channel/status'); return r.ok ? r.json() : { configured: false }; }
     catch { return { configured: false }; }
   }
-  async tgPostItem(id) {
-    const r = await fetch(`/api/items/${id}/tg-post`, { method: 'POST' });
+  async tgPostItem(id, dangerPassword = '') {
+    const r = await fetch(`/api/items/${id}/tg-post`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dangerPassword }),
+    });
     const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'Не удалось опубликовать');
+    if (!r.ok) {
+      const err = new Error(d.error || 'Не удалось опубликовать');
+      err.code = d.code;
+      throw err;
+    }
     return d;
   }
+
+  /* ─── ОПАСНЫЕ ЗОНЫ ─── */
+  async getDangerStatus() {
+    try { const r = await fetch('/api/danger/status'); return r.ok ? r.json() : { set: false }; }
+    catch { return { set: false }; }
+  }
+  async setDangerPassword(password) {
+    const r = await fetch('/api/danger/password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ password }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Не удалось сохранить пароль');
+    return d;
+  }
+  async clearDangerPassword() { await fetch('/api/danger/password', { method:'DELETE' }); }
 
   /* ─── СКИДКИ И ПРОМОКОДЫ ─── */
   async getPromos() {
