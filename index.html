@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=121">
+  <link rel="stylesheet" href="css/app.css?v=122">
 </head>
 <body>
 
@@ -733,27 +733,27 @@
       </div>
       <div class="settings-section">
         <div class="settings-row bulk-flag-btn" data-patch='{"isMonarc":true}'>
-          <div class="settings-row-icon purple">👁</div>
+          <div class="settings-row-icon purple"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
           <div class="settings-row-info"><div class="settings-row-title">Перенести в Monarc</div></div>
         </div>
         <div class="settings-row bulk-flag-btn" data-patch='{"isMonarc":false}'>
-          <div class="settings-row-icon gray">👁</div>
+          <div class="settings-row-icon gray"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
           <div class="settings-row-info"><div class="settings-row-title">Вернуть в общий список</div></div>
         </div>
         <div class="settings-row bulk-flag-btn" data-patch='{"showOnSite":true}'>
-          <div class="settings-row-icon green">🌐</div>
+          <div class="settings-row-icon green"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
           <div class="settings-row-info"><div class="settings-row-title">Выставить на сайт</div></div>
         </div>
         <div class="settings-row bulk-flag-btn" data-patch='{"showOnSite":false}'>
-          <div class="settings-row-icon gray">🌐</div>
+          <div class="settings-row-icon gray"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
           <div class="settings-row-info"><div class="settings-row-title">Убрать с сайта</div></div>
         </div>
         <div class="settings-row bulk-flag-btn" data-patch='{"showOnAvito":true}'>
-          <div class="settings-row-icon green">🅰️</div>
+          <div class="settings-row-icon green"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
           <div class="settings-row-info"><div class="settings-row-title">Выставить на Авито</div></div>
         </div>
         <div class="settings-row bulk-flag-btn" data-patch='{"showOnAvito":false}'>
-          <div class="settings-row-icon gray">🅰️</div>
+          <div class="settings-row-icon gray"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
           <div class="settings-row-info"><div class="settings-row-title">Убрать с Авито</div></div>
         </div>
       </div>
@@ -1049,12 +1049,12 @@
         <div class="form-group">
           <label class="form-label">Тип</label>
           <select class="form-input form-select" id="quickType">
-            <option value="other">📋 Прочее</option>
-            <option value="card">💳 Карта</option>
-            <option value="phone">📞 Телефон</option>
-            <option value="address">📍 Адрес</option>
-            <option value="password">🔑 Пароль (скрытый)</option>
-            <option value="link">🔗 Ссылка</option>
+            <option value="other">Прочее</option>
+            <option value="card">Карта</option>
+            <option value="phone">Телефон</option>
+            <option value="address">Адрес</option>
+            <option value="password">Пароль (скрытый)</option>
+            <option value="link">Ссылка</option>
           </select>
         </div>
         <div class="form-group">
@@ -1224,8 +1224,8 @@
     </div>
   </div>
 
-<!-- Toast -->
-<div class="toast hidden" id="toast"></div>
+<!-- Toasts — стопка в правом нижнем углу (стиль sonner) -->
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
 <!-- Confirm -->
 <div class="confirm-overlay hidden" id="confirmOverlay">
@@ -1308,6 +1308,6 @@
 
 <script src="js/db.js?v=55"></script>
 <script src="js/backup.js?v=45"></script>
-<script src="js/app.js?v=167"></script>
+<script src="js/app.js?v=168"></script>
 </body>
 </html>

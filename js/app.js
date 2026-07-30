@@ -4,9 +4,50 @@
    ============================================= */
 
 /* ── Constants ── */
+
+/* Инлайн-SVG-иконки интерфейса — вместо эмодзи (стиль Aniq-ui) */
+const UI_PATHS = {
+  clipboard:  '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+  package:    '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  image:      '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+  star:       '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  fileText:   '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  megaphone:  '<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  bell:       '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+  repeat:     '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  eye:        '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff:     '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
+  creditCard: '<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>',
+  phone:      '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  mapPin:     '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  key:        '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
+  link:       '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  receipt:    '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/>',
+  checkCircle:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  plus:       '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  edit:       '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+  trash:      '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  user:       '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  save:       '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+  folder:     '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+  xCircle:    '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+  layers:     '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+  tag:        '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+  msg:        '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+  heart:      '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
+  alert:      '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+  lock:       '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  sun:        '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>',
+  moon:       '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+  pin:        '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/>',
+  info:       '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+};
+const uiIcon = (name, size = 14) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px">${UI_PATHS[name] || ''}</svg>`;
+
 const STATUSES = [
-  { id: 'ordered',      label: 'Заказано',   icon: '📋', color: 'rgba(255,255,255,0.40)' },
-  { id: 'at_warehouse', label: 'На складе',  icon: '📦', color: '#fb923c' },
+  { id: 'ordered',      label: 'Заказано',   icon: uiIcon('clipboard', 13), color: 'rgba(255,255,255,0.40)' },
+  { id: 'at_warehouse', label: 'На складе',  icon: uiIcon('package', 13),   color: '#fb923c' },
   { id: 'in_stock',     label: 'В наличии',  icon: '●',  color: '#4ade80' },
   { id: 'processing',   label: 'В заказе',   icon: '○',  color: '#93c5fd' },
   { id: 'done',         label: 'Завершено',  icon: '✓',  color: 'rgba(255,255,255,0.22)' },
@@ -18,18 +59,18 @@ const OWNER_COLORS = [
 ];
 
 const LOG_META = {
-  item_add:     { icon: '➕', color: 'rgba(48,209,88,.15)' },
-  item_edit:    { icon: '✏️', color: 'rgba(124,109,250,.15)' },
-  item_delete:  { icon: '🗑', color: 'rgba(248,113,113,.15)' },
-  owner_add:    { icon: '👤', color: 'rgba(48,209,88,.15)' },
-  owner_edit:   { icon: '✏️', color: 'rgba(124,109,250,.15)' },
-  owner_delete: { icon: '🗑', color: 'rgba(248,113,113,.15)' },
-  backup:       { icon: '💾', color: 'rgba(59,130,246,.15)' },
-  restore:      { icon: '📂', color: 'rgba(255,159,10,.15)' },
-  clear:        { icon: '🧹', color: 'rgba(248,113,113,.15)' },
+  item_add:     { icon: uiIcon('plus', 13),    color: 'rgba(48,209,88,.15)' },
+  item_edit:    { icon: uiIcon('edit', 12),    color: 'rgba(127,127,127,.18)' },
+  item_delete:  { icon: uiIcon('trash', 12),   color: 'rgba(248,113,113,.15)' },
+  owner_add:    { icon: uiIcon('user', 13),    color: 'rgba(48,209,88,.15)' },
+  owner_edit:   { icon: uiIcon('edit', 12),    color: 'rgba(127,127,127,.18)' },
+  owner_delete: { icon: uiIcon('trash', 12),   color: 'rgba(248,113,113,.15)' },
+  backup:       { icon: uiIcon('save', 12),    color: 'rgba(59,130,246,.15)' },
+  restore:      { icon: uiIcon('folder', 12),  color: 'rgba(255,159,10,.15)' },
+  clear:        { icon: uiIcon('xCircle', 13), color: 'rgba(248,113,113,.15)' },
 };
 
-const DEFAULT_COLOR = '#7c6dfa';
+const DEFAULT_COLOR = '#a1a1aa';
 
 const statusById = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
 const fmtNum = (n) => n == null ? '' : Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
@@ -528,7 +569,7 @@ class App {
         <div class="settings-row-icon" style="background:rgba(124,109,250,.12);color:var(--accent);font-weight:700">${(usr.name || usr.login || '?')[0].toUpperCase()}</div>
         <div class="settings-row-info">
           <div class="settings-row-title">${this.esc(usr.name || usr.login)}${usr.role === 'root' ? ' · root' : ''}</div>
-          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · ${!Array.isArray(usr.access) || usr.access.length >= 6 ? 'все разделы' : `разделов: ${usr.access.length}/6`}${usr.hideCosts ? ' · без закупа' : ''}${usr.notify?.length ? ` · 🔔 ${usr.notify.length}` : ''}`}</div>
+          <div class="settings-row-sub">@${this.esc(usr.login)}${usr.role === 'root' ? '' : ` · ${!Array.isArray(usr.access) || usr.access.length >= 6 ? 'все разделы' : `разделов: ${usr.access.length}/6`}${usr.hideCosts ? ' · без закупа' : ''}${usr.notify?.length ? ` · увед. ${usr.notify.length}` : ''}`}</div>
         </div>
         ${usr.role === 'root' ? '' : `
           <button class="menu-del-btn user-edit-btn" data-uid="${usr.id}">${svgEdit}</button>
@@ -586,12 +627,12 @@ class App {
     const el = document.getElementById('userNotifyChips');
     if (!el) return;
     const CATS = {
-      item_add:    '➕ Новый товар',
-      item_edit:   '✏️ Изменение товара',
-      item_delete: '🗑 Удаление товара',
-      finance:     '💳 Финансы',
-      owners:      '👥 Сотрудники',
-      system:      '⚙️ Система / бэкапы',
+      item_add:    'Новый товар',
+      item_edit:   'Изменение товара',
+      item_delete: 'Удаление товара',
+      finance:     'Финансы',
+      owners:      'Сотрудники',
+      system:      'Система / бэкапы',
     };
     el.innerHTML = Object.entries(CATS).map(([c, label]) =>
       `<button type="button" class="vis-chip${selected.includes(c) ? ' active' : ''}" data-ncat="${c}">${label}</button>`
@@ -606,7 +647,7 @@ class App {
   _renderAccessChips(access) {
     const el = document.getElementById('userAccessChips');
     if (!el) return;
-    const LABELS = { inventory: '📦 Товары', stats: '📊 Статистика', finance: '💳 Счёт', project: '📁 Proj', site: '🌐 Сайт', faq: '📖 FAQ' };
+    const LABELS = { inventory: 'Товары', stats: 'Статистика', finance: 'Счёт', project: 'Проект', site: 'Сайт', faq: 'Терминал' };
     const on = s => !Array.isArray(access) || access.includes(s);
     el.innerHTML = Object.entries(LABELS).map(([s, label]) =>
       `<button type="button" class="vis-chip${on(s) ? ' active' : ''}" data-acc="${s}">${label}</button>`
@@ -663,7 +704,7 @@ class App {
     const onlyMe = selected?.includes('__none__');
     el.innerHTML =
       `<button type="button" class="vis-chip${allActive ? ' active' : ''}" data-vis="all">Все</button>` +
-      `<button type="button" class="vis-chip${onlyMe ? ' active' : ''}" data-vis="__none__">🔒 Только я</button>` +
+      `<button type="button" class="vis-chip${onlyMe ? ' active' : ''}" data-vis="__none__">${uiIcon('lock', 11)} Только я</button>` +
       (users.length
         ? users.map(u => `<button type="button" class="vis-chip${selected?.includes(u.id) ? ' active' : ''}" data-vis="${u.id}">${this.esc(u.name || u.login)}</button>`).join('')
         : '');
@@ -3149,7 +3190,7 @@ class App {
     await this.renderInventoryList();
     this.updateDeliveryBar();
     const names = found.map(id => this.items.find(i => i.id === id)?.name).filter(Boolean);
-    this.toast(`📦 ${found.length} тов.: ${names.join(', ').slice(0, 120)}${names.join(', ').length > 120 ? '…' : ''}`);
+    this.toast(`${found.length} тов.: ${names.join(', ').slice(0, 120)}${names.join(', ').length > 120 ? '…' : ''}`);
   }
 
   /* Bulk: удаление выбранных — одним запросом, с подтверждением */
@@ -3929,8 +3970,8 @@ class App {
 
     const balanceExtra = (expPending || expPaid)
       ? `<div class="emp-bal-split">
-           ${expPending ? `<span>🧾 ${fmtMoney(expPending)} долг (из своих)</span>` : ''}
-           ${expPaid ? `<span>✅ ${fmtMoney(expPaid)} возвращено</span>` : ''}
+           ${expPending ? `<span>${uiIcon('receipt', 11)} ${fmtMoney(expPending)} долг (из своих)</span>` : ''}
+           ${expPaid ? `<span>${uiIcon('checkCircle', 11)} ${fmtMoney(expPaid)} возвращено</span>` : ''}
          </div>`
       : '';
 
@@ -3940,7 +3981,7 @@ class App {
            const isCredit  = p.type === 'credit';
            const isExpense = p.isExpense;
            const cls = isExpense ? 'expense' : (isCredit ? 'deposit' : 'charge');
-           const icon = isExpense ? '🧾' : (isCredit ? '+' : '−');
+           const icon = isExpense ? uiIcon('receipt', 12) : (isCredit ? '+' : '−');
            const defaultDesc = isExpense ? 'Расход из своих' : (isCredit ? 'Начисление' : 'Выплата');
            return `<div class="pay-entry" style="animation-delay:${Math.min(idx*20,180)}ms">
              <div class="pay-icon ${cls}">${icon}</div>
@@ -3951,7 +3992,7 @@ class App {
              ${isExpense
                ? `<div class="pay-amount-col">
                     <div class="pay-amount expense">${fmtMoney(p.amount)}</div>
-                    <div class="pay-return-label">${p.reimbursed ? '✅ возвращено' : 'долг'}</div>
+                    <div class="pay-return-label">${p.reimbursed ? 'возвращено ✓' : 'долг'}</div>
                   </div>`
                : `<div class="pay-amount ${cls}">${isCredit ? '+' : '−'}${fmtMoney(p.amount)}</div>`}
              <button class="pay-del" data-id="${p.id}">
@@ -4102,8 +4143,8 @@ class App {
           <div class="owner-sub">${cntMap[o.id] || 0} шт · ${fmtMoney(valMap[o.id] || 0)}${o.profitPercent ? ` · ${o.profitPercent}% с продажи` : ''}</div>
         </div>
         <div class="owner-card-actions">
-          <button class="btn-icon-sm edit-owner" data-id="${o.id}">✏️</button>
-          <button class="btn-icon-sm danger del-owner" data-id="${o.id}">🗑</button>
+          <button class="btn-icon-sm edit-owner" data-id="${o.id}">${uiIcon('edit', 13)}</button>
+          <button class="btn-icon-sm danger del-owner" data-id="${o.id}">${uiIcon('trash', 13)}</button>
         </div>
       </div>`).join('')}</div>`;
 
@@ -4495,9 +4536,9 @@ class App {
         ${isRoot ? `<div class="prof-tools" id="profTools">
           <button class="icon-btn" data-act="tg" title="Бэкап в Telegram · авто раз в 24 ч, последний: ${this.backup.getLastTimeStr()}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
           <button class="icon-btn" data-act="json" title="Скачать JSON"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
-          <button class="icon-btn" data-act="digest" title="Сводка задач в Telegram">🌙</button>
+          <button class="icon-btn" data-act="digest" title="Сводка задач в Telegram">${uiIcon('bell', 15)}</button>
           <button class="icon-btn" data-act="restore" title="Восстановить из файла"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
-          <button class="icon-btn" data-act="theme" title="Переключить тему">${(localStorage.getItem('inv_theme') || 'dark') === 'dark' ? '☀️' : '🌙'}</button>
+          <button class="icon-btn" data-act="theme" title="Переключить тему">${uiIcon((localStorage.getItem('inv_theme') || 'dark') === 'dark' ? 'sun' : 'moon', 15)}</button>
           <span class="prof-tools-sep"></span>
           <button class="icon-btn" data-sec="users" title="Пользователи"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></button>
           <button class="icon-btn" data-sec="owners" title="Участники"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
@@ -4552,7 +4593,7 @@ class App {
       } else if (act === 'theme') {
         const next = (localStorage.getItem('inv_theme') || 'dark') === 'dark' ? 'light' : 'dark';
         this.applyTheme(next);
-        b.textContent = next === 'dark' ? '☀️' : '🌙';
+        b.innerHTML = uiIcon(next === 'dark' ? 'sun' : 'moon', 15);
       } else if (sec) {
         const mount = document.getElementById('profileMenuMount');
         const target = mount.querySelector(`.menu-acc[data-acc="${sec}"]`);
@@ -4613,7 +4654,7 @@ class App {
         <div class="mynote-meta">
           <span>${this.fmtDate(n.updatedAt || n.createdAt)}</span>
           <span class="spacer"></span>
-          <button class="mynote-btn mn-pin" title="${n.pinned ? 'Открепить' : 'Закрепить'}">📌</button>
+          <button class="mynote-btn mn-pin" title="${n.pinned ? 'Открепить' : 'Закрепить'}">${uiIcon('pin', 12)}</button>
           <button class="mynote-btn mn-del" title="Удалить">✕</button>
         </div>
       </div>`).join('')
@@ -5105,7 +5146,8 @@ class App {
 
   /* ── Быстрый доступ ── */
   _quickTypeIcon(type) {
-    return { card:'💳', phone:'📞', address:'📍', password:'🔑', link:'🔗', other:'📋' }[type] || '📋';
+    const map = { card:'creditCard', phone:'phone', address:'mapPin', password:'key', link:'link', other:'clipboard' };
+    return uiIcon(map[type] || 'clipboard', 14);
   }
 
   async renderProjectQuick() {
@@ -5312,7 +5354,7 @@ class App {
       return `
       <div class="quick-item note-item" data-note-id="${n.id}">
         <div class="quick-head">
-          <div class="quick-type-icon" style="background:color-mix(in srgb, ${color} 24%, transparent)">📝</div>
+          <div class="quick-type-icon" style="background:color-mix(in srgb, ${color} 24%, transparent)">${uiIcon('fileText', 14)}</div>
           <span class="note-title">${this.esc(title)}${this._visBadge(n)}</span>
           <div class="quick-actions">
             <button class="quick-edit note-edit" title="Изменить">${svgEdit}</button>
@@ -5747,7 +5789,7 @@ class App {
     const items = await this.db.getFaqItems();
 
     if (!items.length) {
-      el.innerHTML = `<div class="site-mgmt-empty"><span>💬</span>Пока нет топиков — добавьте первый</div>`;
+      el.innerHTML = `<div class="site-mgmt-empty"><span>${uiIcon('msg', 16)}</span>Пока нет топиков — добавьте первый</div>`;
       return;
     }
 
@@ -5967,14 +6009,14 @@ class App {
     const el = document.getElementById('collectionsList');
     if (!this._collections.length) {
       el.innerHTML = `<div class="faq-empty">
-        <div style="font-size:28px">🗂</div>
+        <div style="opacity:.5">${uiIcon('folder', 30)}</div>
         <p>Подборок пока нет.<br>Создайте блок товаров — он появится на сайте.</p>
       </div>`;
       return;
     }
     el.innerHTML = `<div class="settings-section">` + this._collections.map(c => `
       <div class="settings-row" data-col-id="${c.id}">
-        <div class="settings-row-icon" style="background:rgba(52,211,153,.12)">🗂</div>
+        <div class="settings-row-icon" style="background:rgba(52,211,153,.12)">${uiIcon('folder', 14)}</div>
         <div class="settings-row-info">
           <div class="settings-row-title">${this.esc(c.title)}</div>
           <div class="settings-row-sub">${(c.itemIds || []).length} тов.${c.description ? ' · ' + this.esc(c.description) : ''}</div>
@@ -6009,7 +6051,7 @@ class App {
     }
     el.innerHTML = items.map(i => `
       <div class="col-pick-row${this._colPicked.has(i.id) ? ' picked' : ''}" data-item-id="${i.id}">
-        <div class="col-pick-thumb">${i.photo ? `<img src="${i.photo}" alt="">` : '📦'}</div>
+        <div class="col-pick-thumb">${i.photo ? `<img src="${i.photo}" alt="">` : uiIcon('image', 15)}</div>
         <div class="col-pick-info">
           <div class="col-pick-name">${this.esc(i.name)}</div>
           <div class="col-pick-sub">${i.isMonarc ? 'Monarc' : 'Type'}${i.price ? ' · ' + fmtMoney(i.price) : ''}</div>
@@ -6039,7 +6081,7 @@ class App {
     el.innerHTML = rows.map((i, k) => {
       const cover = i.thumbs?.[0] || i.photos?.[0] || i.photo;
       return `<div class="settings-row col-ord-row" data-ord-id="${i.id}">
-        <div class="col-pick-thumb">${cover ? `<img src="${this.esc(cover)}" alt="">` : '📦'}</div>
+        <div class="col-pick-thumb">${cover ? `<img src="${this.esc(cover)}" alt="">` : uiIcon('image', 15)}</div>
         <div class="settings-row-info">
           <div class="settings-row-title">${this.esc(i.name)}</div>
         </div>
@@ -6104,21 +6146,21 @@ class App {
     const el = document.getElementById('blocksList');
     if (!this._blocks.length) {
       el.innerHTML = `<div class="faq-empty">
-        <div style="font-size:28px">🧱</div>
+        <div style="opacity:.5">${uiIcon('layers', 30)}</div>
         <p>Блоков пока нет.<br>Добавьте баннер, текст или промо-полосу — они появятся на сайте.</p>
       </div>`;
       return;
     }
     const TYPE = {
-      banner: { t: 'Баннер', e: '🖼' }, weekly: { t: 'Товары недели', e: '⭐' },
-      duo: { t: 'Двойной баннер (старый)', e: '🖼' }, statement: { t: 'Слоган', e: '✦' },
-      marquee: { t: 'Бегущая строка', e: '➰' },
-      text: { t: 'Текст', e: '📝' }, promo: { t: 'Промо-полоса', e: '📣' },
-      popup: { t: 'Попап при входе', e: '🔔' }, cover: { t: 'Обложка раздела', e: '🏞' },
+      banner: { t: 'Баннер', e: uiIcon('image') }, weekly: { t: 'Товары недели', e: uiIcon('star') },
+      duo: { t: 'Двойной баннер (старый)', e: uiIcon('image') }, statement: { t: 'Слоган', e: '✦' },
+      marquee: { t: 'Бегущая строка', e: uiIcon('repeat', 13) },
+      text: { t: 'Текст', e: uiIcon('fileText') }, promo: { t: 'Промо-полоса', e: uiIcon('megaphone') },
+      popup: { t: 'Попап при входе', e: uiIcon('bell') }, cover: { t: 'Обложка раздела', e: uiIcon('image') },
     };
     const SEC  = { all: 'Оба сайта', monarc: 'Masqucerade', type: 'Type-clothes' };
     el.innerHTML = `<div class="settings-section">` + this._blocks.map((b, i) => {
-      const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
+      const meta  = TYPE[b.type] || { t: b.type, e: uiIcon('layers') };
       const label = b.type === 'promo' ? b.text : (b.heading || 'Без заголовка');
       return `<div class="settings-row block-row${b.enabled ? '' : ' off'}" data-block-id="${b.id}">
         ${this._blockThumb(b, meta.e)}
@@ -6129,7 +6171,7 @@ class App {
         <div class="block-row-actions">
           <button class="block-move" data-id="${b.id}" data-dir="up" title="Выше"${i === 0 ? ' disabled' : ''}>↑</button>
           <button class="block-move" data-id="${b.id}" data-dir="down" title="Ниже"${i === this._blocks.length - 1 ? ' disabled' : ''}>↓</button>
-          <button class="block-toggle" data-id="${b.id}" title="${b.enabled ? 'Скрыть' : 'Показать'}">${b.enabled ? '👁' : '🚫'}</button>
+          <button class="block-toggle" data-id="${b.id}" title="${b.enabled ? 'Скрыть' : 'Показать'}">${b.enabled ? uiIcon('eye', 13) : uiIcon('eyeOff', 13)}</button>
           <button class="block-delete-btn" data-id="${b.id}" title="Удалить">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
@@ -6321,7 +6363,7 @@ class App {
       const pickRows = pickable.length ? pickable.map(i => {
         const cover = i.thumbs?.[0] || i.photos?.[0] || i.photo;
         return `<div class="col-pick-row${picks.has(i.id) ? ' picked' : ''}" data-pick-id="${i.id}">
-          <div class="col-pick-thumb">${cover ? `<img src="${esc(cover)}" alt="">` : '📦'}</div>
+          <div class="col-pick-thumb">${cover ? `<img src="${esc(cover)}" alt="">` : uiIcon('image', 15)}</div>
           <div class="col-pick-info"><div class="col-pick-name">${esc(i.name)}</div><div class="col-pick-sub">${i.isMonarc ? 'Monarc' : 'Type'}${i.price ? ' · ' + fmtMoney(i.price) : ''}</div></div>
           <div class="col-pick-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
         </div>`;
@@ -6610,7 +6652,7 @@ class App {
       ? arr.map((x, i) => x.kind === 'block'
           ? this._blockRowHtml(x.ref, i, arr.length)
           : this._colRowHtml(x.ref, i, arr.length)).join('')
-      : '<div class="site-mgmt-empty"><span>🧱</span>Пока пусто — добавьте блок</div>';
+      : `<div class="site-mgmt-empty"><span>${uiIcon('layers', 16)}</span>Пока пусто — добавьте блок</div>`;
     pane.innerHTML = `
       <div class="site-sec-head">
         <div><div class="site-sec-title">Блоки и подборки</div><div class="site-sec-hint">У каждого сайта свой список; блок «Оба сайта» виден на обоих. Порядок — стрелками</div></div>
@@ -6637,7 +6679,7 @@ class App {
       .sort((a, b) => (b.views || 0) - (a.views || 0));
     if (!onSite.length) {
       pane.innerHTML = `<div class="site-empty-card">
-        <div class="site-empty-emoji">🛍️</div>
+        <div class="site-empty-emoji">${uiIcon('package', 30)}</div>
         <div class="site-empty-title">На витрине пока нет товаров</div>
         <div class="site-empty-sub">Откройте карточку товара и включите тумблер «На сайте» — он появится в каталоге витрины.</div>
       </div>`;
@@ -6649,8 +6691,8 @@ class App {
       const sold = it.orderStatus === 'done' || (it.quantity || 0) <= 0;
       return `<button class="site-item-card${sold ? ' sold' : ''}" data-site-item="${it.id}">
         <div class="site-item-thumb">
-          ${cov ? `<img src="${cov}" loading="lazy" alt="">` : `<span class="site-item-ph">🖼</span>`}
-          <span class="site-item-views">${eyeSvg}${fmtNum(it.views || 0)}${it.tgClicks ? ` · 💬${fmtNum(it.tgClicks)}` : ''}</span>
+          ${cov ? `<img src="${cov}" loading="lazy" alt="">` : `<span class="site-item-ph">${uiIcon('image', 15)}</span>`}
+          <span class="site-item-views">${eyeSvg}${fmtNum(it.views || 0)}${it.tgClicks ? ` · ${uiIcon('msg', 10)} ${fmtNum(it.tgClicks)}` : ''}</span>
           ${sold ? `<span class="site-item-sold">Продано</span>` : ''}
         </div>
         <div class="site-item-name">${this.esc(it.name || '—')}</div>
@@ -6661,7 +6703,7 @@ class App {
 
   /* ── Вкладка «Авито»: статус связки, заказы, объявления со статистикой ── */
   async _renderSiteAvito(pane) {
-    pane.innerHTML = `<div class="site-mgmt-empty"><span>🅰️</span>Подключаемся к Авито…</div>`;
+    pane.innerHTML = `<div class="site-mgmt-empty"><span>${uiIcon('tag', 16)}</span>Подключаемся к Авито…</div>`;
     const status = await this.db.getAvitoStatus();
 
     if (!status.configured) {
@@ -6700,8 +6742,8 @@ class App {
         </div>
         <button class="site-mini-add" id="avitoFeedCopy">Скопировать URL фида</button>
       </div>
-      <div id="avitoOrdersWrap"><div class="site-mgmt-empty"><span>📦</span>Загружаем заказы…</div></div>
-      <div id="avitoItemsWrap" style="margin-top:14px"><div class="site-mgmt-empty"><span>📋</span>Загружаем объявления…</div></div>`;
+      <div id="avitoOrdersWrap"><div class="site-mgmt-empty"><span>${uiIcon('package', 16)}</span>Загружаем заказы…</div></div>
+      <div id="avitoItemsWrap" style="margin-top:14px"><div class="site-mgmt-empty"><span>${uiIcon('clipboard', 16)}</span>Загружаем объявления…</div></div>`;
 
     document.getElementById('avitoFeedCopy')?.addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(status.feedUrl); this.toast('URL фида скопирован ✓ — вставьте в Авито → Автозагрузка'); }
@@ -6713,14 +6755,14 @@ class App {
       const orders = d.orders || d.result || [];
       const el = document.getElementById('avitoOrdersWrap');
       if (!el) return;
-      if (!orders.length) { el.innerHTML = `<div class="site-mgmt-empty"><span>📦</span>Заказов Авито Доставки пока нет</div>`; return; }
+      if (!orders.length) { el.innerHTML = `<div class="site-mgmt-empty"><span>${uiIcon('package', 16)}</span>Заказов Авито Доставки пока нет</div>`; return; }
       el.innerHTML = `<div class="settings-section">${orders.map(o => {
         const st = AV_ORDER_ST[o.status] || [o.status || '—', '#9ca3af'];
         const title = (o.items || []).map(x => x.title || x.name).filter(Boolean).join(', ') || `Заказ ${o.id ?? ''}`;
         const price = o.prices?.total ?? o.price ?? o.totalPrice ?? null;
         const when  = o.createdAt ? new Date((o.createdAt < 1e12 ? o.createdAt * 1000 : o.createdAt)).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
         return `<div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon" style="background:color-mix(in srgb, ${st[1]} 22%, transparent)">📦</div>
+          <div class="settings-row-icon" style="background:color-mix(in srgb, ${st[1]} 22%, transparent)">${uiIcon('package', 14)}</div>
           <div class="settings-row-info">
             <div class="settings-row-title">${this.esc(title)}</div>
             <div class="settings-row-sub" style="color:${st[1]}">${st[0]}${when ? ` · ${when}` : ''}</div>
@@ -6730,29 +6772,29 @@ class App {
       }).join('')}</div>`;
     }).catch(e => {
       const el = document.getElementById('avitoOrdersWrap');
-      if (el) el.innerHTML = `<div class="site-mgmt-empty"><span>📦</span>Заказы: ${this.esc(e.message)}</div>`;
+      if (el) el.innerHTML = `<div class="site-mgmt-empty"><span>${uiIcon('package', 16)}</span>Заказы: ${this.esc(e.message)}</div>`;
     });
 
     this.db.getAvitoItems().then(d => {
       const el = document.getElementById('avitoItemsWrap');
       if (!el) return;
       const items = d.items || [];
-      if (!items.length) { el.innerHTML = `<div class="site-mgmt-empty"><span>📋</span>Объявлений нет — включите товары в фид и настройте Автозагрузку</div>`; return; }
+      if (!items.length) { el.innerHTML = `<div class="site-mgmt-empty"><span>${uiIcon('clipboard', 16)}</span>Объявлений нет — включите товары в фид и настройте Автозагрузку</div>`; return; }
       el.innerHTML = `<div class="site-sec-title" style="margin-bottom:8px">Объявления · ${items.length} <span style="font-weight:400;font-size:11px;color:var(--text3)">просмотры/контакты/избранное за 30 дней</span></div>
       <div class="settings-section">${items.map(it => {
         const st = AV_ITEM_ST[it.status] || [it.status || '—', '#9ca3af'];
         const s = d.stats?.[it.id];
         return `<div class="settings-row" style="cursor:default">
-          <div class="settings-row-icon" style="background:color-mix(in srgb, ${st[1]} 22%, transparent)">🅰️</div>
+          <div class="settings-row-icon" style="background:color-mix(in srgb, ${st[1]} 22%, transparent)">${uiIcon('tag', 13)}</div>
           <div class="settings-row-info">
             <div class="settings-row-title">${it.url ? `<a href="${this.esc(it.url)}" target="_blank" rel="noopener" style="color:inherit">${this.esc(it.title || '—')}</a>` : this.esc(it.title || '—')}</div>
-            <div class="settings-row-sub"><span style="color:${st[1]}">${st[0]}</span>${it.price ? ` · ${fmtMoney(it.price)}` : ''}${s ? ` · 👁 ${s.views} · 💬 ${s.contacts} · ❤️ ${s.favorites}` : ''}</div>
+            <div class="settings-row-sub"><span style="color:${st[1]}">${st[0]}</span>${it.price ? ` · ${fmtMoney(it.price)}` : ''}${s ? ` · ${uiIcon('eye', 10)} ${s.views} · ${uiIcon('msg', 10)} ${s.contacts} · ${uiIcon('heart', 10)} ${s.favorites}` : ''}</div>
           </div>
         </div>`;
       }).join('')}</div>`;
     }).catch(e => {
       const el = document.getElementById('avitoItemsWrap');
-      if (el) el.innerHTML = `<div class="site-mgmt-empty"><span>📋</span>Объявления: ${this.esc(e.message)}</div>`;
+      if (el) el.innerHTML = `<div class="site-mgmt-empty"><span>${uiIcon('clipboard', 16)}</span>Объявления: ${this.esc(e.message)}</div>`;
     });
   }
 
@@ -6760,7 +6802,7 @@ class App {
   _renderSiteOrders(pane) {
     const orders = this._orders || [];
     if (!orders.length) {
-      pane.innerHTML = `<div class="site-mgmt-empty"><span>🛍</span>Заявок пока нет — они появятся здесь и придут в Telegram</div>`;
+      pane.innerHTML = `<div class="site-mgmt-empty"><span>${uiIcon('package', 16)}</span>Заявок пока нет — они появятся здесь и придут в Telegram</div>`;
       return;
     }
     const fmtD = ts => new Date(ts).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -6843,14 +6885,14 @@ class App {
 
   _blockRowHtml(b, i, n) {
     const TYPE = {
-      banner: { t: 'Баннер', e: '🖼' }, weekly: { t: 'Товары недели', e: '⭐' },
-      duo: { t: 'Двойной баннер (старый)', e: '🖼' },
-      statement: { t: 'Слоган', e: '✦' }, text: { t: 'Текст', e: '📝' },
-      marquee: { t: 'Бегущая строка', e: '➰' }, promo: { t: 'Промо-полоса', e: '📣' },
-      popup: { t: 'Попап при входе', e: '🔔' }, cover: { t: 'Обложка раздела', e: '🏞' },
+      banner: { t: 'Баннер', e: uiIcon('image') }, weekly: { t: 'Товары недели', e: uiIcon('star') },
+      duo: { t: 'Двойной баннер (старый)', e: uiIcon('image') },
+      statement: { t: 'Слоган', e: '✦' }, text: { t: 'Текст', e: uiIcon('fileText') },
+      marquee: { t: 'Бегущая строка', e: uiIcon('repeat', 13) }, promo: { t: 'Промо-полоса', e: uiIcon('megaphone') },
+      popup: { t: 'Попап при входе', e: uiIcon('bell') }, cover: { t: 'Обложка раздела', e: uiIcon('image') },
     };
     const SEC  = { all: 'Оба сайта', monarc: 'Masqucerade', type: 'Type-clothes' };
-    const meta  = TYPE[b.type] || { t: b.type, e: '🧩' };
+    const meta  = TYPE[b.type] || { t: b.type, e: uiIcon('layers') };
     const label = (b.type === 'promo' || b.type === 'marquee' || b.type === 'statement') ? b.text
       : b.type === 'duo' ? (b.captionA || b.captionB || 'Двойной баннер')
       : b.type === 'banner' ? (b.heading || 'Баннер')
@@ -6865,7 +6907,7 @@ class App {
       </div>
       <div class="block-row-actions">
         ${this._streamMoves(i, n)}
-        <button class="block-toggle" data-id="${b.id}" title="${b.enabled ? 'Скрыть' : 'Показать'}">${b.enabled ? '👁' : '🚫'}</button>
+        <button class="block-toggle" data-id="${b.id}" title="${b.enabled ? 'Скрыть' : 'Показать'}">${b.enabled ? uiIcon('eye', 13) : uiIcon('eyeOff', 13)}</button>
         <button class="block-delete-btn" data-id="${b.id}" title="Удалить">${this._trashSvg()}</button>
       </div>
     </div>`;
@@ -6873,7 +6915,7 @@ class App {
 
   _colRowHtml(c, i, n) {
     return `<div class="settings-row col-row" data-col-id="${c.id}" data-kind="col">
-      <div class="settings-row-icon" style="background:rgba(52,211,153,.12)">🗂</div>
+      <div class="settings-row-icon" style="background:rgba(52,211,153,.12)">${uiIcon('folder', 14)}</div>
       <div class="settings-row-info">
         <div class="settings-row-title">${this.esc(c.title || 'Без названия')} <span class="row-tag">подборка</span></div>
         <div class="settings-row-sub">${(c.itemIds || []).length} тов.${c.description ? ' · ' + this.esc(c.description) : ''}</div>
@@ -7011,7 +7053,7 @@ class App {
     // Кнопки #saveBtn больше нет в разметке — бэкап запускается из меню
     const ok = await this.backup.manualSave();   // no arg needed
     if (ok) await this.db.logAction('backup', 'Создан бэкап вручную');
-    this.toast(ok ? '💾 Бэкап сохранён' : '❌ Ошибка бэкапа');
+    this.toast(ok ? 'Бэкап сохранён ✓' : 'Ошибка бэкапа');
   }
 
   /* ──────────────────────────────────────────
@@ -7035,15 +7077,23 @@ class App {
   /* ──────────────────────────────────────────
      TOAST
      ────────────────────────────────────────── */
-  toast(msg, ms = 2200) {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.classList.remove('hidden');
-    clearTimeout(this._toastTimer);
-    requestAnimationFrame(() => el.classList.add('show'));
-    this._toastTimer = setTimeout(() => {
-      el.classList.remove('show');
-      setTimeout(() => el.classList.add('hidden'), 260);
+  /* Тосты: стопка справа внизу, иконка по типу сообщения (✓ / ! / i) */
+  toast(msg, ms = 2600) {
+    const stack = document.getElementById('toastStack');
+    if (!stack) return;
+    const ok  = /✓/.test(msg);
+    const err = /ошибк|не удалось|нельзя|не найден|нет в наличии|укажите|выберите|введите|заполните/i.test(msg);
+    const text = String(msg).replace(/\s*✓\s*$/, '');
+    const t = document.createElement('div');
+    t.className = 'toast-item';
+    t.innerHTML = `<span class="toast-ic ${ok ? 'ok' : err ? 'err' : ''}">${uiIcon(ok ? 'checkCircle' : err ? 'alert' : 'info', 15)}</span><span>${this.esc(text)}</span>`;
+    stack.appendChild(t);
+    while (stack.children.length > 4) stack.firstElementChild.remove();
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => {
+      t.classList.remove('show');
+      t.classList.add('hide');
+      setTimeout(() => t.remove(), 300);
     }, ms);
   }
 
