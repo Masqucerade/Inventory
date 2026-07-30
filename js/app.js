@@ -230,7 +230,7 @@ class App {
   /* ── Доступ к разделам ── */
   hasAccess(section) {
     if (section === 'settings') section = 'faq';   // вкладка FAQ = view "settings"
-    if (section === 'promos')   section = 'site';  // промокоды — часть витрины
+    
     const u = this.currentUser;
     if (!u) return false;
     if (section === 'profile') return true;        // личная страница есть у каждого
@@ -288,7 +288,7 @@ class App {
       this.renderView('profile');
     });
     card.querySelector('#sbLogout').addEventListener('click', async () => {
-      if (!await this.confirm('Выйти из аккаунта?')) return;
+      if (!await this.confirm('Выйти из аккаунта?', 'Выйти')) return;
       await this.db.logout();
       location.reload();
     });
@@ -578,7 +578,7 @@ class App {
     this._roles = roles;
     this.users  = users;
 
-    const SEC_N = 6;
+    const SEC_N = 8;
     const roleUsers = r => users.filter(u => u.roleId === r.id);
     const accessSub = (access, hideCosts) =>
       `${!Array.isArray(access) || access.length >= SEC_N ? 'все разделы' : `разделов: ${access.length}/${SEC_N}`}${hideCosts ? ' · без закупа' : ''}`;
@@ -643,7 +643,7 @@ class App {
       this.openRoleModal(this._roles.find(x => x.id === b.dataset.id))));
     el.querySelectorAll('.role-apply').forEach(b => b.addEventListener('click', async () => {
       const r = this._roles.find(x => x.id === b.dataset.id);
-      if (!await this.confirm(`Обновить права всех пользователей с ролью «${r.name}» по её текущим настройкам?`)) return;
+      if (!await this.confirm(`Обновить права всех пользователей с ролью «${r.name}» по её текущим настройкам?`, 'Применить', false)) return;
       const d = await this.db.applyRole(r.id);
       this.toast(`Роль применена к ${d.applied} польз. ✓`);
       this.renderRolesView();
@@ -780,7 +780,7 @@ class App {
   _renderAccessChips(access, containerId = 'userAccessChips') {
     const el = document.getElementById(containerId);
     if (!el) return;
-    const LABELS = { inventory: 'Товары', stats: 'Статистика', finance: 'Счёт', project: 'Проект', site: 'Сайт', faq: 'Терминал' };
+    const LABELS = { inventory: 'Товары', stats: 'Статистика', finance: 'Счёт', project: 'Проект', site: 'Сайт', promos: 'Промокоды', faq: 'Терминал', terminal: 'Журнал (консоль)' };
     const on = s => !Array.isArray(access) || access.includes(s);
     el.innerHTML = Object.entries(LABELS).map(([s, label]) =>
       `<button type="button" class="vis-chip${on(s) ? ' active' : ''}" data-acc="${s}">${label}</button>`
@@ -4199,7 +4199,7 @@ class App {
       const ids   = [...this._debtSelection];
       const total = debts.filter(d => ids.includes(d.id))
                          .reduce((s, d) => s + (Number(d.amount) || 0), 0);
-      const ok = await this.confirm(`Погасить выбранные долги на ${fmtMoney(total)}? Сумма спишется из бюджета компании.`);
+      const ok = await this.confirm(`Погасить выбранные долги на ${fmtMoney(total)}? Сумма спишется из бюджета компании.`, 'Погасить', false);
       if (!ok) return;
       try {
         const r = await this.db.reimburseExpenses(ids);
@@ -4846,7 +4846,7 @@ class App {
       catch (e) { this.toast(e.message || 'Ошибка'); }
     });
     document.getElementById('profLogoutBtn')?.addEventListener('click', async () => {
-      if (!await this.confirm('Выйти из аккаунта?')) return;
+      if (!await this.confirm('Выйти из аккаунта?', 'Выйти')) return;
       await this.db.logout();
       this.currentUser = null;
       this.showLogin();
@@ -7325,7 +7325,7 @@ class App {
   }
 
   async clearLogs() {
-    const ok = await this.confirm('Очистить всю историю изменений?');
+    const ok = await this.confirm('Очистить всю историю изменений?', 'Очистить');
     if (!ok) return;
     await this.db.clearLogs();
     await this.renderLogs();

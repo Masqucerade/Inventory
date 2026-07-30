@@ -483,7 +483,7 @@ function visibleTo(rec, user) {
 /* ─── ДОСТУП К РАЗДЕЛАМ (критические точки) ───
    У пользователя может быть access: ['inventory','stats','finance','project','faq'].
    Root видит всё. Если access не задан — полный доступ (обратная совместимость). */
-const SECTIONS = ['inventory', 'stats', 'finance', 'project', 'site', 'faq'];
+const SECTIONS = ['inventory', 'stats', 'finance', 'project', 'site', 'promos', 'faq', 'terminal'];
 function hasAccess(user, section) {
   if (user.role === 'root') return true;
   if (!Array.isArray(user.access)) return true;
@@ -1066,7 +1066,7 @@ function checkPromo(db, codeRaw, total) {
   return { promo: p, discount };
 }
 
-app.use('/api/promos', (req, res, next) => requireAccess('site')(req, res, next));
+app.use('/api/promos', (req, res, next) => requireAccess('promos')(req, res, next));
 
 app.get('/api/promos', (req, res) => res.json((load().promos || []).slice().reverse()));
 
@@ -2681,6 +2681,25 @@ function migrateCreatedAt() {
   if (n) { save(db); console.log(`createdAt migration: ${n} item(s) restored`); }
 }
 
+// Разовая миграция: раздел 'promos' выделился из 'site' — у кого была
+// витрина, у того остаются и промокоды (пользователи и роли)
+function migrateAccessPromos() {
+  const db = load();
+  if (db.meta?.accessPromos) return;
+  let n = 0;
+  const grant = rec => {
+    if (Array.isArray(rec.access) && rec.access.includes('site') && !rec.access.includes('promos')) {
+      rec.access.push('promos'); n++;
+    }
+  };
+  (db.users || []).forEach(grant);
+  (db.roles || []).forEach(grant);
+  if (!db.meta) db.meta = {};
+  db.meta.accessPromos = true;
+  save(db);
+  if (n) console.log(`access migration: promos granted to ${n} user(s)/role(s)`);
+}
+
 // Разовая миграция: у существующих участников с настроенным access добавить
 // раздел 'site' (появился позже) — чтобы вкладка «Сайт» осталась доступной,
 // но теперь её можно снять галочкой. Root и «полный доступ» (access=null) — мимо.
@@ -2807,6 +2826,7 @@ app.listen(PORT, () => {
     .catch(e => console.error('migration error:', e.message));
   avitoRegisterWebhook();
   migrateSiteAccess();
+  migrateAccessPromos();
   migratePanelGuide();
   scheduleBackup();
   scheduleTaskDigest();
