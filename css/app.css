@@ -4600,3 +4600,12 @@ body.select-mode .row-check { display: block; }
   html.is-web .inv-mode-seg button:hover { color: var(--text); }
   html.is-web .inv-mode-seg button.on { background: var(--fill3); color: var(--text); }
 }
+
+/* Кнопки вида/QR — вправо на линию заголовка, не занимают свою строку (веб) */
+@media (min-width: 1000px) {
+  html.is-web .inv-header { position: relative; }
+  html.is-web .inv-header .header-row {
+    position: absolute; top: 44px; right: 32px;
+    height: auto; width: auto;
+  }
+}
