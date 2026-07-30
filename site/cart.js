@@ -11,6 +11,11 @@
   const read  = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
   const write = (list) => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch {} updateBadge(); };
 
+  /* ── Применённый промокод (переживает перезагрузку страницы) ── */
+  const PKEY = 'mqPromo';
+  const readPromo  = () => { try { return localStorage.getItem(PKEY) || ''; } catch { return ''; } };
+  const writePromo = (code) => { try { code ? localStorage.setItem(PKEY, code) : localStorage.removeItem(PKEY); } catch {} };
+
   /* ── Бейдж на иконке корзины в шапке ── */
   function updateBadge() {
     const n = read().length;
@@ -80,6 +85,23 @@
     if (!live.length) { render(); return; }
 
     const total = live.reduce((s, c) => s + (byId.get(c.id).price || 0), 0);
+
+    // Сохранённый промокод перепроверяем на сервере при каждом открытии —
+    // мог истечь, выключиться или перестать проходить по сумме
+    let promo = null, promoMsg = '';
+    const savedCode = readPromo();
+    if (savedCode) {
+      try {
+        const r = await fetch('/api/public/promo-check', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: savedCode, ids: live.map(c => c.id) }),
+        });
+        const d = await r.json();
+        if (r.ok && d.ok) promo = d;
+        else { writePromo(''); promoMsg = d.error || 'Промокод больше не действует'; }
+      } catch (_) { /* сеть моргнула — не сбрасываем код */ }
+    }
+
     body.innerHTML = `
       <div class="co-list">
         ${live.map(c => {
@@ -97,7 +119,20 @@
           </div>`;
         }).join('')}
       </div>
-      <div class="co-total"><span>Итого</span><b>${fmtPrice(total)}</b></div>
+      <div class="co-promo">
+        ${promo
+          ? `<div class="co-promo-applied">
+               <span>Промокод <b>${esc(promo.code)}</b> · ${esc(promo.label)}</span>
+               <button type="button" id="coPromoRemove">убрать</button>
+             </div>`
+          : `<div class="co-promo-row">
+               <input class="co-input co-promo-input" id="coPromoInput" type="text" placeholder="Промокод" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false">
+               <button class="tg-btn ghost co-promo-btn" id="coPromoApply" type="button">Применить</button>
+             </div>`}
+        <p class="co-promo-msg" id="coPromoMsg" ${promoMsg ? '' : 'hidden'}>${esc(promoMsg)}</p>
+      </div>
+      ${promo ? `<div class="co-total co-discount"><span>Скидка</span><b>−${fmtPrice(promo.discount).replace(' ₽', '')} ₽</b></div>` : ''}
+      <div class="co-total"><span>Итого</span><b>${promo ? `<s class="co-total-old">${fmtPrice(total)}</s> ` : ''}${fmtPrice(promo ? promo.final : total)}</b></div>
       <form class="co-form" id="coForm">
         <p class="co-form-title">Оформление заявки</p>
         <input class="co-input" id="coName" type="text" placeholder="Имя" autocomplete="name" maxlength="100">
@@ -115,6 +150,35 @@
         render();
       }));
 
+    /* Промокод: применить / убрать */
+    const applyPromo = async () => {
+      const inp = body.querySelector('#coPromoInput');
+      const msg = body.querySelector('#coPromoMsg');
+      const code = (inp.value || '').trim();
+      if (!code) { inp.focus(); return; }
+      const btn = body.querySelector('#coPromoApply');
+      btn.disabled = true; btn.textContent = '…';
+      try {
+        const r = await fetch('/api/public/promo-check', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, ids: read().map(c => c.id) }),
+        });
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.error || 'Промокод не найден');
+        writePromo(d.code);
+        render();
+      } catch (err) {
+        btn.disabled = false; btn.textContent = 'Применить';
+        msg.textContent = err.message;
+        msg.hidden = false;
+      }
+    };
+    body.querySelector('#coPromoApply')?.addEventListener('click', applyPromo);
+    body.querySelector('#coPromoInput')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); applyPromo(); }
+    });
+    body.querySelector('#coPromoRemove')?.addEventListener('click', () => { writePromo(''); render(); });
+
     body.querySelector('#coForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const contact = body.querySelector('#coContact').value.trim();
@@ -129,11 +193,13 @@
             name:    body.querySelector('#coName').value.trim(),
             contact,
             comment: body.querySelector('#coComment').value.trim(),
+            promoCode: readPromo() || undefined,
           }),
         });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || 'Ошибка');
         write([]);
+        writePromo('');
         body.innerHTML = `<div class="co-empty co-success">
           <p>Заявка отправлена ✓</p>
           <span>Мы свяжемся с вами в ближайшее время — подтвердим наличие и обсудим доставку.</span>

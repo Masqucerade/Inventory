@@ -701,6 +701,32 @@ app.post('/api/public/cart-info', (req, res) => {
     .filter(Boolean).map(publicItem));
 });
 
+/* Проверка промокода из корзины. Сумму считаем по своим ценам — данным
+   клиента не доверяем. Лимит: 30 проверок в час с IP (защита от перебора). */
+const _promoRate = new Map();
+app.post('/api/public/promo-check', (req, res) => {
+  const ip  = req.ip || 'x';
+  const now = Date.now();
+  const hits = (_promoRate.get(ip) || []).filter(t => now - t < 3600_000);
+  if (hits.length >= 30) return res.status(429).json({ error: 'Слишком много попыток — позже' });
+  hits.push(now); _promoRate.set(ip, hits);
+
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.slice(0, 50) : [];
+  const db  = load();
+  const total = ids
+    .map(id => (db.items || []).find(i => i.id === id && i.showOnSite && !isSoldOut(i)))
+    .filter(Boolean).reduce((s, i) => s + (i.price || 0), 0);
+  const r = checkPromo(db, req.body?.code, total);
+  if (r.error) return res.status(400).json({ error: r.error });
+  res.json({
+    ok: true,
+    code: r.promo.code,
+    label: r.promo.type === 'percent' ? `−${r.promo.value}%` : `−${new Intl.NumberFormat('ru-RU').format(r.promo.value)} ₽`,
+    discount: r.discount,
+    total, final: total - r.discount,
+  });
+});
+
 /* Заявка с сайта (корзина → оформление). Лимит: 5 заявок в час с IP. */
 const _orderRate = new Map();
 app.post('/api/public/order', (req, res) => {
@@ -725,21 +751,35 @@ app.post('/api/public/order', (req, res) => {
   }).filter(Boolean);
   if (!items.length) return res.status(400).json({ error: 'Товары не найдены' });
 
+  // Промокод: перевалидируем на сервере по своим ценам; невалидный не роняет
+  // заявку — просто игнорируется (клиент уже видел ошибку при вводе)
+  const fmtR  = n => new Intl.NumberFormat('ru-RU').format(n);
+  const total = items.reduce((s, i) => s + (i.price || 0), 0);
+  let promo = null;
+  if (b.promoCode) {
+    const r = checkPromo(db, b.promoCode, total);
+    if (r.promo) {
+      promo = { code: r.promo.code, type: r.promo.type, value: r.promo.value, discount: r.discount };
+      r.promo.uses = (r.promo.uses || 0) + 1;
+    }
+  }
+
   if (!db.orders) db.orders = [];
-  const order = { id: uid(), createdAt: new Date().toISOString(), name, contact, comment, items, status: 'new' };
+  const order = { id: uid(), createdAt: new Date().toISOString(), name, contact, comment, items, promo, status: 'new' };
   db.orders.push(order);
   // Журнал панели
   addLog({ id: uid(), ts: order.createdAt, type: 'site_order', user: 'site',
-    desc: `Заявка с сайта: ${items.length} тов. · ${contact}`, meta: { level: 'warn' } });
+    desc: `Заявка с сайта: ${items.length} тов. · ${contact}${promo ? ` · промокод ${promo.code} (−${fmtR(promo.discount)} ₽)` : ''}`, meta: { level: 'warn' } });
   save(db);
 
   // Telegram: в общий чат и лично каждому root
-  const fmtR = n => new Intl.NumberFormat('ru-RU').format(n);
-  const total = items.reduce((s, i) => s + (i.price || 0), 0);
   const text =
     `<b>MASQUCERADE INC.</b>\n<i>🛍 Новая заявка с сайта</i>\n\n` +
     items.map(i => `• ${escAttr(i.name)}${i.size ? ` · ${escAttr(i.size)}` : ''} — ${i.price != null ? fmtR(i.price) + ' ₽' : '—'}`).join('\n') +
-    `\n\nИтого: <b>${fmtR(total)} ₽</b>` +
+    (promo
+      ? `\n\nПромокод <b>${escAttr(promo.code)}</b>: −${fmtR(promo.discount)} ₽` +
+        `\nИтого со скидкой: <b>${fmtR(total - promo.discount)} ₽</b> <s>${fmtR(total)} ₽</s>`
+      : `\n\nИтого: <b>${fmtR(total)} ₽</b>`) +
     `\nИмя: ${escAttr(name || '—')}\nКонтакт: ${escAttr(contact)}` +
     (comment ? `\nКомментарий: ${escAttr(comment)}` : '');
   const token = process.env.TG_LOG_TOKEN;
@@ -997,6 +1037,84 @@ app.patch('/api/orders/:id', (req, res) => {
 app.delete('/api/orders/:id', (req, res) => {
   const db = load();
   db.orders = (db.orders || []).filter(x => x.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
+/* ─── СКИДКИ И ПРОМОКОДЫ ───
+   Промокод действует на всю корзину: type 'percent' (−N%) или 'fixed' (−N ₽).
+   Ограничители — все опциональные: minTotal (мин. сумма корзины), maxUses
+   (лимит применений; uses растёт при оформлении заявки), expiresAt (дата,
+   включительно до конца дня). Коды хранятся капсом, сравнение без регистра. */
+function checkPromo(db, codeRaw, total) {
+  const code = String(codeRaw || '').trim().toUpperCase().slice(0, 40);
+  if (!code) return { error: 'Введите промокод' };
+  const p = (db.promos || []).find(x => x.code === code);
+  if (!p || !p.enabled) return { error: 'Промокод не найден' };
+  if (p.expiresAt && new Date(p.expiresAt + 'T23:59:59') < new Date()) return { error: 'Промокод истёк' };
+  if (p.maxUses && (p.uses || 0) >= p.maxUses) return { error: 'Промокод больше не действует' };
+  if (p.minTotal && total < p.minTotal)
+    return { error: `Промокод действует от ${new Intl.NumberFormat('ru-RU').format(p.minTotal)} ₽` };
+  const discount = p.type === 'percent'
+    ? Math.round(total * Math.min(p.value, 100) / 100)
+    : Math.min(p.value, total);
+  if (discount <= 0) return { error: 'Промокод не даёт скидку на эту корзину' };
+  return { promo: p, discount };
+}
+
+app.use('/api/promos', (req, res, next) => requireAccess('site')(req, res, next));
+
+app.get('/api/promos', (req, res) => res.json((load().promos || []).slice().reverse()));
+
+app.post('/api/promos', (req, res) => {
+  const b    = req.body || {};
+  const code = String(b.code || '').trim().toUpperCase().slice(0, 40);
+  if (!/^[A-ZА-ЯЁ0-9_-]{2,40}$/.test(code)) return res.status(400).json({ error: 'Код: 2–40 букв/цифр без пробелов' });
+  const type  = b.type === 'fixed' ? 'fixed' : 'percent';
+  const value = Math.max(1, Math.round(Number(b.value) || 0));
+  if (type === 'percent' && value > 100) return res.status(400).json({ error: 'Процент не может быть больше 100' });
+  const db = load();
+  if (!db.promos) db.promos = [];
+  if (db.promos.some(p => p.code === code)) return res.status(400).json({ error: 'Такой код уже есть' });
+  const p = {
+    id: uid(), code, type, value,
+    minTotal:  Number(b.minTotal) > 0 ? Math.round(Number(b.minTotal)) : null,
+    maxUses:   Number(b.maxUses)  > 0 ? Math.round(Number(b.maxUses))  : null,
+    expiresAt: /^\d{4}-\d{2}-\d{2}$/.test(String(b.expiresAt || '')) ? b.expiresAt : null,
+    note:      String(b.note || '').trim().slice(0, 200),
+    uses: 0, enabled: true,
+    createdAt: new Date().toISOString(),
+  };
+  db.promos.push(p);
+  addLog({ id: uid(), ts: p.createdAt, type: 'promo', user: req.user.name || req.user.login,
+    desc: `Промокод ${code} создан: −${value}${type === 'percent' ? '%' : ' ₽'}`, meta: { level: 'warn' } });
+  save(db);
+  res.json(p);
+});
+
+app.patch('/api/promos/:id', (req, res) => {
+  const db = load();
+  const p  = (db.promos || []).find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'not found' });
+  const b = req.body || {};
+  if (b.enabled !== undefined) p.enabled = !!b.enabled;
+  if (b.type !== undefined)  p.type  = b.type === 'fixed' ? 'fixed' : 'percent';
+  if (b.value !== undefined) p.value = Math.max(1, Math.round(Number(b.value) || 1));
+  if (p.type === 'percent' && p.value > 100) p.value = 100;
+  if (b.minTotal !== undefined)  p.minTotal  = Number(b.minTotal) > 0 ? Math.round(Number(b.minTotal)) : null;
+  if (b.maxUses !== undefined)   p.maxUses   = Number(b.maxUses)  > 0 ? Math.round(Number(b.maxUses))  : null;
+  if (b.expiresAt !== undefined) p.expiresAt = /^\d{4}-\d{2}-\d{2}$/.test(String(b.expiresAt || '')) ? b.expiresAt : null;
+  if (b.note !== undefined)      p.note      = String(b.note || '').trim().slice(0, 200);
+  save(db);
+  res.json(p);
+});
+
+app.delete('/api/promos/:id', (req, res) => {
+  const db = load();
+  const p  = (db.promos || []).find(x => x.id === req.params.id);
+  db.promos = (db.promos || []).filter(x => x.id !== req.params.id);
+  if (p) addLog({ id: uid(), ts: new Date().toISOString(), type: 'promo', user: req.user.name || req.user.login,
+    desc: `Промокод ${p.code} удалён`, meta: { level: 'warn' } });
   save(db);
   res.json({ ok: true });
 });

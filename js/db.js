@@ -298,6 +298,25 @@ class InventoryDB {
   }
   async deleteOrder(id) { await fetch(`/api/orders/${id}`, { method:'DELETE' }); }
 
+  /* ─── СКИДКИ И ПРОМОКОДЫ ─── */
+  async getPromos() {
+    try { const r = await fetch('/api/promos'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async addPromo(promo) {
+    const r = await fetch('/api/promos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(promo) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Не удалось создать промокод');
+    return d;
+  }
+  async patchPromo(id, patch) {
+    const r = await fetch(`/api/promos/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Не удалось изменить промокод');
+    return d;
+  }
+  async deletePromo(id) { await fetch(`/api/promos/${id}`, { method:'DELETE' }); }
+
   /* ─── АВИТО ─── */
   async getAvitoStatus() {
     try { const r = await fetch('/api/avito/status'); return r.ok ? r.json() : { configured: false }; }

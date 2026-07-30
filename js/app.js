@@ -229,6 +229,7 @@ class App {
   /* ── Доступ к разделам ── */
   hasAccess(section) {
     if (section === 'settings') section = 'faq';   // вкладка FAQ = view "settings"
+    if (section === 'promos')   section = 'site';  // промокоды — часть витрины
     const u = this.currentUser;
     if (!u) return false;
     if (section === 'profile') return true;        // личная страница есть у каждого
@@ -1565,6 +1566,7 @@ class App {
       case 'finance':   this.renderFinance();       break;
       case 'project':   this.renderProject();       break;
       case 'site':      this.renderSiteView();      break;
+      case 'promos':    this.renderPromos();        break;
       case 'profile':   this.renderProfile();       break;
       case 'terminal':  this.renderTerminal();      break;
       case 'settings':  this.renderGuides();         break;
@@ -1788,6 +1790,155 @@ class App {
         ${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(w => `<span class="ov-cal-wd">${w}</span>`).join('')}
         ${cells}
       </div>`;
+  }
+
+  /* ──────────────────────────────────────────
+     СКИДКИ И ПРОМОКОДЫ
+     ────────────────────────────────────────── */
+  async renderPromos() {
+    const el = document.getElementById('promosContent');
+    if (!el) return;
+    el.innerHTML = `<div class="ov-skel">
+      <div class="skel-block" style="height:64px"></div>
+      <div class="skel-block" style="height:64px"></div>
+      <div class="skel-block" style="height:64px"></div>
+    </div>`;
+    const promos = await this.db.getPromos();
+    if (this.currentView !== 'promos') return;
+    this._promos = promos;
+
+    const fmtD = d => new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+    const state = p => {
+      if (p.expiresAt && new Date(p.expiresAt + 'T23:59:59') < new Date()) return ['dead', 'Истёк'];
+      if (p.maxUses && (p.uses || 0) >= p.maxUses) return ['dead', 'Лимит исчерпан'];
+      return p.enabled ? ['on', 'Активен'] : ['off', 'Выключен'];
+    };
+    const activeN = promos.filter(p => state(p)[0] === 'on').length;
+    const usesN   = promos.reduce((s, p) => s + (p.uses || 0), 0);
+
+    const rows = promos.map(p => {
+      const [cls, label] = state(p);
+      const parts = [
+        p.type === 'percent' ? `−${p.value}%` : `−${fmtMoney(p.value)}`,
+        p.minTotal ? `от ${fmtMoney(p.minTotal)}` : '',
+        p.expiresAt ? `до ${fmtD(p.expiresAt)}` : '',
+        `исп.: ${p.uses || 0}${p.maxUses ? `/${p.maxUses}` : ''}`,
+        p.note ? this.esc(p.note) : '',
+      ].filter(Boolean).join(' · ');
+      return `<div class="settings-row promo-row${cls === 'on' ? '' : ' off'}" data-promo-id="${p.id}">
+        <div class="settings-row-icon" style="background:rgba(74,222,128,.12)">${uiIcon('tag', 14)}</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title"><span class="promo-code">${this.esc(p.code)}</span><span class="promo-badge ${cls}">${label}</span></div>
+          <div class="settings-row-sub">${parts}</div>
+        </div>
+        <div class="block-row-actions">
+          <button class="block-toggle promo-toggle" data-id="${p.id}" title="${p.enabled ? 'Выключить' : 'Включить'}">${p.enabled ? uiIcon('eye', 13) : uiIcon('eyeOff', 13)}</button>
+          <button class="block-toggle promo-edit" data-id="${p.id}" title="Изменить">${uiIcon('edit', 12)}</button>
+          <button class="block-delete-btn promo-del" data-id="${p.id}" title="Удалить">${uiIcon('trash', 13)}</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="site-sec-head">
+        <div>
+          <div class="site-sec-title">Промокоды</div>
+          <div class="site-sec-hint">${promos.length ? `Активных: ${activeN} · применений всего: ${usesN}` : 'Покупатель вводит код в корзине — скидка применится к сумме заявки'}</div>
+        </div>
+        <div class="site-sec-actions">
+          <button class="site-mini-add" id="promoAddBtn">＋ Промокод</button>
+        </div>
+      </div>
+      ${promos.length
+        ? `<div class="settings-section">${rows}</div>`
+        : `<div class="faq-empty">
+             <div style="opacity:.5">${uiIcon('tag', 30)}</div>
+             <p>Промокодов пока нет.<br>Создайте первый — например, −10% для подписчиков Telegram.</p>
+           </div>`}`;
+
+    document.getElementById('promoAddBtn')?.addEventListener('click', () => this.openPromoModal());
+    el.querySelectorAll('.promo-toggle').forEach(b => b.addEventListener('click', async () => {
+      const p = this._promos.find(x => x.id === b.dataset.id);
+      await this.db.patchPromo(p.id, { enabled: !p.enabled });
+      this.toast(p.enabled ? `Промокод ${p.code} выключен` : `Промокод ${p.code} включён ✓`);
+      this.renderPromos();
+    }));
+    el.querySelectorAll('.promo-edit').forEach(b => b.addEventListener('click', () =>
+      this.openPromoModal(this._promos.find(x => x.id === b.dataset.id))));
+    el.querySelectorAll('.promo-del').forEach(b => b.addEventListener('click', async () => {
+      const p = this._promos.find(x => x.id === b.dataset.id);
+      if (!await this.confirm(`Удалить промокод ${p.code}?`)) return;
+      await this.db.deletePromo(p.id);
+      this.toast('Промокод удалён ✓');
+      this.renderPromos();
+    }));
+  }
+
+  openPromoModal(promo = null) {
+    this._editingPromoId = promo?.id || null;
+    this._promoType = promo?.type || 'percent';
+    document.getElementById('promoModalTitle').textContent = promo ? 'Промокод' : 'Новый промокод';
+    document.getElementById('promoModalSave').textContent  = promo ? 'Сохранить' : 'Создать';
+    document.getElementById('promoCode').value     = promo?.code || '';
+    document.getElementById('promoCode').disabled  = !!promo;   // код после создания не меняем — по нему уже могли делиться
+    document.getElementById('promoValue').value    = promo?.value || '';
+    document.getElementById('promoMinTotal').value = promo?.minTotal || '';
+    document.getElementById('promoMaxUses').value  = promo?.maxUses || '';
+    document.getElementById('promoExpires').value  = promo?.expiresAt || '';
+    document.getElementById('promoNote').value     = promo?.note || '';
+    this._syncPromoTypeSeg();
+    this._bindPromoModal();
+    this.openModal('promoModal');
+    if (!promo) setTimeout(() => document.getElementById('promoCode')?.focus(), 150);
+  }
+
+  _syncPromoTypeSeg() {
+    document.querySelectorAll('#promoTypeSeg button').forEach(b =>
+      b.classList.toggle('on', b.dataset.type === this._promoType));
+    document.getElementById('promoValueLabel').innerHTML =
+      `Размер скидки (${this._promoType === 'percent' ? '%' : '₽'}) <span class="required">*</span>`;
+  }
+
+  _bindPromoModal() {
+    if (this._promoModalBound) return;
+    this._promoModalBound = true;
+    document.getElementById('promoModalClose').addEventListener('click', () => this.closeModal('promoModal'));
+    document.querySelectorAll('#promoTypeSeg button').forEach(b =>
+      b.addEventListener('click', () => { this._promoType = b.dataset.type; this._syncPromoTypeSeg(); }));
+    // Генератор: без похожих символов (0/O, 1/I), чтобы код легко диктовался
+    document.getElementById('promoGenBtn').addEventListener('click', () => {
+      const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+      document.getElementById('promoCode').value =
+        Array.from({ length: 8 }, () => A[Math.floor(Math.random() * A.length)]).join('');
+    });
+    document.getElementById('promoCode').addEventListener('input', (e) => {
+      e.target.value = e.target.value.toUpperCase().replace(/\s+/g, '');
+    });
+    document.getElementById('promoModalSave').addEventListener('click', async () => {
+      const code  = document.getElementById('promoCode').value.trim();
+      const value = parseInt(document.getElementById('promoValue').value) || 0;
+      if (!this._editingPromoId && !code) { this.toast('Введите код'); return; }
+      if (!value) { this.toast('Укажите размер скидки'); return; }
+      if (this._promoType === 'percent' && value > 100) { this.toast('Процент не может быть больше 100'); return; }
+      const data = {
+        type: this._promoType, value,
+        minTotal:  parseInt(document.getElementById('promoMinTotal').value) || 0,
+        maxUses:   parseInt(document.getElementById('promoMaxUses').value)  || 0,
+        expiresAt: document.getElementById('promoExpires').value || '',
+        note:      document.getElementById('promoNote').value.trim(),
+      };
+      try {
+        if (this._editingPromoId) {
+          await this.db.patchPromo(this._editingPromoId, data);
+          this.toast('Промокод обновлён ✓');
+        } else {
+          await this.db.addPromo({ ...data, code });
+          this.toast(`Промокод ${code} создан ✓`);
+        }
+        this.closeModal('promoModal');
+        this.renderPromos();
+      } catch (err) { this.toast(err.message); }
+    });
   }
 
   /* ──────────────────────────────────────────
@@ -6809,6 +6960,7 @@ class App {
     const isTg = c => /^@|t\.me/i.test(c);
     pane.innerHTML = `<div class="orders-list">${orders.map(o => {
       const total = (o.items || []).reduce((s, i) => s + (i.price || 0), 0);
+      const disc  = o.promo?.discount || 0;
       const contactLink = isTg(o.contact)
         ? `<a href="https://t.me/${this.esc(o.contact.replace(/^@/, '').replace(/^.*t\.me\//i, ''))}" target="_blank" rel="noopener">${this.esc(o.contact)}</a>`
         : this.esc(o.contact);
@@ -6825,7 +6977,8 @@ class App {
             <span>${this.esc(i.name)}${i.size ? ` <em>· ${this.esc(i.size)}</em>` : ''}</span>
             <b>${i.price != null ? fmtMoney(i.price) : '—'}</b>
           </div>`).join('')}
-          <div class="order-item order-total"><span>Итого</span><b>${fmtMoney(total)}</b></div>
+          ${disc ? `<div class="order-item order-promo"><span>Промокод ${this.esc(o.promo.code)}</span><b>−${fmtMoney(disc)}</b></div>` : ''}
+          <div class="order-item order-total"><span>Итого</span><b>${disc ? `<span class="order-total-old">${fmtMoney(total)}</span>` : ''}${fmtMoney(total - disc)}</b></div>
         </div>
         ${o.comment ? `<div class="order-comment">${this.esc(o.comment)}</div>` : ''}
         <div class="order-actions">

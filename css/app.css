@@ -4626,3 +4626,29 @@ body.select-mode .row-check { display: block; }
     height: auto; width: auto;
   }
 }
+
+/* =============================================
+   СКИДКИ И ПРОМОКОДЫ
+   ============================================= */
+.promo-code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-weight: 700; letter-spacing: .06em; font-size: 13.5px;
+}
+.promo-badge {
+  display: inline-block; margin-left: 8px; padding: 2.5px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; vertical-align: 1px;
+}
+.promo-badge.on   { background: rgba(74,222,128,.14); color: #4ade80; }
+.promo-badge.off  { background: var(--fill2); color: var(--text3); }
+.promo-badge.dead { background: rgba(248,113,113,.13); color: #f87171; }
+[data-theme="light"] .promo-badge.on   { background: rgba(22,163,74,.12); color: #16a34a; }
+[data-theme="light"] .promo-badge.dead { background: rgba(220,38,38,.10); color: #dc2626; }
+.promo-row.off .settings-row-icon,
+.promo-row.off .promo-code { opacity: .55; }
+.promo-code-row { display: flex; gap: 8px; align-items: stretch; }
+.promo-code-row .form-input { flex: 1; text-transform: uppercase; font-family: ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: .06em; }
+.promo-code-row .btn-line { flex-shrink: 0; }
+/* Скидка в карточке заявки */
+.order-item.order-promo span  { color: #4ade80; }
+.order-item.order-promo b     { color: #4ade80; }
+.order-total-old { color: var(--text3); text-decoration: line-through; font-weight: 500; margin-right: 7px; font-size: 12px; }
