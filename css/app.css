@@ -542,10 +542,13 @@ html, body {
 .settings-row-icon.teal   { background: rgba(56,189,248,0.12); }
 .settings-row-icon.purple { background: rgba(255,255,255,0.08); }
 .settings-row-icon.gray   { background: var(--fill); }
-/* ─── Тулбар «Личного»: сервис и справочники значками, прижаты вправо ─── */
+/* ─── Тулбар «Личного»: значки в строке профиля, прижаты вправо ───
+   Кнопки пароля/выхода стоят сразу за именем (не auto-margin),
+   а тулбар забирает правый край — строка hero не теряет высоту */
+.account-hero .hero-actions { margin-left: 6px; }
 .prof-tools {
   display: flex; gap: 8px; justify-content: flex-end; align-items: center;
-  flex-wrap: wrap; margin: 12px 0 6px;
+  flex-wrap: wrap; margin-left: auto;
 }
 .prof-tools .icon-btn.active { background: var(--fill); color: var(--text); border-color: var(--sep); }
 .prof-tools-sep { width: 1px; height: 18px; background: var(--sep2); margin: 0 3px; }
@@ -2758,13 +2761,14 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 /* Карточка аккаунта в меню */
 .account-hero {
   display: flex; align-items: center; gap: 13px; padding: 14px 4px 16px;
+  flex-wrap: wrap;   /* на узких экранах тулбар-значки переносятся строкой ниже */
 }
 .account-hero-avatar {
   width: 52px; height: 52px; border-radius: 16px; flex-shrink: 0;
-  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  background: var(--text);
   display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 22px; font-weight: 800; letter-spacing: -.5px;
-  box-shadow: 0 6px 18px rgba(124,109,250,.35);
+  color: var(--bg); font-size: 22px; font-weight: 800; letter-spacing: -.5px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
 }
 .account-hero-name { font-size: 18px; font-weight: 700; letter-spacing: -.4px; color: var(--text); }
 .account-hero-role { display: flex; align-items: center; gap: 7px; margin-top: 3px; font-size: 12.5px; color: var(--text3); }
@@ -2772,7 +2776,7 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
   background: var(--muted); color: var(--text2);
 }
-.account-badge.root { background: rgba(124,109,250,.16); color: var(--accent); }
+.account-badge.root { background: var(--fill); color: var(--text); border: 1px solid var(--sep); }
 
 /* ─── Новое бургер-меню ─── */
 .hero-actions { margin-left: auto; display: flex; gap: 7px; flex-shrink: 0; }

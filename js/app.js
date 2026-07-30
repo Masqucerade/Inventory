@@ -4156,20 +4156,20 @@ class App {
           <button class="btn-line" id="profChangePassBtn">Сменить пароль</button>
           <button class="btn-line danger" id="profLogoutBtn">Выйти</button>
         </div>
+        ${isRoot ? `<div class="prof-tools" id="profTools">
+          <button class="icon-btn" data-act="tg" title="Бэкап в Telegram · авто раз в 24 ч, последний: ${this.backup.getLastTimeStr()}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+          <button class="icon-btn" data-act="json" title="Скачать JSON"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+          <button class="icon-btn" data-act="digest" title="Сводка задач в Telegram">🌙</button>
+          <button class="icon-btn" data-act="restore" title="Восстановить из файла"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
+          <button class="icon-btn" data-act="theme" title="Переключить тему">${(localStorage.getItem('inv_theme') || 'dark') === 'dark' ? '☀️' : '🌙'}</button>
+          <span class="prof-tools-sep"></span>
+          <button class="icon-btn" data-sec="users" title="Пользователи"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></button>
+          <button class="icon-btn" data-sec="owners" title="Участники"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
+          <button class="icon-btn" data-sec="cats" title="Категории"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>
+          <button class="icon-btn" data-sec="brands" title="Бренды"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
+        </div>` : ''}
       </div>
-      <div class="prof-tools" id="profTools">
-        <button class="icon-btn" data-act="tg" title="Бэкап в Telegram · авто раз в 24 ч, последний: ${this.backup.getLastTimeStr()}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-        <button class="icon-btn" data-act="json" title="Скачать JSON"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
-        ${isRoot ? `<button class="icon-btn" data-act="digest" title="Сводка задач в Telegram">🌙</button>
-        <button class="icon-btn" data-act="restore" title="Восстановить из файла"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>` : ''}
-        <button class="icon-btn" data-act="theme" title="Переключить тему">${(localStorage.getItem('inv_theme') || 'dark') === 'dark' ? '☀️' : '🌙'}</button>
-        <span class="prof-tools-sep"></span>
-        ${isRoot ? `<button class="icon-btn" data-sec="users" title="Пользователи"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></button>` : ''}
-        <button class="icon-btn" data-sec="owners" title="Участники"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
-        <button class="icon-btn" data-sec="cats" title="Категории"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>
-        <button class="icon-btn" data-sec="brands" title="Бренды"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
-      </div>
-      <div id="profileMenuMount" class="prof-mount"></div>
+      ${isRoot ? '<div id="profileMenuMount" class="prof-mount"></div>' : ''}
       ${finHtml}
       <div class="section-title">Мои заметки <em style="font-style:normal;font-size:11px;color:var(--text3)">· видны только вам</em></div>
       <div class="mynote-add">
