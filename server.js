@@ -1551,21 +1551,19 @@ app.post('/api/items/:id/tg-post', async (req, res) => {
   if (!checkDanger(req, res)) return;   // публикация в канал — опасная зона
 
   const fmtR  = n => new Intl.NumberFormat('ru-RU').format(n);
-  const COND  = { new: 'Новое с биркой', excellent: 'Отличное состояние', good: 'Хорошее состояние' };
   const sizes = (it.sizes || []).filter(s => (parseInt(s.qty) || 0) > 0).map(s => s.size).filter(Boolean);
   const url   = `https://${CANONICAL_HOST}/product/${encodeURIComponent(it.id)}`;
+  // «Купить» ведёт в личку менеджера; настраивается env TG_BUY_USER
+  const buyUrl = 'https://t.me/' + String(process.env.TG_BUY_USER || 'msqcrd').replace(/^@/, '');
   const price = it.oldPrice && it.oldPrice > (it.price || 0)
-    ? `<s>${fmtR(it.oldPrice)} ₽</s>  <b>${fmtR(it.price || 0)} ₽</b>`
+    ? `<s>${fmtR(it.oldPrice)} ₽</s> <b>${fmtR(it.price || 0)} ₽</b>`
     : `<b>${fmtR(it.price || 0)} ₽</b>`;
   const caption = [
     `<b>${escAttr(it.name)}</b>`,
-    [it.brand, COND[it.condition]].filter(Boolean).map(escAttr).join(' · '),
-    sizes.length ? `Размеры: ${escAttr(sizes.join(' · '))}` : '',
-    '',
-    price,
-    '',
-    `<a href="${url}">Смотреть на сайте →</a>`,
-  ].filter(l => l !== '').join('\n').replace(/\n{3,}/g, '\n\n');
+    sizes.length ? `— Размеры: ${escAttr(sizes.join(' · '))}` : '',
+    `— ${price}`,
+    `<a href="${buyUrl}">Купить</a> / <a href="${url}">Актуальное наличие</a>`,
+  ].filter(Boolean).join('\n');
 
   const photoRef = (Array.isArray(it.photos) && it.photos[0]) || it.photo;
   const photoUrl = photoRef && String(photoRef).startsWith('/photos/')
