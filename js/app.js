@@ -364,7 +364,7 @@ class App {
     const body = document.getElementById('moreSheetBody');
     const btn  = document.getElementById('navMoreBtn');
     if (!body || !btn) return;
-    const views = ['project', 'site', 'promos', 'roles', 'settings'].filter(v => this.hasAccess(v));
+    const views = ['project', 'site', 'promos', 'tg', 'roles', 'settings'].filter(v => this.hasAccess(v));
     btn.classList.toggle('hidden', !views.length);
     // Иконки и подписи берём у самих кнопок навигации — один источник правды
     body.innerHTML = views.map(v => {
@@ -618,7 +618,7 @@ class App {
     this._roles = roles;
     this.users  = users;
 
-    const SEC_N = 8;
+    const SEC_N = 9;
     const roleUsers = r => users.filter(u => u.roleId === r.id);
     const accessSub = (access, hideCosts) =>
       `${!Array.isArray(access) || access.length >= SEC_N ? 'все разделы' : `разделов: ${access.length}/${SEC_N}`}${hideCosts ? ' · без закупа' : ''}`;
@@ -921,7 +921,7 @@ class App {
   _renderAccessChips(access, containerId = 'userAccessChips') {
     const el = document.getElementById(containerId);
     if (!el) return;
-    const LABELS = { inventory: 'Товары', stats: 'Статистика', finance: 'Счёт', project: 'Проект', site: 'Сайт', promos: 'Промокоды', faq: 'Терминал', terminal: 'Журнал (консоль)' };
+    const LABELS = { inventory: 'Товары', stats: 'Статистика', finance: 'Счёт', project: 'Проект', site: 'Сайт', promos: 'Промокоды', tg: 'Telegram', faq: 'Терминал', terminal: 'Журнал (консоль)' };
     const on = s => !Array.isArray(access) || access.includes(s);
     el.innerHTML = Object.entries(LABELS).map(([s, label]) =>
       `<button type="button" class="vis-chip${on(s) ? ' active' : ''}" data-acc="${s}">${label}</button>`
@@ -1828,7 +1828,7 @@ class App {
     document.querySelector(`.nav-btn[data-view="${view}"]`)?.classList.add('active');
     // «Ещё» подсвечена, когда активная вкладка спрятана внутри (мобильная пилюля)
     document.getElementById('navMoreBtn')?.classList.toggle('active',
-      ['project', 'site', 'promos', 'roles', 'settings'].includes(view));
+      ['project', 'site', 'promos', 'tg', 'roles', 'settings'].includes(view));
     // Карточка профиля в сайдбаре подсвечена на «Личном»
     document.querySelector('.nav-profile')?.classList.toggle('active', view === 'profile');
     const isRoot = this.currentUser?.role === 'root';
@@ -1846,6 +1846,7 @@ class App {
       case 'project':   this.renderProject();       break;
       case 'site':      this.renderSiteView();      break;
       case 'promos':    this.renderPromos();        break;
+      case 'tg':        this.renderTgView();        break;
       case 'roles':     this.renderRolesView();     break;
       case 'profile':   this.renderProfile();       break;
       case 'terminal':  this.renderTerminal();      break;
@@ -2070,6 +2071,133 @@ class App {
         ${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(w => `<span class="ov-cal-wd">${w}</span>`).join('')}
         ${cells}
       </div>`;
+  }
+
+  /* ──────────────────────────────────────────
+     TELEGRAM — канал, публикация товаров, история постов
+     ────────────────────────────────────────── */
+  async renderTgView() {
+    const el = document.getElementById('tgContent');
+    if (!el) return;
+    el.innerHTML = `<div class="ov-skel">
+      <div class="skel-block" style="height:64px"></div>
+      <div class="skel-block" style="height:64px"></div>
+      <div class="skel-block" style="height:64px"></div>
+    </div>`;
+    const [status, logs] = await Promise.all([this.db.getTgChannelStatus(), this.db.getLogs(300)]);
+    if (this.currentView !== 'tg') return;
+
+    const posts = logs.filter(l => l.type === 'tg_post').slice(0, 12);
+    this._tgItems = (this.items || [])
+      .filter(i => i.showOnSite && i.orderStatus !== 'done' && (parseInt(i.quantity) || 0) > 0)
+      .sort((a, b) => (a.tgPostedAt ? 1 : 0) - (b.tgPostedAt ? 1 : 0));   // непубликованные сверху
+
+    const statusHtml = status.configured
+      ? `<div class="settings-row" style="cursor:default">
+           <div class="settings-row-icon" style="background:rgba(74,222,128,.12)">${uiIcon('megaphone', 14)}</div>
+           <div class="settings-row-info">
+             <div class="settings-row-title">Канал подключён<span class="promo-badge on" style="margin-left:8px">${this.esc(status.channel)}</span></div>
+             <div class="settings-row-sub">Пост: альбом всех фото · название · размеры · цена · «Купить» → @${this.esc(status.buyUser)} · «Актуальное наличие» → сайт</div>
+           </div>
+         </div>`
+      : `<div class="settings-row" style="cursor:default">
+           <div class="settings-row-icon" style="background:rgba(251,146,60,.13)">${uiIcon('alert', 14)}</div>
+           <div class="settings-row-info">
+             <div class="settings-row-title">Канал не подключён<span class="promo-badge dead" style="margin-left:8px">Нет TG_CHANNEL</span></div>
+             <div class="settings-row-sub">В Railway добавьте переменную TG_CHANNEL (@имя_канала или -100…id) и сделайте бота админом канала с правом публиковать</div>
+           </div>
+         </div>`;
+
+    el.innerHTML = `
+      <div class="site-sec-head">
+        <div>
+          <div class="site-sec-title">Канал</div>
+          <div class="site-sec-hint">Публикация — опасная зона: при заданном пароле спросим подтверждение</div>
+        </div>
+      </div>
+      <div class="settings-section">${statusHtml}</div>
+
+      <div class="site-sec-head" style="margin-top:22px">
+        <div>
+          <div class="site-sec-title">Опубликовать товар</div>
+          <div class="site-sec-hint">Показаны товары с сайта в наличии; непубликованные — сверху</div>
+        </div>
+      </div>
+      <input type="text" class="form-input tg-pub-search" id="tgPubSearch" placeholder="Поиск по названию или бренду…" autocomplete="off">
+      <div class="settings-section" id="tgPubList"></div>
+
+      <div class="site-sec-head" style="margin-top:22px">
+        <div>
+          <div class="site-sec-title">История публикаций</div>
+          <div class="site-sec-hint">Последние посты из журнала</div>
+        </div>
+      </div>
+      ${posts.length
+        ? `<div class="settings-section">${posts.map(pst => `
+             <div class="settings-row" style="cursor:default">
+               <div class="settings-row-icon" style="background:var(--fill2)">${uiIcon('megaphone', 13)}</div>
+               <div class="settings-row-info">
+                 <div class="settings-row-title">${this.esc(String(pst.desc || '').replace(/^Пост в канал: /, ''))}</div>
+                 <div class="settings-row-sub">${this.fmtDate(pst.ts)}${pst.user ? ` · ${this.esc(pst.user)}` : ''}</div>
+               </div>
+             </div>`).join('')}</div>`
+        : `<div class="faq-empty"><div style="opacity:.5">${uiIcon('megaphone', 30)}</div>
+             <p>Пока ничего не публиковали.<br>Выберите товар выше — пост уйдёт в канал альбомом.</p></div>`}`;
+
+    this._renderTgPubList('');
+    document.getElementById('tgPubSearch')?.addEventListener('input', (e) =>
+      this._renderTgPubList(e.target.value.trim().toLowerCase()));
+    // Делегирование: кнопки «Опубликовать» в списке
+    document.getElementById('tgPubList')?.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.tg-pub-btn');
+      if (!btn) return;
+      const item = this._tgItems.find(i => i.id === btn.dataset.id);
+      if (item) await this._publishItemToChannel(item, btn);
+    });
+  }
+
+  _renderTgPubList(query) {
+    const el = document.getElementById('tgPubList');
+    if (!el) return;
+    const items = this._tgItems.filter(i =>
+      !query || (i.name || '').toLowerCase().includes(query) || (i.brand || '').toLowerCase().includes(query));
+    if (!items.length) {
+      el.innerHTML = `<div class="settings-row" style="cursor:default">
+        <div class="settings-row-info"><div class="settings-row-sub">${query ? 'Ничего не найдено' : 'Нет товаров на сайте в наличии — включите «На сайте» в карточке товара'}</div></div>
+      </div>`;
+      return;
+    }
+    el.innerHTML = items.map(i => {
+      const cover = i.thumbs?.[0] || i.photos?.[0] || i.photo;
+      const nPhotos = (i.photos || []).length || (i.photo ? 1 : 0);
+      return `<div class="settings-row" style="cursor:default" data-row-id="${i.id}">
+        <div class="settings-row-icon tg-pub-thumb">${cover ? `<img src="${this.esc(cover)}" alt="" loading="lazy">` : uiIcon('image', 14)}</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">${this.esc(i.name)}${i.tgPostedAt ? `<span class="promo-badge off" style="margin-left:8px">пост ${this.fmtDate(i.tgPostedAt)}</span>` : `<span class="promo-badge on" style="margin-left:8px">не публиковался</span>`}</div>
+          <div class="settings-row-sub">${i.price ? fmtMoney(i.price) : '—'}${i.brand ? ` · ${this.esc(i.brand)}` : ''} · фото: ${nPhotos}</div>
+        </div>
+        <div class="block-row-actions">
+          <button class="btn-line tg-pub-btn" data-id="${i.id}" style="height:26px;padding:0 10px;font-size:11.5px;font-weight:600;white-space:nowrap">${i.tgPostedAt ? 'Ещё раз' : 'Опубликовать'}</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  /* Публикация с подтверждением и опасной зоной; обновляет строку списка */
+  async _publishItemToChannel(item, btn) {
+    const again = item.tgPostedAt ? ' ещё раз' : '';
+    if (!await this.confirm(`Опубликовать «${item.name}» в Telegram-канал${again}?`, 'Опубликовать', false)) return;
+    btn.disabled = true;
+    try {
+      const done = await this._withDanger('Публикация поста в Telegram-канал', dp => this.db.tgPostItem(item.id, dp));
+      if (done !== null) {
+        item.tgPostedAt = new Date().toISOString();
+        this.toast('Пост опубликован в канал ✓');
+        if (this.currentView === 'tg') this.renderTgView();
+      }
+    } catch (e) {
+      this.toast(e.message);
+    } finally { btn.disabled = false; }
   }
 
   /* ──────────────────────────────────────────
@@ -2888,11 +3016,6 @@ class App {
           <circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/>
         </svg>Продать товар
       </button>
-      ${item.showOnSite && this.hasAccess('site') ? `
-      <button class="detail-tgpost-btn" id="detailTgPostBtn" type="button">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        Опубликовать в канал${item.tgPostedAt ? `<span class="tgpost-when">· был пост ${this.fmtDate(item.tgPostedAt)}</span>` : ''}
-      </button>` : ''}
       <button class="detail-delete-btn" id="detailDeleteBtn">Удалить товар</button>
       </div>
     `;
@@ -2914,24 +3037,6 @@ class App {
       this.openSaleModal(id);
     });
 
-    /* Пост о товаре в Telegram-канал (env TG_CHANNEL).
-       Публикация — опасная зона: если задан пароль, сервер попросит его
-       (code danger_password) — спрашиваем и повторяем запрос. */
-    document.getElementById('detailTgPostBtn')?.addEventListener('click', async () => {
-      const again = item.tgPostedAt ? ' ещё раз' : '';
-      if (!await this.confirm(`Опубликовать пост о товаре в Telegram-канал${again}?`, 'Опубликовать', false)) return;
-      const btn = document.getElementById('detailTgPostBtn');
-      btn.disabled = true;
-      try {
-        const done = await this._withDanger('Публикация поста в Telegram-канал', dp => this.db.tgPostItem(item.id, dp));
-        if (done !== null) {
-          item.tgPostedAt = new Date().toISOString();
-          this.toast('Пост опубликован в канал ✓');
-        }
-      } catch (e) {
-        this.toast(e.message);
-      } finally { btn.disabled = false; }
-    });
 
     document.getElementById('detailDeleteBtn').addEventListener('click', () => this.deleteItem(id));
 

@@ -4620,10 +4620,10 @@ body.select-mode .row-check { display: block; }
 .order-item.order-promo b     { color: #4ade80; }
 .order-total-old { color: var(--text3); text-decoration: line-through; font-weight: 500; margin-right: 7px; font-size: 12px; }
 
-/* Кнопка «Применить · N» в строке роли: текстовая, не наследует
-   квадратные 30×30 от иконок .block-row-actions */
+/* Текстовые кнопки в строках списков («Применить · N», «Задать пароль»,
+   «Опубликовать»…) не наследуют квадратные 30×30 от иконок .block-row-actions */
 .settings-row .block-row-actions { flex-shrink: 0; }
-.block-row-actions .role-apply {
+.block-row-actions .btn-line {
   width: auto; height: 26px;
   white-space: nowrap; flex-shrink: 0;
   font-size: 11.5px; font-weight: 600;
@@ -4736,3 +4736,8 @@ body.select-mode .row-check { display: block; }
   color: #f87171; font-size: 13px; font-weight: 600;
 }
 .danger-badge svg { flex-shrink: 0; }
+
+/* Вкладка Telegram: миниатюра товара в строке публикации, поиск */
+.tg-pub-thumb { overflow: hidden; padding: 0; }
+.tg-pub-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
+.tg-pub-search { margin-bottom: 10px; max-width: 420px; }

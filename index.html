@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=132">
+  <link rel="stylesheet" href="css/app.css?v=134">
 </head>
 <body>
 
@@ -216,6 +216,16 @@
     <div class="view-body" id="siteContent"></div>
   </div>
 
+  <!-- ═══ TELEGRAM VIEW: канал, посты (доступ tg — по умолчанию root) ═══ -->
+  <div id="view-tg" class="view">
+    <div class="view-header simple-header">
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Telegram</span></div>
+      <h1 class="view-title">Telegram</h1>
+      <p class="view-sub">Канал, публикация товаров и история постов</p>
+    </div>
+    <div class="view-body" id="tgContent"></div>
+  </div>
+
   <!-- ═══ ROLES VIEW: роли и права (root) ═══ -->
   <div id="view-roles" class="view">
     <div class="view-header simple-header">
@@ -324,6 +334,13 @@
         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
       </svg>
       <span class="nav-label">Сайт</span>
+    </button>
+    <button class="nav-btn nav-secondary" data-view="tg">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="22" y1="2" x2="11" y2="13"/>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+      <span class="nav-label">Telegram</span>
     </button>
     <button class="nav-btn nav-secondary" data-view="promos">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -1497,6 +1514,6 @@
 
 <script src="js/db.js?v=61"></script>
 <script src="js/backup.js?v=46"></script>
-<script src="js/app.js?v=179"></script>
+<script src="js/app.js?v=180"></script>
 </body>
 </html>

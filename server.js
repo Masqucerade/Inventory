@@ -483,7 +483,7 @@ function visibleTo(rec, user) {
 /* ─── ДОСТУП К РАЗДЕЛАМ (критические точки) ───
    У пользователя может быть access: ['inventory','stats','finance','project','faq'].
    Root видит всё. Если access не задан — полный доступ (обратная совместимость). */
-const SECTIONS = ['inventory', 'stats', 'finance', 'project', 'site', 'promos', 'faq', 'terminal'];
+const SECTIONS = ['inventory', 'stats', 'finance', 'project', 'site', 'promos', 'tg', 'faq', 'terminal'];
 function hasAccess(user, section) {
   if (user.role === 'root') return true;
   if (!Array.isArray(user.access)) return true;
@@ -1535,11 +1535,12 @@ app.get('/api/tg-channel/status', (req, res) => {
   res.json({
     configured: !!(process.env.TG_LOG_TOKEN && process.env.TG_CHANNEL),
     channel: process.env.TG_CHANNEL || '',
+    buyUser: (process.env.TG_BUY_USER || 'msqcrd').replace(/^@/, ''),
   });
 });
 
 app.post('/api/items/:id/tg-post', async (req, res) => {
-  if (!hasAccess(req.user, 'site')) return res.status(403).json({ error: 'Нет доступа к разделу' });
+  if (!hasAccess(req.user, 'tg')) return res.status(403).json({ error: 'Нет доступа к разделу' });
   const token   = process.env.TG_LOG_TOKEN;
   const channel = (process.env.TG_CHANNEL || '').trim();
   if (!token || !channel)
