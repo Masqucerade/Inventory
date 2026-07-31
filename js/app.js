@@ -5965,6 +5965,9 @@ class App {
       document.getElementById('saleSizeDivider').style.display = 'none';
       return;
     }
+    // Дефолты из объявления — все поля можно поправить руками
+    const p = opt.dataset.price;
+    document.getElementById('saleSalePrice').value    = (p && p !== '0') ? p : '';
     document.getElementById('saleBuyPrice').value     = opt.dataset.buy      || '0';
     document.getElementById('saleDeliveryCost').value = opt.dataset.delivery || '0';
 
