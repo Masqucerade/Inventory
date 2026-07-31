@@ -1565,19 +1565,32 @@ app.post('/api/items/:id/tg-post', async (req, res) => {
     `<a href="${buyUrl}">Купить</a> / <a href="${url}">Актуальное наличие</a>`,
   ].filter(Boolean).join('\n');
 
-  const photoRef = (Array.isArray(it.photos) && it.photos[0]) || it.photo;
-  const photoUrl = photoRef && String(photoRef).startsWith('/photos/')
-    ? `https://${CANONICAL_HOST}/avito-img/${path.basename(String(photoRef)).replace(/\.\w+$/, '')}.jpg`
-    : null;
+  // Все фото товара альбомом (лимит Telegram — 10); webp → jpeg через /avito-img
+  const jpegUrl = p => `https://${CANONICAL_HOST}/avito-img/${path.basename(String(p)).replace(/\.\w+$/, '')}.jpg`;
+  const photoRefs = (Array.isArray(it.photos) && it.photos.length ? it.photos : (it.photo ? [it.photo] : []))
+    .filter(p => String(p).startsWith('/photos/'))
+    .slice(0, 10);
 
   try {
-    const method = photoUrl ? 'sendPhoto' : 'sendMessage';
-    const body = photoUrl
-      ? { chat_id: channel, photo: photoUrl, caption, parse_mode: 'HTML' }
-      : { chat_id: channel, text: caption, parse_mode: 'HTML' };
+    let method, body;
+    if (photoRefs.length > 1) {
+      // Альбом: подпись живёт на первом фото
+      method = 'sendMediaGroup';
+      body = { chat_id: channel, media: photoRefs.map((p, i) => ({
+        type: 'photo', media: jpegUrl(p),
+        ...(i === 0 ? { caption, parse_mode: 'HTML' } : {}),
+      })) };
+    } else if (photoRefs.length === 1) {
+      method = 'sendPhoto';
+      body = { chat_id: channel, photo: jpegUrl(photoRefs[0]), caption, parse_mode: 'HTML' };
+    } else {
+      method = 'sendMessage';
+      body = { chat_id: channel, text: caption, parse_mode: 'HTML' };
+    }
+    // Альбому нужен запас: Telegram скачивает каждое фото по URL
     const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body), signal: AbortSignal.timeout(15_000),
+      body: JSON.stringify(body), signal: AbortSignal.timeout(30_000),
     });
     const d = await r.json().catch(() => ({}));
     if (!d.ok) throw new Error(d.description || 'Telegram отклонил сообщение');
@@ -1586,8 +1599,9 @@ app.post('/api/items/:id/tg-post', async (req, res) => {
       user: req.user.name || req.user.login, desc: `Пост в канал: ${it.name}`, meta: { id: it.id } });
     save(db);
     // Ссылка на пост доступна только у публичных каналов с @username
-    const link = /^@/.test(channel) && d.result?.message_id
-      ? `https://t.me/${channel.slice(1)}/${d.result.message_id}` : null;
+    const firstMsg = Array.isArray(d.result) ? d.result[0] : d.result;
+    const link = /^@/.test(channel) && firstMsg?.message_id
+      ? `https://t.me/${channel.slice(1)}/${firstMsg.message_id}` : null;
     res.json({ ok: true, link });
   } catch (e) {
     res.status(502).json({ error: 'Не удалось отправить: ' + e.message });
