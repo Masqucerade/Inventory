@@ -1597,6 +1597,7 @@ app.post('/api/items/:id/tg-post', async (req, res) => {
 });
 
 app.delete('/api/items/:id', (req, res) => {
+  if (!checkDanger(req, res)) return;   // удаление товара — опасная зона
   const db = load();
   db.items = (db.items || []).filter(i => i.id !== req.params.id);
   save(db);
@@ -1605,6 +1606,7 @@ app.delete('/api/items/:id', (req, res) => {
 
 // Массовое удаление выбранных товаров — одним запросом (режим выделения)
 app.post('/api/items/bulk-delete', (req, res) => {
+  if (!checkDanger(req, res)) return;   // удаление товаров — опасная зона
   const ids = req.body?.ids;
   if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids required' });
   const db  = load();

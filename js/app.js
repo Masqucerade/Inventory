@@ -691,7 +691,7 @@ class App {
               <span class="promo-badge ${danger.set ? 'on' : 'off'}" style="margin-left:8px">${danger.set ? 'Задан' : 'Не задан'}</span>
             </div>
             <div class="settings-row-sub">${danger.set
-              ? 'Защищено: публикация в Telegram-канал'
+              ? 'Защищено: публикация в TG-канал, удаление товаров'
               : 'Пока не задан — опасные действия выполняются без подтверждения'}</div>
           </div>
           <div class="block-row-actions">
@@ -766,6 +766,25 @@ class App {
     }
     this.openModal('dangerSetModal');
     setTimeout(() => document.getElementById('dangerSetPass')?.focus(), 150);
+  }
+
+  /* Выполнить действие опасной зоны: если сервер требует пароль
+     (code danger_password) — спросить и повторить. Возвращает результат fn
+     или null, если пользователь отменил ввод. Остальные ошибки — наружу. */
+  async _withDanger(actionLabel, fn) {
+    let dp = '';
+    while (true) {
+      try { return (await fn(dp)) ?? true; }
+      catch (e) {
+        if (e.code === 'danger_password') {
+          if (dp) this.toast('Неверный пароль');
+          dp = await this.askDangerPassword(actionLabel);
+          if (dp === null || dp === undefined) return null;
+          continue;
+        }
+        throw e;
+      }
+    }
   }
 
   /* ── Опасные зоны: модалка ввода пароля-подтверждения ── */
@@ -2863,17 +2882,17 @@ class App {
       </div>
       ${item.notes ? `<div class="detail-notes">${this.esc(item.notes)}</div>` : ''}
       ${this._itemHistoryHtml(item)}
-      ${item.showOnSite && this.hasAccess('site') ? `
-      <button class="detail-tgpost-btn" id="detailTgPostBtn" type="button">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        Опубликовать в канал${item.tgPostedAt ? `<span class="tgpost-when">· был пост ${this.fmtDate(item.tgPostedAt)}</span>` : ''}
-      </button>` : ''}
       <button class="detail-sell-btn" id="detailSellBtn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
           <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
           <circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/>
         </svg>Продать товар
       </button>
+      ${item.showOnSite && this.hasAccess('site') ? `
+      <button class="detail-tgpost-btn" id="detailTgPostBtn" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Опубликовать в канал${item.tgPostedAt ? `<span class="tgpost-when">· был пост ${this.fmtDate(item.tgPostedAt)}</span>` : ''}
+      </button>` : ''}
       <button class="detail-delete-btn" id="detailDeleteBtn">Удалить товар</button>
       </div>
     `;
@@ -2904,24 +2923,13 @@ class App {
       const btn = document.getElementById('detailTgPostBtn');
       btn.disabled = true;
       try {
-        let dp = '';
-        while (true) {
-          try {
-            await this.db.tgPostItem(item.id, dp);
-            item.tgPostedAt = new Date().toISOString();
-            this.toast('Пост опубликован в канал ✓');
-            break;
-          } catch (e) {
-            if (e.code === 'danger_password') {
-              if (dp) this.toast('Неверный пароль');
-              dp = await this.askDangerPassword('Публикация поста в Telegram-канал');
-              if (dp === null || dp === undefined) break;
-              continue;
-            }
-            this.toast(e.message);
-            break;
-          }
+        const done = await this._withDanger('Публикация поста в Telegram-канал', dp => this.db.tgPostItem(item.id, dp));
+        if (done !== null) {
+          item.tgPostedAt = new Date().toISOString();
+          this.toast('Пост опубликован в канал ✓');
         }
+      } catch (e) {
+        this.toast(e.message);
       } finally { btn.disabled = false; }
     });
 
@@ -2998,12 +3006,15 @@ class App {
     const item = await this.db.getItem(id);
     const ok   = await this.confirm('Удалить этот товар? Действие нельзя отменить.');
     if (!ok) return;
-    await this.db.deleteItem(id);
+    try {
+      const done = await this._withDanger('Удаление товара', dp => this.db.deleteItem(id, dp));
+      if (done === null) return;   // отменили ввод пароля
+    } catch (e) { this.toast(e.message || 'Ошибка'); return; }
     await this.db.logAction('item_delete', `Удалён товар: «${item?.name || id}»`, { id, name: item?.name });
     await this.loadData();
     this.closeModal('detailModal');
     this.renderInventoryList();
-    this.toast('Товар удалён');
+    this.toast('Товар удалён ✓');
   }
 
   /* ──────────────────────────────────────────
@@ -3647,9 +3658,10 @@ class App {
     const ok = await this.confirm(`Удалить выбранные товары (${ids.length} шт.)? Это действие нельзя отменить.`);
     if (!ok) return;
     try {
-      await this.db.bulkDeleteItems(ids);
+      const done = await this._withDanger(`Удаление товаров (${ids.length} шт.)`, dp => this.db.bulkDeleteItems(ids, dp));
+      if (done === null) return;   // отменили ввод пароля
     } catch (e) {
-      this.toast('Ошибка — проверьте соединение');
+      this.toast(e.message || 'Ошибка — проверьте соединение');
       return;
     }
     await this.db.logAction('item_delete', `Удалено ${ids.length} тов.: ${this._namesFor(ids, 5)}`, { level: 'danger' });
@@ -6471,7 +6483,12 @@ class App {
 
   openCollectionModal(col = null) {
     this._editingColId = col?.id || null;
-    this._colPicked    = new Set(col?.itemIds || []);
+    // Удалённые, завершённые, распроданные и снятые с сайта товары на витрине
+    // не видны — вычищаем их и из состава подборки (порядок показывал «призраков»)
+    const alive = new Set((this.items || [])
+      .filter(i => i.showOnSite && i.orderStatus !== 'done' && (parseInt(i.quantity) || 0) > 0)
+      .map(i => i.id));
+    this._colPicked    = new Set((col?.itemIds || []).filter(id => alive.has(id)));
     this._colLogo      = col?.logo || '';
     this._renderColLogo();
     document.getElementById('collectionModalTitle').textContent = col ? 'Изменить подборку' : 'Новая подборка';
@@ -6485,7 +6502,8 @@ class App {
 
   _renderColPicker() {
     const el    = document.getElementById('colItemsPicker');
-    const items = this.items.filter(i => i.showOnSite && i.orderStatus !== 'done');
+    // То же правило, что и на витрине: без завершённых и распроданных
+    const items = this.items.filter(i => i.showOnSite && i.orderStatus !== 'done' && (parseInt(i.quantity) || 0) > 0);
     if (!items.length) {
       el.innerHTML = `<div style="padding:14px;font-size:13px;color:var(--text3)">Нет товаров с галочкой «На сайте»</div>`;
       this._updateColCount();

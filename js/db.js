@@ -146,8 +146,18 @@ class InventoryDB {
     return r.json();
   }
 
-  async deleteItem(id) {
-    await fetch(`/api/items/${id}`, { method: 'DELETE' });
+  async deleteItem(id, dangerPassword = '') {
+    const r = await fetch(`/api/items/${id}`, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dangerPassword }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const err = new Error(d.error || 'Не удалось удалить');
+      err.code = d.code;
+      throw err;
+    }
+    return d;
   }
 
   /* ─── OWNERS ─── */
@@ -306,10 +316,15 @@ class InventoryDB {
     if (!r.ok) throw new Error('reorder failed');
     return r.json();
   }
-  async bulkDeleteItems(ids) {
-    const r = await fetch('/api/items/bulk-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ids }) });
-    if (!r.ok) throw new Error('bulk delete failed');
-    return r.json();
+  async bulkDeleteItems(ids, dangerPassword = '') {
+    const r = await fetch('/api/items/bulk-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ids, dangerPassword }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const err = new Error(d.error || 'Не удалось удалить');
+      err.code = d.code;
+      throw err;
+    }
+    return d;
   }
 
   /* ─── ЗАЯВКИ С САЙТА (корзина) ─── */
