@@ -2123,7 +2123,24 @@ class App {
           <div class="site-sec-hint">Показаны товары с сайта в наличии; непубликованные — сверху</div>
         </div>
       </div>
-      <input type="text" class="form-input tg-pub-search" id="tgPubSearch" placeholder="Поиск по названию или бренду…" autocomplete="off">
+      <div class="tg-pub-tools">
+        <div class="search-wrap tg-pub-searchwrap">
+          <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="tgPubSearch" class="search-input" placeholder="Найти товар: название, бренд, категория…" autocomplete="off">
+          <button class="search-clear hidden" id="tgPubClear" type="button">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="chips-scroll" id="tgPubChips">
+          <button class="chip active" data-tgf="all">Все</button>
+          <button class="chip" data-tgf="new">Не публиковались</button>
+          <button class="chip" data-tgf="posted">Уже были</button>
+        </div>
+      </div>
       <div class="settings-section" id="tgPubList"></div>
 
       <div class="site-sec-head" style="margin-top:22px">
@@ -2144,9 +2161,27 @@ class App {
         : `<div class="faq-empty"><div style="opacity:.5">${uiIcon('megaphone', 30)}</div>
              <p>Пока ничего не публиковали.<br>Выберите товар выше — пост уйдёт в канал альбомом.</p></div>`}`;
 
+    this._tgFilter = 'all';
     this._renderTgPubList('');
-    document.getElementById('tgPubSearch')?.addEventListener('input', (e) =>
-      this._renderTgPubList(e.target.value.trim().toLowerCase()));
+    const sInp = document.getElementById('tgPubSearch');
+    const sClr = document.getElementById('tgPubClear');
+    sInp?.addEventListener('input', () => {
+      sClr.classList.toggle('hidden', !sInp.value);
+      this._renderTgPubList(sInp.value.trim().toLowerCase());
+    });
+    sClr?.addEventListener('click', () => {
+      sInp.value = '';
+      sClr.classList.add('hidden');
+      this._renderTgPubList('');
+      sInp.focus();
+    });
+    document.getElementById('tgPubChips')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      this._tgFilter = chip.dataset.tgf;
+      document.querySelectorAll('#tgPubChips .chip').forEach(c => c.classList.toggle('active', c === chip));
+      this._renderTgPubList((sInp?.value || '').trim().toLowerCase());
+    });
     // Делегирование: кнопки «Опубликовать» в списке
     document.getElementById('tgPubList')?.addEventListener('click', async (e) => {
       const btn = e.target.closest('.tg-pub-btn');
@@ -2159,11 +2194,17 @@ class App {
   _renderTgPubList(query) {
     const el = document.getElementById('tgPubList');
     if (!el) return;
-    const items = this._tgItems.filter(i =>
-      !query || (i.name || '').toLowerCase().includes(query) || (i.brand || '').toLowerCase().includes(query));
+    const catName = id => (this.categories.find(c => c.id === id)?.name || '').toLowerCase();
+    let items = this._tgItems.filter(i =>
+      !query
+      || (i.name || '').toLowerCase().includes(query)
+      || (i.brand || '').toLowerCase().includes(query)
+      || catName(i.categoryId).includes(query));
+    if (this._tgFilter === 'new')    items = items.filter(i => !i.tgPostedAt);
+    if (this._tgFilter === 'posted') items = items.filter(i => i.tgPostedAt);
     if (!items.length) {
       el.innerHTML = `<div class="settings-row" style="cursor:default">
-        <div class="settings-row-info"><div class="settings-row-sub">${query ? 'Ничего не найдено' : 'Нет товаров на сайте в наличии — включите «На сайте» в карточке товара'}</div></div>
+        <div class="settings-row-info"><div class="settings-row-sub">${query || this._tgFilter !== 'all' ? 'Ничего не найдено — поменяйте запрос или фильтр' : 'Нет товаров на сайте в наличии — включите «На сайте» в карточке товара'}</div></div>
       </div>`;
       return;
     }

@@ -4737,7 +4737,9 @@ body.select-mode .row-check { display: block; }
 }
 .danger-badge svg { flex-shrink: 0; }
 
-/* Вкладка Telegram: миниатюра товара в строке публикации, поиск */
+/* Вкладка Telegram: миниатюра товара в строке публикации, поиск и фильтры */
 .tg-pub-thumb { overflow: hidden; padding: 0; }
 .tg-pub-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
-.tg-pub-search { margin-bottom: 10px; max-width: 420px; }
+.tg-pub-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.tg-pub-searchwrap { flex: 1; min-width: 240px; max-width: 460px; margin: 0; }
+#tgPubChips { flex-shrink: 0; }
