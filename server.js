@@ -1995,6 +1995,16 @@ function adjustStock(db, itemId, size, delta) {
     item.quantity = Math.max(0, (parseInt(item.quantity) || 0) + delta);
   }
   item.total = Math.round((item.quantity * (item.price || 0)) * 100) / 100;
+  // Продан последний экземпляр — товар сам уходит в «Завершено» (архив).
+  // Удаление записи продажи возвращает остаток — поднимаем обратно в наличие.
+  const setStatus = (to, byName) => {
+    if (item.orderStatus === to) return;
+    item.history = [...(item.history || []),
+      { ts: new Date().toISOString(), byName, changes: { orderStatus: { from: item.orderStatus, to } } }].slice(-30);
+    item.orderStatus = to;
+  };
+  if (delta < 0 && item.quantity <= 0) setStatus('done', 'авто · продажа');
+  if (delta > 0 && item.quantity > 0 && item.orderStatus === 'done') setStatus('in_stock', 'авто · возврат продажи');
   item.updatedAt = new Date().toISOString();
 }
 
