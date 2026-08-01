@@ -2073,6 +2073,46 @@ class App {
       </div>`;
   }
 
+  /* Вывод со счёта компании: списание с бюджета + пополнение сотруднику
+     одной операцией — обе записи связаны по описанию */
+  openWithdrawModal() {
+    const sel = document.getElementById('withdrawOwner');
+    sel.innerHTML = `<option value="">— Выберите сотрудника —</option>` +
+      (this.owners || []).map(o => `<option value="${o.id}">${this.esc(o.name)}</option>`).join('');
+    document.getElementById('withdrawAmount').value = '';
+    document.getElementById('withdrawNote').value   = '';
+    if (!this._withdrawBound) {
+      this._withdrawBound = true;
+      document.getElementById('withdrawModalClose').addEventListener('click', () => this.closeModal('withdrawModal'));
+      document.getElementById('withdrawModalSave').addEventListener('click', () => this._saveWithdraw());
+    }
+    this.openModal('withdrawModal');
+    setTimeout(() => sel.focus(), 350);
+  }
+
+  async _saveWithdraw() {
+    const ownerId = document.getElementById('withdrawOwner').value;
+    const amount  = parseFloat(document.getElementById('withdrawAmount').value) || 0;
+    const note    = document.getElementById('withdrawNote').value.trim();
+    if (!ownerId)    { this.toast('Выберите сотрудника'); return; }
+    if (amount <= 0) { this.toast('Укажите сумму'); return; }
+    const owner = this.owners.find(o => o.id === ownerId);
+    if (!await this.confirm(`Вывести ${fmtMoney(amount)} со счёта компании — ${owner?.name}?`, 'Вывести', false)) return;
+    // Защита от двойного клика
+    if (this._savingWithdraw) return;
+    this._savingWithdraw = true;
+    try {
+      await this.db.addPayment({ type: 'charge', amount, desc: `Вывод — ${owner?.name}${note ? ` · ${note}` : ''}` });
+      await this.db.addEmployeePayment({ ownerId, type: 'credit', amount, desc: note || 'Вывод со счёта компании' });
+      await this.db.logAction('finance', `Вывод ${fmtMoney(amount)} со счёта компании — ${owner?.name}`, { level: 'warn' });
+      this.closeModal('withdrawModal');
+      this.toast(`Выведено ${fmtMoney(amount)} — ${owner?.name} ✓`);
+      this.renderFinance();
+    } catch (e) {
+      this.toast(e.message || 'Ошибка — проверьте соединение');
+    } finally { this._savingWithdraw = false; }
+  }
+
   /* «Счёт» глазами сотрудника: карточка с заработком, история
      начислений/выплат и продажи его вещей (если он владелец-инвестор).
      Суммы начисляет root на вкладке «Счёт» → Сотрудники. */
@@ -4498,11 +4538,10 @@ class App {
               <line x1="5" y1="12" x2="19" y2="12"/>
             </svg>Списание
           </button>
-          <button class="fin-btn sell" id="sellBtn">
+          <button class="fin-btn sell" id="withdrawBtn">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-              <circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/>
-            </svg>Продать
+              <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+            </svg>Вывод
           </button>
         </div>
         <div class="section-title">Продажи</div>
@@ -4529,7 +4568,7 @@ class App {
 
     document.getElementById('depositBtn').addEventListener('click', () => this.openPaymentModal('deposit'));
     document.getElementById('chargeBtn').addEventListener('click',  () => this.openPaymentModal('charge'));
-    document.getElementById('sellBtn').addEventListener('click',    () => this.openSaleModal());
+    document.getElementById('withdrawBtn').addEventListener('click', () => this.openWithdrawModal());
     document.getElementById('addPlanBtn').addEventListener('click', () => this.openPlanModal());
 
     /* Тап по строке долга — раскрыть/свернуть детали */
