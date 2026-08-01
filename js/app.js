@@ -2073,6 +2073,107 @@ class App {
       </div>`;
   }
 
+  /* «Счёт» глазами сотрудника: карточка с заработком, история
+     начислений/выплат и продажи его вещей (если он владелец-инвестор).
+     Суммы начисляет root на вкладке «Счёт» → Сотрудники. */
+  async _renderFinanceEmployee() {
+    const el = document.getElementById('financeContent');
+    const u  = this.currentUser || {};
+    document.querySelector('#view-finance .view-title').textContent = 'Мой счёт';
+    // Пользователь ↔ участник — по совпадению имени (как в задачах и Личном)
+    const owner = (this.owners || []).find(o =>
+      (o.name || '').toLowerCase() === (u.name || '').toLowerCase());
+
+    const [payments, sales] = await Promise.all([
+      owner ? this.db.getEmployeePayments(owner.id) : Promise.resolve([]),
+      owner ? this.db.getSales() : Promise.resolve([]),
+    ]);
+    if (this.currentView !== 'finance') return;
+
+    const credits  = payments.filter(p => !p.isExpense && p.type === 'credit').reduce((s, p) => s + (p.amount || 0), 0);
+    const debits   = payments.filter(p => !p.isExpense && p.type === 'debit').reduce((s, p) => s + (p.amount || 0), 0);
+    const expenses = payments.filter(p => p.isExpense && !p.reimbursed).reduce((s, p) => s + (p.amount || 0), 0);
+    const balance  = credits - debits;
+    const pos      = balance >= 0;
+
+    const pct     = owner?.profitPercent || 0;
+    const mySales = owner ? sales.filter(s => s.ownerId === owner.id) : [];
+    const shareOf = s => ((s.buyPrice || 0) + (s.deliveryCost || 0)) * (s.qty || 1) + (s.netProfit || 0) * pct / 100;
+
+    const cardNum = String(owner?.id || u.id || '00000000').slice(-8).toUpperCase().match(/.{1,4}/g).join('&nbsp;');
+    // Обёртка со своим скроллом: на вебе view-body финансов — flex с overflow
+    // hidden (раскладка root-версии), без неё блоки сжимаются в полоски
+    el.innerHTML = `
+      <div class="fin-emp-wrap">
+      <div class="bank-card">
+        <div class="bank-guilloche" aria-hidden="true"></div>
+        <div class="bank-holo" aria-hidden="true"></div>
+        <div class="bank-card-top">
+          <span class="bank-card-brand">MASQUCERADE&nbsp;<b>·&nbsp;INC</b></span>
+          <span class="bank-card-icons">
+            <svg class="bank-chip" width="26" height="20" viewBox="0 0 26 20" fill="none" stroke="currentColor" stroke-width="1.3">
+              <rect x="1" y="1" width="24" height="18" rx="4"/>
+              <path d="M9 1v6a2 2 0 0 1-2 2H1M17 1v6a2 2 0 0 0 2 2h6M9 19v-6a2 2 0 0 0-2-2H1M17 19v-6a2 2 0 0 1 2-2h6"/>
+            </svg>
+            <svg class="bank-nfc" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <path d="M6 8.5a7 7 0 0 1 0 7M9.5 6a11 11 0 0 1 0 12M13 3.5a15 15 0 0 1 0 17"/>
+            </svg>
+          </span>
+        </div>
+        <div class="bank-card-mid">
+          <span class="bank-card-label">Мой заработок</span>
+          <div class="bank-card-amount">${pos ? '' : '−'}<span data-count="${Math.abs(balance)}" data-fmt="money">0 ₽</span></div>
+        </div>
+        <div class="bank-card-row">
+          <span class="bank-card-num">${cardNum}</span>
+          <span class="bank-card-holder">${this.esc((u.name || u.login || '').toUpperCase())}</span>
+        </div>
+      </div>
+      ${(credits || debits || expenses) ? `
+      <div class="bank-breakdown">
+        ${credits ? `<div class="budget-row"><span>Всего начислено</span><span class="pos">+${fmtMoney(credits)}</span></div>` : ''}
+        ${debits ? `<div class="budget-row"><span>Выплачено</span><span class="neg">−${fmtMoney(debits)}</span></div>` : ''}
+        ${expenses ? `<div class="budget-row"><span>Компания должна за мои расходы</span><span class="pos">+${fmtMoney(expenses)}</span></div>` : ''}
+      </div>` : ''}
+
+      <div class="section-title" style="margin-top:18px">История операций</div>
+      ${payments.length ? `<div class="pay-list">${payments.map(p => {
+          const isCredit = p.type === 'credit';
+          const cls  = p.isExpense ? 'expense' : (isCredit ? 'deposit' : 'charge');
+          const icon = p.isExpense ? uiIcon('receipt', 12) : (isCredit ? '+' : '−');
+          const defaultDesc = p.isExpense ? 'Расход из своих' : (isCredit ? 'Начисление' : 'Выплата');
+          return `<div class="pay-entry">
+            <div class="pay-icon ${cls}">${icon}</div>
+            <div class="pay-info">
+              <div class="pay-desc">${this.esc(p.desc || defaultDesc)}</div>
+              <div class="pay-time">${this.fmtDate(p.ts)}</div>
+            </div>
+            ${p.isExpense
+              ? `<div class="pay-amount-col"><div class="pay-amount expense">${fmtMoney(p.amount)}</div><div class="pay-return-label">${p.reimbursed ? 'возвращено ✓' : 'долг компании'}</div></div>`
+              : `<div class="pay-amount ${cls}">${isCredit ? '+' : '−'}${fmtMoney(p.amount)}</div>`}
+          </div>`;
+        }).join('')}</div>`
+        : `<div class="plan-empty">Операций пока нет — здесь появятся начисления и выплаты</div>`}
+
+      ${owner ? `
+      <div class="section-title" style="margin-top:18px">Продажи моих вещей${pct ? ` <em style="font-style:normal;font-size:11px;color:var(--text3)">· доля: закуп + ${pct}% прибыли</em>` : ''}</div>
+      ${mySales.length ? `<div class="sales-list">${mySales.map(s => `
+          <div class="sale-entry">
+            <div class="sale-entry-info">
+              <div class="sale-entry-name">${this.esc(s.itemName)}${s.size ? ` · ${this.esc(s.size)}` : ''}</div>
+              <div class="sale-entry-meta">${this.fmtDate(s.soldAt)} · продано за ${fmtMoney(s.salePrice || 0)}</div>
+            </div>
+            <div class="sale-entry-right">
+              <div class="sale-entry-profit pos">+${fmtMoney(Math.round(shareOf(s)))}</div>
+              <div class="sale-entry-revenue">моя доля</div>
+            </div>
+          </div>`).join('')}</div>`
+        : `<div class="plan-empty">Ваши вещи ещё не продавались</div>`}` : ''}
+      </div>
+    `;
+    runCountUps(el);
+  }
+
   /* ──────────────────────────────────────────
      TELEGRAM — канал, публикация товаров, история постов
      ────────────────────────────────────────── */
@@ -4170,6 +4271,9 @@ class App {
       <div class="skel-row"><div class="skel-block" style="height:70px"></div><div class="skel-block" style="height:70px"></div><div class="skel-block" style="height:70px"></div></div>
       <div class="skel-block" style="height:140px"></div>
     </div>`;
+    // Сотрудник видит только свой счёт: карточка-зарплата + операции + продажи
+    if (this.currentUser?.role !== 'root') return this._renderFinanceEmployee();
+    document.querySelector('#view-finance .view-title').textContent = 'Счёт компании';
     const [payments, empPayments, plans, sales] = await Promise.all([
       this.db.getPayments(),
       this.owners.length ? this.db.getEmployeePayments() : Promise.resolve([]),

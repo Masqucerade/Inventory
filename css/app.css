@@ -4743,3 +4743,10 @@ body.select-mode .row-check { display: block; }
 .tg-pub-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .tg-pub-searchwrap { flex: 1; min-width: 240px; max-width: 460px; margin: 0; }
 #tgPubChips { flex-shrink: 0; }
+
+/* «Мой счёт» сотрудника: свой скролл внутри flex-раскладки финансов */
+.fin-emp-wrap {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--sep) transparent;
+}
