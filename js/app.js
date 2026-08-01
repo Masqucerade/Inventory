@@ -2141,7 +2141,7 @@ class App {
           const isCredit = p.type === 'credit';
           const cls  = p.isExpense ? 'expense' : (isCredit ? 'deposit' : 'charge');
           const icon = p.isExpense ? uiIcon('receipt', 12) : (isCredit ? '+' : '−');
-          const defaultDesc = p.isExpense ? 'Расход из своих' : (isCredit ? 'Начисление' : 'Выплата');
+          const defaultDesc = p.isExpense ? 'Расход из своих' : (isCredit ? 'Пополнение' : 'Списание');
           return `<div class="pay-entry">
             <div class="pay-icon ${cls}">${icon}</div>
             <div class="pay-info">
@@ -4706,7 +4706,7 @@ class App {
            const isExpense = p.isExpense;
            const cls = isExpense ? 'expense' : (isCredit ? 'deposit' : 'charge');
            const icon = isExpense ? uiIcon('receipt', 12) : (isCredit ? '+' : '−');
-           const defaultDesc = isExpense ? 'Расход из своих' : (isCredit ? 'Начисление' : 'Выплата');
+           const defaultDesc = isExpense ? 'Расход из своих' : (isCredit ? 'Пополнение' : 'Списание');
            return `<div class="pay-entry" style="animation-delay:${Math.min(idx*20,180)}ms">
              <div class="pay-icon ${cls}">${icon}</div>
              <div class="pay-info">
@@ -4739,22 +4739,16 @@ class App {
         <div class="balance-amount ${pos ? 'pos' : 'neg'}">${pos ? '' : '−'}<span data-count="${Math.abs(balance)}" data-fmt="money">0 ₽</span></div>
         ${balanceExtra}
       </div>
-      <div class="finance-actions" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="finance-actions" style="grid-template-columns:1fr 1fr">
         <button class="fin-btn deposit" id="empCreditBtn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>Зарплата
-        </button>
-        <button class="fin-btn expense" id="empExpenseBtn">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-            <line x1="7" y1="7" x2="7.01" y2="7"/>
-          </svg>Расход
+          </svg>Пополнение
         </button>
         <button class="fin-btn charge" id="empDebitBtn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>Выплатить
+          </svg>Списание
         </button>
       </div>
       ${histHtml}
@@ -4765,9 +4759,6 @@ class App {
 
     document.getElementById('empCreditBtn').addEventListener('click', () =>
       this.openPaymentModal('credit', ownerId)
-    );
-    document.getElementById('empExpenseBtn').addEventListener('click', () =>
-      this.openPaymentModal('expense', ownerId)
     );
     document.getElementById('empDebitBtn').addEventListener('click', () =>
       this.openPaymentModal('debit', ownerId)
@@ -4787,8 +4778,8 @@ class App {
   openPaymentModal(type, empOwnerId = null) {
     this._currentPayType    = type;
     this._currentEmpOwnerId = empOwnerId;
-    const titles = { deposit: 'Депозит', charge: 'Выставить счёт', credit: 'Начислить', debit: 'Выплатить', expense: 'Расход из своих' };
-    const saves  = { deposit: 'Добавить', charge: 'Выставить',      credit: 'Начислить', debit: 'Выплатить', expense: 'Записать' };
+    const titles = { deposit: 'Депозит', charge: 'Выставить счёт', credit: 'Пополнение', debit: 'Списание', expense: 'Расход из своих' };
+    const saves  = { deposit: 'Добавить', charge: 'Выставить',      credit: 'Пополнить', debit: 'Списать', expense: 'Записать' };
     document.getElementById('paymentModalTitle').textContent = titles[type] || 'Операция';
     document.getElementById('paymentModalSave').textContent  = saves[type]  || 'Добавить';
     document.getElementById('paymentAmount').value = '';
