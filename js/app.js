@@ -5761,12 +5761,17 @@ class App {
     );
   }
 
-  // Простой просмотрщик фото на весь экран
+  // Простой просмотрщик фото на весь экран.
+  // На телефоне долгое нажатие по фото открывает системное меню
+  // «Сохранить изображение» — такой жест не должен закрывать просмотрщик,
+  // закрываем только коротким тапом.
   _openImage(src) {
     const ov = document.createElement('div');
     ov.className = 'image-viewer';
     ov.innerHTML = `<img src="${src}" alt="">`;
-    ov.addEventListener('click', () => ov.remove());
+    let t0 = 0;
+    ov.addEventListener('pointerdown', () => { t0 = Date.now(); });
+    ov.addEventListener('click', () => { if (Date.now() - t0 < 450) ov.remove(); });
     document.body.appendChild(ov);
   }
 
