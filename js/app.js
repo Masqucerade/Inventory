@@ -2140,6 +2140,11 @@ class App {
           <button class="chip" data-tgf="new">Не публиковались</button>
           <button class="chip" data-tgf="posted">Уже были</button>
         </div>
+        <div class="chips-scroll" id="tgBrandChips">
+          <button class="chip active" data-tgb="all">Оба бренда</button>
+          <button class="chip" data-tgb="monarc">Monarc</button>
+          <button class="chip" data-tgb="type">Type</button>
+        </div>
       </div>
       <div class="settings-section" id="tgPubList"></div>
 
@@ -2162,6 +2167,7 @@ class App {
              <p>Пока ничего не публиковали.<br>Выберите товар выше — пост уйдёт в канал альбомом.</p></div>`}`;
 
     this._tgFilter = 'all';
+    this._tgBrand  = 'all';
     this._renderTgPubList('');
     const sInp = document.getElementById('tgPubSearch');
     const sClr = document.getElementById('tgPubClear');
@@ -2180,6 +2186,13 @@ class App {
       if (!chip) return;
       this._tgFilter = chip.dataset.tgf;
       document.querySelectorAll('#tgPubChips .chip').forEach(c => c.classList.toggle('active', c === chip));
+      this._renderTgPubList((sInp?.value || '').trim().toLowerCase());
+    });
+    document.getElementById('tgBrandChips')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      this._tgBrand = chip.dataset.tgb;
+      document.querySelectorAll('#tgBrandChips .chip').forEach(c => c.classList.toggle('active', c === chip));
       this._renderTgPubList((sInp?.value || '').trim().toLowerCase());
     });
     // Делегирование: кнопки «Опубликовать» в списке
@@ -2202,6 +2215,8 @@ class App {
       || catName(i.categoryId).includes(query));
     if (this._tgFilter === 'new')    items = items.filter(i => !i.tgPostedAt);
     if (this._tgFilter === 'posted') items = items.filter(i => i.tgPostedAt);
+    if (this._tgBrand === 'monarc')  items = items.filter(i => i.isMonarc);
+    if (this._tgBrand === 'type')    items = items.filter(i => !i.isMonarc);
     if (!items.length) {
       el.innerHTML = `<div class="settings-row" style="cursor:default">
         <div class="settings-row-info"><div class="settings-row-sub">${query || this._tgFilter !== 'all' ? 'Ничего не найдено — поменяйте запрос или фильтр' : 'Нет товаров на сайте в наличии — включите «На сайте» в карточке товара'}</div></div>
