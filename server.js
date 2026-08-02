@@ -569,12 +569,6 @@ function publicItem(i) {
   };
 }
 
-/* Служебный: прямой Railway-хост приложения — нужен шлюзу РФ (он и так
-   публичен — редиректит на канонический домен) */
-app.get('/api/public/gw-host', (req, res) => {
-  res.json({ railway: process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || null });
-});
-
 app.get('/api/public/items', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   // Проданные тоже отдаём (sold: true) — витрина показывает их в «Архиве»
@@ -2467,7 +2461,7 @@ app.post('/api/tasks/digest', async (req, res) => {
    циклах подряд → алерт root'ам в Telegram, восстановление → отбой.
    Работает только на проде (задан CANONICAL_HOST). */
 const RF_NODES = ['ru1', 'ru2', 'ru3'].map(n => `${n}.node.check-host.net`);
-const _rfMon = { failStreak: 0, alerted: false, echAlerted: false };
+const _rfMon = {};   // состояние на каждый домен: { failStreak, alerted, echAlerted }
 
 async function notifyRoots(text) {
   const token = process.env.TG_LOG_TOKEN;
@@ -2509,33 +2503,37 @@ async function echProbe(host) {
 }
 
 function scheduleRfMonitor() {
-  const host = process.env.CANONICAL_HOST;
-  if (!host) return;                              // локалка — не мониторим
+  // Сторожим оба домена: сайт Monarc и Type (трафик РФ идёт через шлюз Timeweb)
+  const hosts = [process.env.CANONICAL_HOST, process.env.TYPE_HOST].filter(Boolean);
+  if (!hosts.length) return;                      // локалка — не мониторим
   setInterval(async () => {
-    try {
-      const probe = await rfProbe(host);
-      if (probe) {
-        if (probe.ok === 0) {
-          _rfMon.failStreak++;
-          if (_rfMon.failStreak >= 2 && !_rfMon.alerted) {
-            _rfMon.alerted = true;
-            await notifyRoots(`⚠️ <b>Сайт не открывается из России</b>\n` +
-              `Проверочные узлы РФ (${probe.total} шт.) не смогли открыть https://${host} две проверки подряд. ` +
-              `Похоже на блокировку или сбой — проверь вручную и напиши Клоду.`);
+    for (const host of hosts) {
+      const st = _rfMon[host] ||= { failStreak: 0, alerted: false, echAlerted: false };
+      try {
+        const probe = await rfProbe(host);
+        if (probe) {
+          if (probe.ok === 0) {
+            st.failStreak++;
+            if (st.failStreak >= 2 && !st.alerted) {
+              st.alerted = true;
+              await notifyRoots(`⚠️ <b>${host} не открывается из России</b>\n` +
+                `Проверочные узлы РФ (${probe.total} шт.) не смогли открыть сайт две проверки подряд. ` +
+                `Похоже на сбой шлюза или блокировку — проверь вручную и напиши Клоду.`);
+            }
+          } else {
+            if (st.alerted) await notifyRoots(`✓ <b>${host} снова открывается из России</b>\n` +
+              `Узлы РФ: ${probe.ok}/${probe.total} ок.`);
+            st.failStreak = 0; st.alerted = false;
           }
-        } else {
-          if (_rfMon.alerted) await notifyRoots(`✓ <b>Сайт снова открывается из России</b>\n` +
-            `Узлы РФ: ${probe.ok}/${probe.total} ок.`);
-          _rfMon.failStreak = 0; _rfMon.alerted = false;
         }
-      }
-      const ech = await echProbe(host);
-      if (ech && !_rfMon.echAlerted) {
-        _rfMon.echAlerted = true;
-        await notifyRoots(`⚠️ <b>Cloudflare снова включил ECH</b> на ${host} — из-за него сайт блокируется в РФ.\n` +
-          `Выключить: Cloudflare → SSL/TLS → Edge Certificates → Encrypted ClientHello → Off.`);
-      } else if (!ech) _rfMon.echAlerted = false;
-    } catch (_) { /* сбой самой проверки — молча ждём следующего цикла */ }
+        const ech = await echProbe(host);
+        if (ech && !st.echAlerted) {
+          st.echAlerted = true;
+          await notifyRoots(`⚠️ <b>В DNS ${host} появился ECH</b> — если домен вернётся за прокси Cloudflare, в РФ его заблокируют.\n` +
+            `Проверить: Cloudflare → SSL/TLS → Edge Certificates → Encrypted ClientHello → Off.`);
+        } else if (!ech) st.echAlerted = false;
+      } catch (_) { /* сбой самой проверки — молча ждём следующего цикла */ }
+    }
   }, 15 * 60 * 1000);
 }
 
