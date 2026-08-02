@@ -1651,7 +1651,22 @@ app.post('/api/items/:id/tg-post', async (req, res) => {
       ? `https://t.me/${channel.slice(1)}/${firstMsg.message_id}` : null;
     res.json({ ok: true, link });
   } catch (e) {
-    res.status(502).json({ error: 'Не удалось отправить: ' + e.message });
+    // Полный текст — в логи Railway; наружу — человеческая расшифровка
+    console.error('tg-post failed:', it.id, e.message);
+    const m = String(e.message || '');
+    const hint =
+      /chat not found/i.test(m)
+        ? 'Канал не найден — проверьте TG_CHANNEL (@имя_канала или -100…id)'
+      : /(need administrator rights|not enough rights|CHAT_ADMIN_REQUIRED|bot is not a member)/i.test(m)
+        ? 'Бот не админ канала — добавьте бота администратором с правом публиковать'
+      : /bot was kicked/i.test(m)
+        ? 'Бот удалён из канала — верните его администратором'
+      : /(failed to get HTTP URL content|wrong file identifier|WEBPAGE|wrong type of the web page)/i.test(m)
+        ? `Telegram не смог скачать фото с ${CANONICAL_HOST} — проверьте, что сайт открывается извне`
+      : /abort/i.test(m)
+        ? 'Telegram отвечал слишком долго — попробуйте ещё раз'
+      : m;
+    res.status(502).json({ error: 'Не удалось отправить: ' + hint });
   }
 });
 
