@@ -61,6 +61,14 @@ const monarcFavicon = html => html
            '<link rel="icon" href="/site/monarc-logo.jpg" type="image/jpeg">')
   .replace('<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">', '');
 
+// Страницы Type — лого бренда (звёзды + искра на чёрном)
+const typeFavicon = html => html
+  .replace('<link rel="icon" href="/favicon.svg" type="image/svg+xml">',
+           '<link rel="icon" href="/site/type-favicon.svg" type="image/svg+xml">')
+  .replace('<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">', '');
+const sectionFavicon = (html, section) =>
+  section === 'monarc' ? monarcFavicon(html) : typeFavicon(html);
+
 /* Яндекс.Метрика: включается env-переменной YM_ID (номер счётчика) в Railway —
    без правок кода. Пусто = сниппет не вставляется. */
 /* Подтверждение прав на сайт для поисковиков — коды из env (Railway):
@@ -107,7 +115,7 @@ function serveCatalog(req, res, section) {
   let html = SITE_CATALOG.replace('<!--META-->', headTags({
     title, description, url: o + '/', image: o + ogImage(section), section,
   }));
-  if (section === 'monarc') html = monarcFavicon(html);
+  html = sectionFavicon(html, section);
   res.set('Cache-Control', 'no-cache').send(html);
 }
 
@@ -143,7 +151,7 @@ app.get('/brand/:slug', (req, res) => {
     image: o + ogImage(section),
     section,
   }) + `\n  <meta name="mq-brand" content="${escAttr(brand)}">`);
-  if (section === 'monarc') html = monarcFavicon(html);
+  html = sectionFavicon(html, section);
   res.set('Cache-Control', 'no-cache').send(html);
 });
 
@@ -219,7 +227,7 @@ app.get('/product/:id', (req, res) => {
     type:  'product',
     section,
   }) + `\n  <script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
-  if (it.isMonarc) html = monarcFavicon(html);
+  html = sectionFavicon(html, section);
   res.set('Cache-Control', 'no-cache').send(html);
 });
 

@@ -1371,6 +1371,9 @@ body.theme-type .p-cond.cond-new { color: #17150f; }
 .co-total-old { color: var(--text3); font-size: 14px; font-weight: 400; margin-right: 6px; }
 
 /* ─── Логотип Type: дуга звёзд + искра (инлайн-SVG, цвет наследует шапку) ─── */
-.type-mark { display: none; width: 40px; height: 31px; flex-shrink: 0; }
+.type-mark { display: none; width: 52px; height: 40px; flex-shrink: 0; }
 body.theme-type .type-mark { display: block; }
 body.theme-type .site-logo .brand-mark { display: none; }
+/* Шапка Type: только лого, без надписи (и в мобильном меню тоже) */
+body.theme-type #logoName,
+body.theme-type #mobLogoName { display: none; }
