@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=137">
+  <link rel="stylesheet" href="css/app.css?v=138">
 </head>
 <body>
 
@@ -1111,6 +1111,48 @@
   </div>
 </div>
 
+<!-- Корпоративный ресурс: добавление / правка (root) -->
+<div class="modal" id="perkModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="perkModalClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title" id="perkModalTitle">Новый ресурс</span>
+      <button class="modal-action-btn" id="perkModalSave">Добавить</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Тип</label>
+        <select class="form-input form-select" id="perkKind">
+          <option value="ai">Нейросети / ИИ</option>
+          <option value="vpn">VPN</option>
+          <option value="sub">Подписка</option>
+          <option value="key">Доступ / аккаунт</option>
+          <option value="link">Ссылка / сервис</option>
+          <option value="other">Другое</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Название <span class="required">*</span></label>
+        <input type="text" class="form-input" id="perkTitle" placeholder="Например: ChatGPT Plus" autocomplete="off" maxlength="80">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Подпись</label>
+        <input type="text" class="form-input" id="perkNote" placeholder="Например: общий аккаунт команды" autocomplete="off" maxlength="200">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Доступ (логин / пароль / ключ)</label>
+        <textarea class="form-input form-textarea" id="perkValue" placeholder="Скрыт точками, копируется по клику&#10;Логин: …&#10;Пароль: …" rows="3" maxlength="500"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ссылка</label>
+        <input type="text" class="form-input" id="perkUrl" placeholder="https://…" autocomplete="off" maxlength="300">
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Вывод со счёта компании сотруднику -->
 <div class="modal" id="withdrawModal">
   <div class="modal-sheet">
@@ -1546,8 +1588,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=61"></script>
+<script src="js/db.js?v=62"></script>
 <script src="js/backup.js?v=46"></script>
-<script src="js/app.js?v=186"></script>
+<script src="js/app.js?v=187"></script>
 </body>
 </html>

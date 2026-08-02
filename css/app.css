@@ -4758,3 +4758,25 @@ body.select-mode .row-check { display: block; }
   overflow-y: auto;
   scrollbar-width: thin; scrollbar-color: var(--sep) transparent;
 }
+
+/* Корпоративные ресурсы на Обзоре */
+.ov-perk-list { display: flex; flex-direction: column; }
+.ov-perk { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--sep2); min-width: 0; }
+.ov-perk:last-child { border-bottom: none; }
+.ov-perk-ic {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  background: var(--fill2); color: var(--text2);
+}
+.ov-perk-info { flex: 1; min-width: 0; }
+.ov-perk-info b { display: block; font-size: 12.5px; font-weight: 650; letter-spacing: -.2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-perk-info i { display: block; font-style: normal; font-size: 11px; color: var(--text3); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-perk-act {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; flex-shrink: 0;
+  border: none; border-radius: 7px; background: none;
+  color: var(--text3); cursor: pointer;
+  transition: background .13s, color .13s;
+}
+.ov-perk-act:hover { background: var(--fill2); color: var(--text); }
+.ov-perk-act.perk-del:hover { background: rgba(248,113,113,.12); color: #f87171; }

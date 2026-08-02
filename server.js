@@ -1222,6 +1222,52 @@ app.delete('/api/users/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── КОРПОРАТИВНЫЕ РЕСУРСЫ (плюшки команды) ───
+   Видят все авторизованные (виджет на Обзоре), управляет root.
+   value может содержать доступы — наружу не светится, только в панели. */
+app.get('/api/perks', (req, res) => res.json(load().perks || []));
+
+app.post('/api/perks', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const title = String(req.body.title || '').trim().slice(0, 80);
+  if (!title) return res.status(400).json({ error: 'Название обязательно' });
+  const db = load();
+  if (!db.perks) db.perks = [];
+  const perk = {
+    id: uid(), title,
+    kind:  ['ai', 'vpn', 'sub', 'key', 'link'].includes(req.body.kind) ? req.body.kind : 'other',
+    note:  String(req.body.note  || '').trim().slice(0, 200),
+    value: String(req.body.value || '').trim().slice(0, 500),
+    url:   String(req.body.url   || '').trim().slice(0, 300),
+    createdAt: new Date().toISOString(),
+  };
+  db.perks.push(perk);
+  save(db);
+  res.json(perk);
+});
+
+app.put('/api/perks/:id', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  const p  = (db.perks || []).find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'not found' });
+  if (req.body.title != null) p.title = String(req.body.title).trim().slice(0, 80) || p.title;
+  if (req.body.kind  != null) p.kind  = ['ai', 'vpn', 'sub', 'key', 'link'].includes(req.body.kind) ? req.body.kind : 'other';
+  if (req.body.note  != null) p.note  = String(req.body.note).trim().slice(0, 200);
+  if (req.body.value != null) p.value = String(req.body.value).trim().slice(0, 500);
+  if (req.body.url   != null) p.url   = String(req.body.url).trim().slice(0, 300);
+  save(db);
+  res.json(p);
+});
+
+app.delete('/api/perks/:id', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  db.perks = (db.perks || []).filter(x => x.id !== req.params.id);
+  save(db);
+  res.json({ ok: true });
+});
+
 /* ─── РОЛИ И ПРАВА (root) ───
    Роль — именованный пресет прав: access[] + hideCosts. Назначение роли
    пользователю копирует её настройки (и запоминает roleId для бейджа);

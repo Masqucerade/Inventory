@@ -357,6 +357,25 @@ class InventoryDB {
     return d;
   }
 
+  /* ─── КОРПОРАТИВНЫЕ РЕСУРСЫ ─── */
+  async getPerks() {
+    try { const r = await fetch('/api/perks'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async addPerk(perk) {
+    const r = await fetch('/api/perks', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(perk) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось добавить');
+    return d;
+  }
+  async updatePerk(id, patch) {
+    const r = await fetch(`/api/perks/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось изменить');
+    return d;
+  }
+  async deletePerk(id) { await fetch(`/api/perks/${id}`, { method:'DELETE' }); }
+
   /* ─── ОПАСНЫЕ ЗОНЫ ─── */
   async getDangerStatus() {
     try { const r = await fetch('/api/danger/status'); return r.ok ? r.json() : { set: false }; }

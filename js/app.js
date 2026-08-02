@@ -38,6 +38,8 @@ const UI_PATHS = {
   alert:      '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
   lock:       '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   shield:     '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  spark:      '<path d="M12 3l1.9 5.6 5.6 1.9-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/><path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z"/>',
+  gift:       '<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
   sun:        '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>',
   moon:       '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
   pin:        '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/>',
@@ -1873,12 +1875,13 @@ class App {
     const hasFin   = this.hasAccess('finance');
     const hasStats = this.hasAccess('stats');
     const hasSite  = this.hasAccess('site');
-    const [sales, payments, empPayments, orders, tasks] = await Promise.all([
+    const [sales, payments, empPayments, orders, tasks, perks] = await Promise.all([
       (hasStats || hasFin) ? this.db.getSales() : Promise.resolve([]),
       hasFin ? this.db.getPayments() : Promise.resolve([]),
       (hasFin && this.owners.length) ? this.db.getEmployeePayments() : Promise.resolve([]),
       hasSite ? this.db.getOrders() : Promise.resolve([]),
       this.db.getTasks(),
+      this.db.getPerks(),
     ]);
     if (this.currentView !== 'overview') return;   // пока грузили — ушли на другую вкладку
 
@@ -1968,20 +1971,31 @@ class App {
       <div class="ov-leg"><span class="ov-leg-dot" style="background:${color}"></span>
         <span class="ov-leg-label">${label}</span><span class="ov-leg-val">${val}%</span></div>`;
 
-    /* ── Последние продажи ── */
-    const lastSales = sales.slice(-4).reverse();
-    const salesListHtml = (hasStats || hasFin) && lastSales.length ? `
+    /* ── Корпоративные ресурсы: плюшки команды ── */
+    this._perks = perks;
+    const PERK_IC = { ai: 'spark', vpn: 'shield', sub: 'star', key: 'key', link: 'link', other: 'gift' };
+    const perkRows = perks.map(pk => `
+      <div class="ov-perk" data-perk-id="${pk.id}">
+        <span class="ov-perk-ic">${uiIcon(PERK_IC[pk.kind] || 'gift', 14)}</span>
+        <div class="ov-perk-info">
+          <b>${this.esc(pk.title)}</b>
+          ${pk.note ? `<i>${this.esc(pk.note)}</i>` : ''}
+        </div>
+        ${pk.value ? `<button class="ov-perk-act perk-copy" data-id="${pk.id}" title="Скопировать доступ">${uiIcon('key', 12)}</button>` : ''}
+        ${pk.url ? `<a class="ov-perk-act" href="${this.esc(pk.url)}" target="_blank" rel="noopener" title="Открыть">${uiIcon('link', 12)}</a>` : ''}
+        ${isRoot ? `
+          <button class="ov-perk-act perk-edit" data-id="${pk.id}" title="Изменить">${uiIcon('edit', 11)}</button>
+          <button class="ov-perk-act perk-del" data-id="${pk.id}" title="Удалить">${uiIcon('trash', 11)}</button>` : ''}
+      </div>`).join('');
+    const perksHtml = `
       <div class="ov-card">
-        <div class="ov-card-head"><span>Последние продажи</span></div>
-        ${lastSales.map(s => `
-          <div class="ov-sale">
-            <div class="ov-sale-info">
-              <div class="ov-sale-name">${this.esc(s.itemName || '')}${s.size ? ` · ${this.esc(s.size)}` : ''}</div>
-              <div class="ov-sale-date">${this.fmtDate(s.soldAt)}</div>
-            </div>
-            <span class="ov-sale-profit ${(s.netProfit || 0) >= 0 ? 'pos' : 'neg'}">${(s.netProfit || 0) >= 0 ? '+' : ''}${fmtMoney(s.netProfit || 0)}</span>
-          </div>`).join('')}
-      </div>` : '';
+        <div class="ov-card-head"><span>Корпоративные ресурсы</span>
+          ${isRoot ? `<button class="ov-add" id="ovAddPerk" title="Добавить ресурс">＋</button>` : ''}
+        </div>
+        ${perks.length
+          ? `<div class="ov-perk-list">${perkRows}</div>`
+          : `<div class="ov-empty">${isRoot ? 'Добавьте плюшки команды —<br>ChatGPT Plus, VPN, подписки…' : 'Плюшек пока нет'}</div>`}
+      </div>`;
 
     this._calOff = 0;
     el.innerHTML = `
@@ -2029,7 +2043,7 @@ class App {
             ${legend('#38bdf8', 'Выставлено на сайт', pctSite)}
             ${legend('#a1a1aa', 'Задачи закрыты', pctTasks)}
           </div>
-          ${salesListHtml}
+          ${perksHtml}
         </div>
       </div>`;
 
@@ -2044,12 +2058,66 @@ class App {
 
     /* Бинды */
     document.getElementById('ovAddTask')?.addEventListener('click', () => this.openTaskModal());
+    document.getElementById('ovAddPerk')?.addEventListener('click', () => this.openPerkModal());
+    el.querySelectorAll('.perk-copy').forEach(b2 => b2.addEventListener('click', async () => {
+      const pk = this._perks.find(x => x.id === b2.dataset.id);
+      try { await navigator.clipboard.writeText(pk.value); this.toast('Доступ скопирован ✓'); }
+      catch { this.toast('Не удалось скопировать'); }
+    }));
+    el.querySelectorAll('.perk-edit').forEach(b2 => b2.addEventListener('click', () =>
+      this.openPerkModal(this._perks.find(x => x.id === b2.dataset.id))));
+    el.querySelectorAll('.perk-del').forEach(b2 => b2.addEventListener('click', async () => {
+      const pk = this._perks.find(x => x.id === b2.dataset.id);
+      if (!await this.confirm(`Удалить ресурс «${pk.title}»?`)) return;
+      await this.db.deletePerk(pk.id);
+      this.toast('Ресурс удалён ✓');
+      this.renderOverview();
+    }));
     document.getElementById('ovAllTasks')?.addEventListener('click', () => this.renderView(isRoot ? 'project' : 'profile'));
     const reCal = () => { const w = document.getElementById('ovCalWrap'); if (w) w.innerHTML = this._ovCalHtml(); };
     document.getElementById('ovCalPrev')?.addEventListener('click', () => { this._calOff--; reCal(); });
     document.getElementById('ovCalNext')?.addEventListener('click', () => { this._calOff++; reCal(); });
     el.querySelectorAll('.ov-stat[data-nav]').forEach(c =>
       c.addEventListener('click', () => this.renderView(c.dataset.nav)));
+  }
+
+  /* ── Корпоративные ресурсы: модалка (root) ── */
+  openPerkModal(perk = null) {
+    this._editingPerkId = perk?.id || null;
+    document.getElementById('perkModalTitle').textContent = perk ? 'Ресурс' : 'Новый ресурс';
+    document.getElementById('perkModalSave').textContent  = perk ? 'Сохранить' : 'Добавить';
+    document.getElementById('perkKind').value  = perk?.kind  || 'ai';
+    document.getElementById('perkTitle').value = perk?.title || '';
+    document.getElementById('perkNote').value  = perk?.note  || '';
+    document.getElementById('perkValue').value = perk?.value || '';
+    document.getElementById('perkUrl').value   = perk?.url   || '';
+    if (!this._perkModalBound) {
+      this._perkModalBound = true;
+      document.getElementById('perkModalClose').addEventListener('click', () => this.closeModal('perkModal'));
+      document.getElementById('perkModalSave').addEventListener('click', async () => {
+        const data = {
+          kind:  document.getElementById('perkKind').value,
+          title: document.getElementById('perkTitle').value.trim(),
+          note:  document.getElementById('perkNote').value.trim(),
+          value: document.getElementById('perkValue').value.trim(),
+          url:   document.getElementById('perkUrl').value.trim(),
+        };
+        if (!data.title) { this.toast('Введите название'); return; }
+        try {
+          if (this._editingPerkId) {
+            await this.db.updatePerk(this._editingPerkId, data);
+            this.toast('Ресурс обновлён ✓');
+          } else {
+            await this.db.addPerk(data);
+            this.toast('Ресурс добавлен ✓');
+          }
+          this.closeModal('perkModal');
+          this.renderOverview();
+        } catch (e) { this.toast(e.message); }
+      });
+    }
+    this.openModal('perkModal');
+    if (!perk) setTimeout(() => document.getElementById('perkTitle')?.focus(), 150);
   }
 
   /* Календарь месяца: пн-вс, сегодня — белая точка */
