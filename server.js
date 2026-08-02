@@ -2454,6 +2454,85 @@ app.post('/api/tasks/digest', async (req, res) => {
   res.json({ ok: true, sent: n });
 });
 
+/* ─── МОНИТОРИНГ ДОСТУПНОСТИ ИЗ РФ ───
+   Раз в 15 минут сервер проверяет сам себя с российских узлов check-host.net
+   и следит, не включил ли Cloudflare обратно ECH (главная причина блокировок
+   сайтов за Cloudflare в РФ — РКН режет TLS с этим расширением). Сбой в двух
+   циклах подряд → алерт root'ам в Telegram, восстановление → отбой.
+   Работает только на проде (задан CANONICAL_HOST). */
+const RF_NODES = ['ru1', 'ru2', 'ru3'].map(n => `${n}.node.check-host.net`);
+const _rfMon = { failStreak: 0, alerted: false, echAlerted: false };
+
+async function notifyRoots(text) {
+  const token = process.env.TG_LOG_TOKEN;
+  if (!token) return;
+  const db = load();
+  for (const u of (db.users || [])) {
+    if (u.role !== 'root' || !u.tgChatId) continue;
+    const chatId = await resolveTgChat(token, u.tgChatId);
+    if (chatId) tgSend(token, chatId, text);
+  }
+}
+
+/* check-host.net: сколько российских узлов открыли сайт. null = проверить не вышло */
+async function rfProbe(host) {
+  const q = RF_NODES.map(n => `node=${n}`).join('&');
+  const opts = { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) };
+  const req = await fetch(`https://check-host.net/check-http?host=https://${host}&${q}`, opts)
+    .then(r => r.json());
+  if (!req.request_id) return null;
+  await new Promise(r => setTimeout(r, 12000));   // узлам нужно время на проверку
+  const res = await fetch(`https://check-host.net/check-result/${req.request_id}`, opts)
+    .then(r => r.json());
+  let ok = 0, total = 0;
+  for (const n of RF_NODES) {
+    const row = res[n]?.[0];
+    if (!Array.isArray(row)) continue;            // узел не успел/недоступен
+    total++;
+    if (row[0] === 1 && /^[23]/.test(String(row[3] ?? ''))) ok++;
+  }
+  return total >= 2 ? { ok, total } : null;       // меньше двух ответов — не судим
+}
+
+/* ECH появляется в DNS-записи HTTPS — ловим по презентационному формату Google DoH */
+async function echProbe(host) {
+  const d = await fetch(`https://dns.google/resolve?name=${host}&type=HTTPS`, {
+    signal: AbortSignal.timeout(10000),
+  }).then(r => r.json());
+  return (d.Answer || []).some(a => String(a.data || '').includes('ech='));
+}
+
+function scheduleRfMonitor() {
+  const host = process.env.CANONICAL_HOST;
+  if (!host) return;                              // локалка — не мониторим
+  setInterval(async () => {
+    try {
+      const probe = await rfProbe(host);
+      if (probe) {
+        if (probe.ok === 0) {
+          _rfMon.failStreak++;
+          if (_rfMon.failStreak >= 2 && !_rfMon.alerted) {
+            _rfMon.alerted = true;
+            await notifyRoots(`⚠️ <b>Сайт не открывается из России</b>\n` +
+              `Проверочные узлы РФ (${probe.total} шт.) не смогли открыть https://${host} две проверки подряд. ` +
+              `Похоже на блокировку или сбой — проверь вручную и напиши Клоду.`);
+          }
+        } else {
+          if (_rfMon.alerted) await notifyRoots(`✓ <b>Сайт снова открывается из России</b>\n` +
+            `Узлы РФ: ${probe.ok}/${probe.total} ок.`);
+          _rfMon.failStreak = 0; _rfMon.alerted = false;
+        }
+      }
+      const ech = await echProbe(host);
+      if (ech && !_rfMon.echAlerted) {
+        _rfMon.echAlerted = true;
+        await notifyRoots(`⚠️ <b>Cloudflare снова включил ECH</b> на ${host} — из-за него сайт блокируется в РФ.\n` +
+          `Выключить: Cloudflare → SSL/TLS → Edge Certificates → Encrypted ClientHello → Off.`);
+      } else if (!ech) _rfMon.echAlerted = false;
+    } catch (_) { /* сбой самой проверки — молча ждём следующего цикла */ }
+  }, 15 * 60 * 1000);
+}
+
 /* ─── QUICK ACCESS ─── */
 app.get('/api/quickaccess', (req, res) => {
   res.json((load().quickaccess || []).filter(q => visibleTo(q, req.user)));
@@ -3045,4 +3124,5 @@ app.listen(PORT, () => {
   migratePanelGuide();
   scheduleBackup();
   scheduleTaskDigest();
+  scheduleRfMonitor();
 });
