@@ -605,6 +605,10 @@ class InventoryDB {
     try { const r = await fetch('/api/site-visits'); return r.ok ? r.json() : null; }
     catch { return null; }
   }
+  async getRates() {
+    try { const r = await fetch('/api/rates'); return r.ok ? r.json() : null; }
+    catch { return null; }
+  }
   async addSale(sale) {
     const r = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sale) });
     return r.json();

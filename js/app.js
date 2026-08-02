@@ -1886,7 +1886,7 @@ class App {
     const hasStats = this.hasAccess('stats');
     const hasSite  = this.hasAccess('site');
     const hasTerm  = this.hasAccess('terminal');
-    const [sales, payments, empPayments, orders, tasks, perks, logs] = await Promise.all([
+    const [sales, payments, empPayments, orders, tasks, perks, logs, rates, visits] = await Promise.all([
       (hasStats || hasFin) ? this.db.getSales() : Promise.resolve([]),
       hasFin ? this.db.getPayments() : Promise.resolve([]),
       (hasFin && this.owners.length) ? this.db.getEmployeePayments() : Promise.resolve([]),
@@ -1894,6 +1894,8 @@ class App {
       this.db.getTasks(),
       this.db.getPerks(),
       hasTerm ? this.db.getLogs(10) : Promise.resolve([]),
+      this.db.getRates(),
+      hasStats ? this.db.getSiteVisits() : Promise.resolve(null),
     ]);
     if (this.currentView !== 'overview') return;   // пока грузили — ушли на другую вкладку
 
@@ -2021,6 +2023,20 @@ class App {
               <div class="ov-greet">${greet}, ${this.esc(name)}!</div>
               <div class="ov-clock" id="ovClock">${p2(d.getHours())}:${p2(d.getMinutes())}</div>
             </div>
+            ${(() => {
+              // Курсы ЦБ в шапке: $, €, ¥ со стрелкой к вчерашнему
+              if (!rates || (!rates.USD && !rates.EUR && !rates.CNY)) return '';
+              const chip = (sym, r) => {
+                if (!r) return '';
+                const dir = r.value > r.prev ? '↗' : r.value < r.prev ? '↘' : '→';
+                const cls = r.value > r.prev ? 'neg' : r.value < r.prev ? 'pos' : '';
+                return `<div class="ov-rate" title="ЦБ РФ, вчера ${String(r.prev.toFixed(2)).replace('.', ',')}">
+                  <span class="ov-rate-cur">${sym}</span>
+                  <span class="ov-rate-val">${String(r.value.toFixed(2)).replace('.', ',')}</span>
+                  <span class="ov-rate-dir ${cls}">${dir}</span></div>`;
+              };
+              return `<div class="ov-rates">${chip('$', rates.USD)}${chip('€', rates.EUR)}${chip('¥', rates.CNY)}</div>`;
+            })()}
             <div class="ov-hero-right">
               <div class="ov-date-day">${WDAYS[d.getDay()]}</div>
               <div class="ov-date">${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}</div>
@@ -2038,24 +2054,54 @@ class App {
             </div>
             ${perksHtml}
           </div>
-          ${hasTerm && logs.length ? `
-          <div class="ov-card">
-            <div class="ov-card-head"><span>Лента активности</span>
-              <button class="ov-add" id="ovAllLogs" title="Весь журнал">→</button>
-            </div>
-            <div class="ov-feed ov-feed-2col">
-              ${logs.slice(0, 4).map(lg => {
-                const m = LOG_META[lg.type] || { icon: '•', color: 'var(--fill2)' };
-                return `<div class="ov-feed-row">
-                  <span class="ov-feed-ic" style="background:${m.color}">${m.icon}</span>
-                  <div class="ov-feed-info">
-                    <span class="ov-feed-desc">${this.esc(lg.desc || '')}</span>
-                    <span class="ov-feed-meta">${this.fmtDate(lg.ts)}${lg.user ? ` · ${this.esc(lg.user)}` : ''}</span>
-                  </div>
-                </div>`;
-              }).join('')}
-            </div>
-          </div>` : ''}
+          ${(() => {
+            /* Нижний ряд левой колонки: Лента активности + Посещаемость сайта.
+               Вдвоём — лента в одну колонку; поодиночке — на всю ширину (лента в две). */
+            const feedCard = hasTerm && logs.length ? (twoCol => `
+            <div class="ov-card">
+              <div class="ov-card-head"><span>Лента активности</span>
+                <button class="ov-add" id="ovAllLogs" title="Весь журнал">→</button>
+              </div>
+              <div class="ov-feed ov-feed-2col">
+                ${logs.slice(0, 4).map(lg => {
+                  const m = LOG_META[lg.type] || { icon: '•', color: 'var(--fill2)' };
+                  return `<div class="ov-feed-row">
+                    <span class="ov-feed-ic" style="background:${m.color}">${m.icon}</span>
+                    <div class="ov-feed-info">
+                      <span class="ov-feed-desc">${this.esc(lg.desc || '')}</span>
+                      <span class="ov-feed-meta">${this.fmtDate(lg.ts)}${lg.user ? ` · ${this.esc(lg.user)}` : ''}</span>
+                    </div>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>`) : null;
+            const visitsCard = visits ? (() => {
+              // 14 дней, даты локальные (МСК) — совпадают с ключами сервера
+              const byDate = Object.fromEntries((visits.days || []).map(x => [x.date, x]));
+              const key = dt => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+              const series = [...Array(14)].map((_, i) => {
+                const dt = new Date(Date.now() - (13 - i) * 864e5);
+                const v = byDate[key(dt)] || { hits: 0, uniq: 0 };
+                return { label: `${dt.getDate()}.${String(dt.getMonth() + 1).padStart(2, '0')}`, hits: v.hits, uniq: v.uniq };
+              });
+              const max = Math.max(...series.map(s => s.hits), 1);
+              const bars = series.map((s, i) => `<div class="ov-visit-bar${i === 13 ? ' today' : ''}"
+                style="height:${Math.max(4, Math.round(s.hits / max * 100))}%"
+                title="${s.label}: ${s.hits} просмотров · ${s.uniq} уник."></div>`).join('');
+              return `
+            <div class="ov-card">
+              <div class="ov-card-head"><span>Посещаемость сайта</span>
+                <span class="ov-visit-now" title="Сегодня: просмотры · уникальные">${visits.today.hits} · ${visits.today.uniq} уник.</span>
+                <button class="ov-add" id="ovToStats" title="Статистика">→</button>
+              </div>
+              <div class="ov-visit-bars">${bars}</div>
+            </div>`;
+            })() : null;
+            if (feedCard && visitsCard) return `<div class="ov-widgets">${feedCard(false)}${visitsCard}</div>`;
+            if (feedCard)  return feedCard(true);
+            if (visitsCard) return `<div class="ov-widgets">${visitsCard}<div></div></div>`;
+            return '';
+          })()}
         </div>
         <div class="ov-side">
           <div class="ov-card">
@@ -2112,6 +2158,7 @@ class App {
     }));
     document.getElementById('ovAllTasks')?.addEventListener('click', () => this.renderView(isRoot ? 'project' : 'profile'));
     document.getElementById('ovAllLogs')?.addEventListener('click', () => this.renderView('settings'));
+    document.getElementById('ovToStats')?.addEventListener('click', () => this.renderView('stats'));
     const reCal = () => { const w = document.getElementById('ovCalWrap'); if (w) w.innerHTML = this._ovCalHtml(); };
     document.getElementById('ovCalPrev')?.addEventListener('click', () => { this._calOff--; reCal(); });
     document.getElementById('ovCalNext')?.addEventListener('click', () => { this._calOff++; reCal(); });

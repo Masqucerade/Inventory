@@ -2091,6 +2091,24 @@ app.delete('/api/plans/:id', (req, res) => {
 /* ─── SALES ─── */
 app.get('/api/sales', (req, res) => res.json(load().sales || []));
 
+/* Курсы ЦБ РФ для Главной: доллар, евро, юань. Кэш 6 часов в памяти */
+let _rates = null, _ratesAt = 0;
+app.get('/api/rates', async (req, res) => {
+  try {
+    if (!_rates || Date.now() - _ratesAt > 6 * 3600_000) {
+      const d = await fetch('https://www.cbr-xml-daily.ru/daily_json.js',
+        { signal: AbortSignal.timeout(10000) }).then(r => r.json());
+      const pick = c => d.Valute?.[c]
+        ? { value: d.Valute[c].Value, prev: d.Valute[c].Previous } : null;
+      _rates = { USD: pick('USD'), EUR: pick('EUR'), CNY: pick('CNY') };
+      _ratesAt = Date.now();
+    }
+    res.json(_rates);
+  } catch (_) {
+    res.json(_rates || { USD: null, EUR: null, CNY: null });   // ЦБ лёг — отдаём старое или пустое
+  }
+});
+
 /* Посещаемость витрины для панели: сегодня + последние 30 дней (без seen-хэшей) */
 app.get('/api/site-visits', (req, res) => {
   const v = load().visits || {};
