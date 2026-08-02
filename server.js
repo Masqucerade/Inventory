@@ -64,7 +64,7 @@ const monarcFavicon = html => html
 // Страницы Type — лого бренда (звёзды + искра на чёрном)
 const typeFavicon = html => html
   .replace('<link rel="icon" href="/favicon.svg" type="image/svg+xml">',
-           '<link rel="icon" href="/site/type-favicon.svg" type="image/svg+xml">')
+           '<link rel="icon" href="/site/type-favicon.svg?v=2" type="image/svg+xml">')
   .replace('<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">', '');
 const sectionFavicon = (html, section) =>
   section === 'monarc' ? monarcFavicon(html) : typeFavicon(html);

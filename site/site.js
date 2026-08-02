@@ -84,8 +84,9 @@ function stateFromUrl() {
 async function boot() {
   document.getElementById('sectionKicker').textContent = TITLES[SECTION].kicker;
   document.getElementById('sectionTitle').textContent  = TITLES[SECTION].title;
-  // В шапке всегда «Masqucerade»; на страницах брендов серверный title не трогаем
-  if (!document.querySelector('meta[name="mq-brand"]')) document.title = 'Masqucerade';
+  // Monarc — «Masqucerade», Type — «Type-clothes»; на страницах брендов серверный title не трогаем
+  if (!document.querySelector('meta[name="mq-brand"]'))
+    document.title = SECTION === 'type' ? 'Type-clothes' : 'Masqucerade';
   document.querySelectorAll('.site-nav a').forEach(a =>
     a.classList.toggle('active', a.dataset.nav === SECTION));
   document.getElementById('footTg').href = `https://t.me/${TG_USERNAME}`;
