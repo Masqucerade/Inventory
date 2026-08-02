@@ -1941,8 +1941,11 @@ class App {
     cards.push({ icon: ic.box, label: 'Стоимость склада', val: fmtMoney(totalVal),
                  sub: `${items.length} позиций`, delta: newWeek ? `+${newWeek} за неделю` : '' });
     cards.push({ icon: ic.check, label: 'В наличии', val: `${inStock} шт`, sub: `из ${totalQty} всего` });
-    if (hasFin) cards.push({ icon: ic.card, label: 'Баланс компании', val: fmtMoney(balance),
-                             cls: balance >= 0 ? '' : 'neg' });
+    // Баланс компании — только root: у сотрудников доступ к «Счёту» есть
+    // ради их собственного заработка, деньги компании им не показываем
+    if (hasFin && this.currentUser?.role === 'root')
+      cards.push({ icon: ic.card, label: 'Баланс компании', val: fmtMoney(balance),
+                   cls: balance >= 0 ? '' : 'neg' });
     if ((hasStats || hasFin) && sales.length)
       cards.push({ icon: ic.trend, label: 'Продажи · 30 дней', val: fmtMoney(cur30),
                    delta: salesDelta === null ? '' : `${salesDelta >= 0 ? '↗ +' : '↘ '}${salesDelta}%`,
@@ -5151,7 +5154,8 @@ class App {
       <div class="skel-row"><div class="skel-block" style="height:76px"></div><div class="skel-block" style="height:76px"></div></div>
       <div class="skel-block" style="height:180px"></div>
     </div>`;
-    const [allItems, sales] = await Promise.all([this.db.getItems(), this.db.getSales()]);
+    const [allItems, sales, visits] = await Promise.all([
+      this.db.getItems(), this.db.getSales(), this.db.getSiteVisits()]);
     if (this.currentView !== 'stats') return;
     // Завершённые (проданные) товары не учитываются в деньгах и складе —
     // их выручка живёт в «Продажах». В статистике остаются только активные.
@@ -5335,6 +5339,19 @@ class App {
           <div class="stat-label">Заявки в TG${views && clicks ? ` · ${conv}%` : ''}</div>
         </div>`;
         })()}
+        ${visits ? `
+        <div class="stat-card">
+          <div class="stat-value" data-count="${visits.today.hits}">0</div>
+          <div class="stat-label">Просмотры сегодня</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" data-count="${visits.today.uniq}">0</div>
+          <div class="stat-label">Уникальные сегодня</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" data-count="${visits.total30.uniq}">0</div>
+          <div class="stat-label">Уникальные · 30 дней</div>
+        </div>` : ''}
         <div class="stat-card wide">
           <div class="stat-value" data-count="${avgPrice}" data-fmt="money">0 ₽</div>
           <div class="stat-label">Средняя цена за штуку</div>

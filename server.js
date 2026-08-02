@@ -105,8 +105,30 @@ function headTags({ title, description, url, image, type = 'website', section = 
   ymSnippet();
 }
 
+/* ── Посещаемость витрины: хиты и уникальные посетители по дням (МСК) ──
+   Считаются только HTML-страницы сайта; боты и превью-краулеры мимо.
+   Уникальность — по хэшу IP+браузер в пределах суток. Храним 60 дней. */
+const BOT_RE = /bot|crawl|spider|slurp|preview|telegram|whatsapp|vkshare|facebook|curl|python|go-http|okhttp|headless/i;
+function trackVisit(req) {
+  try {
+    const ua = req.headers['user-agent'] || '';
+    if (BOT_RE.test(ua)) return;
+    const db = load();
+    if (!db.visits) db.visits = {};
+    const day = mskParts().date;
+    const d = db.visits[day] || (db.visits[day] = { hits: 0, uniq: 0, seen: {} });
+    d.hits++;
+    const key = crypto.createHash('sha1').update((req.ip || '') + ua).digest('hex').slice(0, 12);
+    if (!d.seen[key]) { d.seen[key] = 1; d.uniq++; }
+    const days = Object.keys(db.visits).sort();
+    while (days.length > 60) delete db.visits[days.shift()];
+    save(db);
+  } catch (_) {}
+}
+
 /* Каталог раздела: главная страница каждого бренд-домена */
 function serveCatalog(req, res, section) {
+  trackVisit(req);
   const o = originOf(req);
   const title = section === 'monarc' ? 'Masqucerade' : 'Type-clothes';
   const description = section === 'monarc'
@@ -136,6 +158,7 @@ function siteBrands(db, typeSite) {
 }
 
 app.get('/brand/:slug', (req, res) => {
+  trackVisit(req);
   const db = load();
   const typeSite = isTypeHost(req);
   const brand = siteBrands(db, typeSite).find(b => brandSlug(b) === req.params.slug);
@@ -193,6 +216,7 @@ app.get('/type', (req, res) => {
 // Страница товара — постоянный адрес, og-превью с фото вещи.
 // Товар живёт на домене своего бренда — с чужого хоста уводим 301.
 app.get('/product/:id', (req, res) => {
+  trackVisit(req);
   const o  = originOf(req);
   const it = (load().items || []).find(i => i.id === req.params.id && i.showOnSite);
   if (!it) return res.status(404).type('html').send(SITE_404);   // вещь продана/скрыта — честная 404
@@ -2066,6 +2090,20 @@ app.delete('/api/plans/:id', (req, res) => {
 
 /* ─── SALES ─── */
 app.get('/api/sales', (req, res) => res.json(load().sales || []));
+
+/* Посещаемость витрины для панели: сегодня + последние 30 дней (без seen-хэшей) */
+app.get('/api/site-visits', (req, res) => {
+  const v = load().visits || {};
+  const today = mskParts().date;
+  const days = Object.keys(v).sort().slice(-30)
+    .map(d => ({ date: d, hits: v[d].hits || 0, uniq: v[d].uniq || 0 }));
+  const t = v[today] || { hits: 0, uniq: 0 };
+  res.json({
+    today:  { hits: t.hits || 0, uniq: t.uniq || 0 },
+    days,
+    total30: days.reduce((a, d) => ({ hits: a.hits + d.hits, uniq: a.uniq + d.uniq }), { hits: 0, uniq: 0 }),
+  });
+});
 
 // Изменить остаток товара на складе на delta штук (delta<0 — списание, >0 — возврат)
 function adjustStock(db, itemId, size, delta) {
