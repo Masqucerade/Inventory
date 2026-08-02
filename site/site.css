@@ -1369,3 +1369,8 @@ body.theme-type .p-cond.cond-new { color: #17150f; }
 .co-total.co-discount { padding: 12px 0 0; }
 .co-total.co-discount b { font-size: 15px; color: var(--gold); }
 .co-total-old { color: var(--text3); font-size: 14px; font-weight: 400; margin-right: 6px; }
+
+/* ─── Логотип Type: дуга звёзд + искра (инлайн-SVG, цвет наследует шапку) ─── */
+.type-mark { display: none; width: 40px; height: 31px; flex-shrink: 0; }
+body.theme-type .type-mark { display: block; }
+body.theme-type .site-logo .brand-mark { display: none; }
