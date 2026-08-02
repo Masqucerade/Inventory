@@ -851,12 +851,22 @@ class App {
       try {
         if (this._editingRoleId) {
           await this.db.updateRole(this._editingRoleId, data);
-          this.toast('Роль обновлена ✓');
+          this.closeModal('roleModal');
+          // Права поменялись — сразу предлагаем раскатать их на сотрудников
+          // с этой ролью (иначе изменения живут только в пресете)
+          const cnt = (this.users || []).filter(u => u.roleId === this._editingRoleId && u.role !== 'root').length;
+          if (cnt && await this.confirm(
+            `Роль обновлена. Применить новые права к ${cnt} сотр. с этой ролью?`, 'Применить', false)) {
+            const d = await this.db.applyRole(this._editingRoleId);
+            this.toast(`Права обновлены у ${d.applied} сотр. ✓`);
+          } else {
+            this.toast('Роль обновлена ✓');
+          }
         } else {
           await this.db.addRole(data);
           this.toast(`Роль «${name}» создана ✓`);
+          this.closeModal('roleModal');
         }
-        this.closeModal('roleModal');
         this.renderRolesView();
       } catch (e) { this.toast(e.message); }
     });
