@@ -569,6 +569,12 @@ function publicItem(i) {
   };
 }
 
+/* Служебный: прямой Railway-хост приложения — нужен шлюзу РФ (он и так
+   публичен — редиректит на канонический домен) */
+app.get('/api/public/gw-host', (req, res) => {
+  res.json({ railway: process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || null });
+});
+
 app.get('/api/public/items', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   // Проданные тоже отдаём (sold: true) — витрина показывает их в «Архиве»
