@@ -1885,13 +1885,15 @@ class App {
     const hasFin   = this.hasAccess('finance');
     const hasStats = this.hasAccess('stats');
     const hasSite  = this.hasAccess('site');
-    const [sales, payments, empPayments, orders, tasks, perks] = await Promise.all([
+    const hasTerm  = this.hasAccess('terminal');
+    const [sales, payments, empPayments, orders, tasks, perks, logs] = await Promise.all([
       (hasStats || hasFin) ? this.db.getSales() : Promise.resolve([]),
       hasFin ? this.db.getPayments() : Promise.resolve([]),
       (hasFin && this.owners.length) ? this.db.getEmployeePayments() : Promise.resolve([]),
       hasSite ? this.db.getOrders() : Promise.resolve([]),
       this.db.getTasks(),
       this.db.getPerks(),
+      hasTerm ? this.db.getLogs(10) : Promise.resolve([]),
     ]);
     if (this.currentView !== 'overview') return;   // пока грузили — ушли на другую вкладку
 
@@ -2053,6 +2055,23 @@ class App {
             </div>
             <div id="ovCalWrap">${this._ovCalHtml()}</div>
           </div>
+          ${hasTerm && logs.length ? `
+          <div class="ov-card">
+            <div class="ov-card-head"><span>Лента активности</span></div>
+            <div class="ov-feed">
+              ${logs.slice(0, 6).map(lg => {
+                const m = LOG_META[lg.type] || { icon: '•', color: 'var(--fill2)' };
+                return `<div class="ov-feed-row">
+                  <span class="ov-feed-ic" style="background:${m.color}">${m.icon}</span>
+                  <div class="ov-feed-info">
+                    <span class="ov-feed-desc">${this.esc(lg.desc || '')}</span>
+                    <span class="ov-feed-meta">${this.fmtDate(lg.ts)}${lg.user ? ` · ${this.esc(lg.user)}` : ''}</span>
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>
+            <button class="ov-link" id="ovAllLogs">Весь журнал →</button>
+          </div>` : ''}
         </div>
       </div>`;
 
@@ -2088,6 +2107,7 @@ class App {
       this.renderOverview();
     }));
     document.getElementById('ovAllTasks')?.addEventListener('click', () => this.renderView(isRoot ? 'project' : 'profile'));
+    document.getElementById('ovAllLogs')?.addEventListener('click', () => this.renderView('settings'));
     const reCal = () => { const w = document.getElementById('ovCalWrap'); if (w) w.innerHTML = this._ovCalHtml(); };
     document.getElementById('ovCalPrev')?.addEventListener('click', () => { this._calOff--; reCal(); });
     document.getElementById('ovCalNext')?.addEventListener('click', () => { this._calOff++; reCal(); });
