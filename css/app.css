@@ -2948,7 +2948,8 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 @media (min-width: 820px) {
   /* Контент на всю ширину, комфортные боковые отступы */
   html.is-web .view-body {
-    padding: 22px 32px var(--pad-bot);
+    /* без мобильной пилюли снизу — большой запас не нужен */
+    padding: 22px 32px 24px;
   }
   html.is-web .inv-header,
   html.is-web .simple-header { padding-left: 32px; padding-right: 32px; }
@@ -4792,8 +4793,12 @@ body.select-mode .row-check { display: block; }
   user-select: text; -webkit-user-select: text;
 }
 
-/* Лента активности на Главной */
+/* Лента активности на Главной: две колонки, компактно и без скролла страницы */
 .ov-feed { display: flex; flex-direction: column; }
+.ov-feed-2col { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); column-gap: 22px; }
+.ov-feed-2col .ov-feed-row:nth-last-child(-n+2) { border-bottom: none; }
+@media (max-width: 900px) { .ov-feed-2col { grid-template-columns: minmax(0,1fr); } }
+.ov-feed-2col .ov-feed-desc { -webkit-line-clamp: 1; }
 .ov-feed-row { display: flex; align-items: flex-start; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--sep2); min-width: 0; }
 .ov-feed-row:last-child { border-bottom: none; }
 .ov-feed-ic {
@@ -4807,3 +4812,27 @@ body.select-mode .row-check { display: block; }
   overflow: hidden; font-size: 12px; line-height: 1.4; color: var(--text);
 }
 .ov-feed-meta { display: block; font-size: 10.5px; color: var(--text3); margin-top: 2px; }
+
+/* ── Главная без скролла страницы (веб): сетка занимает вьюпорт,
+   при нехватке места прокручиваются внутренности, а не страница ── */
+@media (min-width: 1000px) {
+  html.is-web #view-overview .view-body {
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    padding-bottom: 22px;
+  }
+  html.is-web #view-overview .ov-grid { flex: 1; min-height: 0; }
+  html.is-web #view-overview .ov-main {
+    overflow-y: auto; min-height: 0;
+    scrollbar-width: none;
+  }
+  html.is-web #view-overview .ov-main::-webkit-scrollbar { display: none; }
+  /* Правая колонка прокручивается внутри себя (скроллбар скрыт) —
+     календарь и лента доступны, а страница стоит на месте */
+  html.is-web #view-overview .ov-side {
+    min-height: 0; overflow-y: auto;
+    scrollbar-width: none;
+  }
+  html.is-web #view-overview .ov-side::-webkit-scrollbar { display: none; }
+  html.is-web #view-overview .ov-side > .ov-card { flex-shrink: 0; }
+}

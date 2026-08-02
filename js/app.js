@@ -1961,7 +1961,7 @@ class App {
     const isRoot = this.currentUser?.role === 'root';
     const nameOf = id => this.users.find(u => u.id === id)?.name || this.owners.find(o => o.id === id)?.name || '';
     const KINDC  = { urgent: '#f87171', duty: '#a1a1aa', goal: '#38bdf8' };
-    const tasksHtml = active.length ? `<div class="ov-task-list">${active.slice(0, 5).map(t => `
+    const tasksHtml = active.length ? `<div class="ov-task-list">${active.slice(0, 4).map(t => `
         <div class="ov-task">
           <span class="ov-task-dot" style="background:${KINDC[t.kind || 'duty'] || KINDC.duty}"></span>
           <span class="ov-task-title">${this.esc(t.title || t.text || '')}</span>
@@ -2035,6 +2035,24 @@ class App {
             </div>
             ${perksHtml}
           </div>
+          ${hasTerm && logs.length ? `
+          <div class="ov-card">
+            <div class="ov-card-head"><span>Лента активности</span>
+              <button class="ov-add" id="ovAllLogs" title="Весь журнал">→</button>
+            </div>
+            <div class="ov-feed ov-feed-2col">
+              ${logs.slice(0, 4).map(lg => {
+                const m = LOG_META[lg.type] || { icon: '•', color: 'var(--fill2)' };
+                return `<div class="ov-feed-row">
+                  <span class="ov-feed-ic" style="background:${m.color}">${m.icon}</span>
+                  <div class="ov-feed-info">
+                    <span class="ov-feed-desc">${this.esc(lg.desc || '')}</span>
+                    <span class="ov-feed-meta">${this.fmtDate(lg.ts)}${lg.user ? ` · ${this.esc(lg.user)}` : ''}</span>
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>` : ''}
         </div>
         <div class="ov-side">
           <div class="ov-card">
@@ -2055,23 +2073,6 @@ class App {
             </div>
             <div id="ovCalWrap">${this._ovCalHtml()}</div>
           </div>
-          ${hasTerm && logs.length ? `
-          <div class="ov-card">
-            <div class="ov-card-head"><span>Лента активности</span></div>
-            <div class="ov-feed">
-              ${logs.slice(0, 6).map(lg => {
-                const m = LOG_META[lg.type] || { icon: '•', color: 'var(--fill2)' };
-                return `<div class="ov-feed-row">
-                  <span class="ov-feed-ic" style="background:${m.color}">${m.icon}</span>
-                  <div class="ov-feed-info">
-                    <span class="ov-feed-desc">${this.esc(lg.desc || '')}</span>
-                    <span class="ov-feed-meta">${this.fmtDate(lg.ts)}${lg.user ? ` · ${this.esc(lg.user)}` : ''}</span>
-                  </div>
-                </div>`;
-              }).join('')}
-            </div>
-            <button class="ov-link" id="ovAllLogs">Весь журнал →</button>
-          </div>` : ''}
         </div>
       </div>`;
 
