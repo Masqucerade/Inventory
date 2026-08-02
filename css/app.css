@@ -4780,3 +4780,12 @@ body.select-mode .row-check { display: block; }
 }
 .ov-perk-act:hover { background: var(--fill2); color: var(--text); }
 .ov-perk-act.perk-del:hover { background: rgba(248,113,113,.12); color: #f87171; }
+
+/* Просмотр корпоративного ресурса: блок доступа */
+.perk-view-value {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+  background: var(--fill); border: 1px solid var(--sep);
+  border-radius: 10px; padding: 10px 12px; margin-top: 4px;
+  user-select: text; -webkit-user-select: text;
+}

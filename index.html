@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=138">
+  <link rel="stylesheet" href="css/app.css?v=139">
 </head>
 <body>
 
@@ -59,8 +59,8 @@
   <!-- ═══ OVERVIEW VIEW — дашборд-сводка (веб) ═══ -->
   <div id="view-overview" class="view">
     <div class="view-header simple-header">
-      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Обзор</span></div>
-      <h1 class="view-title">Обзор</h1>
+      <div class="view-crumbs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="crumb-sep">›</span><span class="crumb-cur">Главная</span></div>
+      <h1 class="view-title">Главная</h1>
       <p class="view-sub">Сводка по складу, финансам и задачам</p>
     </div>
     <div class="view-body" id="overviewContent">
@@ -288,7 +288,7 @@
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
         <polyline points="9 22 9 12 15 12 15 22"/>
       </svg>
-      <span class="nav-label">Обзор</span>
+      <span class="nav-label">Главная</span>
     </button>
     <button class="nav-btn active" data-view="inventory">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -1111,6 +1111,20 @@
   </div>
 </div>
 
+<!-- Корпоративный ресурс: просмотр данных -->
+<div class="modal" id="perkViewModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <button class="modal-close" id="perkViewClose">
+        <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <span class="modal-title" id="perkViewTitle">Ресурс</span>
+      <button class="modal-action-btn" id="perkViewEdit">Изменить</button>
+    </div>
+    <div class="modal-body" id="perkViewBody"></div>
+  </div>
+</div>
+
 <!-- Корпоративный ресурс: добавление / правка (root) -->
 <div class="modal" id="perkModal">
   <div class="modal-sheet">
@@ -1590,6 +1604,6 @@
 
 <script src="js/db.js?v=62"></script>
 <script src="js/backup.js?v=46"></script>
-<script src="js/app.js?v=187"></script>
+<script src="js/app.js?v=188"></script>
 </body>
 </html>

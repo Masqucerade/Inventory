@@ -389,7 +389,7 @@ class App {
     if (!nav) return;
     nav.querySelectorAll('.nav-sec').forEach(n => n.remove());
     if (!document.documentElement.classList.contains('is-web')) return;
-    const GROUPS = [['overview', 'Главная'], ['inventory', 'Склад'], ['finance', 'Деньги'], ['project', 'Команда'], ['site', 'Витрина'], ['roles', 'Система']];
+    const GROUPS = [['inventory', 'Склад'], ['finance', 'Деньги'], ['project', 'Команда'], ['site', 'Витрина'], ['roles', 'Система']];
     const visible = v => {
       const b = nav.querySelector(`.nav-btn[data-view="${v}"]`);
       return b && !b.classList.contains('hidden') ? b : null;
@@ -2004,7 +2004,6 @@ class App {
           <div class="ov-hero">
             <div class="ov-hero-left">
               <div class="ov-greet">${greet}, ${this.esc(name)}!</div>
-              <div class="ov-greet-sub">Готовы к продуктивному дню? 🚀</div>
               <div class="ov-clock" id="ovClock">${p2(d.getHours())}:${p2(d.getMinutes())}</div>
             </div>
             <div class="ov-hero-right">
@@ -2022,12 +2021,7 @@ class App {
               ${tasksHtml}
               <button class="ov-link" id="ovAllTasks">Все задачи →</button>
             </div>
-            <div class="ov-card">
-              <div class="ov-card-head"><span>Календарь</span>
-                <span class="ov-cal-nav"><button id="ovCalPrev">‹</button><button id="ovCalNext">›</button></span>
-              </div>
-              <div id="ovCalWrap">${this._ovCalHtml()}</div>
-            </div>
+            ${perksHtml}
           </div>
         </div>
         <div class="ov-side">
@@ -2043,7 +2037,12 @@ class App {
             ${legend('#38bdf8', 'Выставлено на сайт', pctSite)}
             ${legend('#a1a1aa', 'Задачи закрыты', pctTasks)}
           </div>
-          ${perksHtml}
+          <div class="ov-card">
+            <div class="ov-card-head"><span>Календарь</span>
+              <span class="ov-cal-nav"><button id="ovCalPrev">‹</button><button id="ovCalNext">›</button></span>
+            </div>
+            <div id="ovCalWrap">${this._ovCalHtml()}</div>
+          </div>
         </div>
       </div>`;
 
@@ -2059,6 +2058,11 @@ class App {
     /* Бинды */
     document.getElementById('ovAddTask')?.addEventListener('click', () => this.openTaskModal());
     document.getElementById('ovAddPerk')?.addEventListener('click', () => this.openPerkModal());
+    el.querySelectorAll('.ov-perk').forEach(row => row.addEventListener('click', (e) => {
+      if (e.target.closest('.ov-perk-act')) return;   // кнопки строки — сами по себе
+      const pk = this._perks.find(x => x.id === row.dataset.perkId);
+      if (pk) this.openPerkViewModal(pk);
+    }));
     el.querySelectorAll('.perk-copy').forEach(b2 => b2.addEventListener('click', async () => {
       const pk = this._perks.find(x => x.id === b2.dataset.id);
       try { await navigator.clipboard.writeText(pk.value); this.toast('Доступ скопирован ✓'); }
@@ -2079,6 +2083,61 @@ class App {
     document.getElementById('ovCalNext')?.addEventListener('click', () => { this._calOff++; reCal(); });
     el.querySelectorAll('.ov-stat[data-nav]').forEach(c =>
       c.addEventListener('click', () => this.renderView(c.dataset.nav)));
+  }
+
+  /* ── Корпоративный ресурс: просмотр данных (все сотрудники) ── */
+  openPerkViewModal(pk) {
+    const KINDS = { ai: 'Нейросети / ИИ', vpn: 'VPN', sub: 'Подписка', key: 'Доступ / аккаунт', link: 'Ссылка / сервис', other: 'Другое' };
+    const isRoot = this.currentUser?.role === 'root';
+    document.getElementById('perkViewTitle').textContent = pk.title;
+    const editBtn = document.getElementById('perkViewEdit');
+    editBtn.style.visibility = isRoot ? '' : 'hidden';
+    document.getElementById('perkViewBody').innerHTML = `
+      <div class="form-card">
+        <div class="form-group total-row">
+          <span class="form-label" style="margin:0">Тип</span>
+          <span style="font-size:13px;color:var(--text2)">${KINDS[pk.kind] || 'Другое'}</span>
+        </div>
+        ${pk.note ? `<div class="form-divider"></div>
+        <div class="form-group">
+          <label class="form-label">Описание</label>
+          <div style="font-size:13.5px;line-height:1.5">${this.esc(pk.note)}</div>
+        </div>` : ''}
+      </div>
+      ${pk.value ? `
+      <div class="form-card">
+        <div class="form-group">
+          <label class="form-label">Доступ</label>
+          <div class="perk-view-value">${this.esc(pk.value)}</div>
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-group">
+          <button type="button" class="btn-line" id="perkViewCopy">Скопировать доступ</button>
+        </div>
+      </div>` : ''}
+      ${pk.url ? `
+      <div class="form-card">
+        <div class="form-group">
+          <a class="btn-line" style="display:inline-flex;align-items:center;gap:7px;text-decoration:none" href="${this.esc(pk.url)}" target="_blank" rel="noopener">
+            ${uiIcon('link', 12)} Открыть ${this.esc(pk.url.replace(/^https?:\/\//, '').split('/')[0])}
+          </a>
+        </div>
+      </div>` : ''}`;
+    if (!this._perkViewBound) {
+      this._perkViewBound = true;
+      document.getElementById('perkViewClose').addEventListener('click', () => this.closeModal('perkViewModal'));
+      editBtn.addEventListener('click', () => {
+        this.closeModal('perkViewModal');
+        const cur = this._perks.find(x => x.id === this._viewingPerkId);
+        if (cur) this.openPerkModal(cur);
+      });
+    }
+    this._viewingPerkId = pk.id;
+    document.getElementById('perkViewBody').querySelector('#perkViewCopy')?.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(pk.value); this.toast('Доступ скопирован ✓'); }
+      catch { this.toast('Не удалось скопировать'); }
+    });
+    this.openModal('perkViewModal');
   }
 
   /* ── Корпоративные ресурсы: модалка (root) ── */
