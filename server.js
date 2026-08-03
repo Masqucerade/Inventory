@@ -108,12 +108,16 @@ function headTags({ title, description, url, image, type = 'website', section = 
 /* ── Посещаемость витрины: хиты и уникальные посетители по дням (МСК) ──
    Считаются только HTML-страницы сайта; боты и превью-краулеры мимо.
    Уникальность — по хэшу IP+браузер в пределах суток. Храним 60 дней. */
-const BOT_RE = /bot|crawl|spider|slurp|preview|telegram|whatsapp|vkshare|facebook|curl|python|go-http|okhttp|headless/i;
+const BOT_RE = /bot|crawl|spider|slurp|preview|telegram|whatsapp|vkshare|facebook|curl|python|go-http|okhttp|headless|check-host|checkhost|monitor|uptime|pingdom|scanner|zgrab|censys|masscan|nmap|wget|libwww|httpclient|java|node-fetch|axios/i;
 function trackVisit(req) {
   try {
     const ua = req.headers['user-agent'] || '';
-    if (BOT_RE.test(ua)) return;
+    // Пустой или куцый UA — сканеры и утилиты, не люди
+    if (ua.length < 25 || BOT_RE.test(ua)) return;
     const db = load();
+    // Однократный сброс: первые два дня счётчики копились вместе с
+    // заходами мониторинга и сканеров — начинаем с чистого листа
+    if (!db.meta?.visitsClean) { db.visits = {}; (db.meta ||= {}).visitsClean = true; }
     if (!db.visits) db.visits = {};
     const day = mskParts().date;
     const d = db.visits[day] || (db.visits[day] = { hits: 0, uniq: 0, seen: {} });
@@ -2109,17 +2113,20 @@ app.get('/api/rates', async (req, res) => {
   }
 });
 
-/* Посещаемость витрины для панели: сегодня + последние 30 дней (без seen-хэшей) */
+/* Посещаемость витрины для панели: сегодня + последние 30 дней (без seen-хэшей).
+   Уники за 30 дней — сквозные: один человек за месяц = один уник. */
 app.get('/api/site-visits', (req, res) => {
   const v = load().visits || {};
   const today = mskParts().date;
-  const days = Object.keys(v).sort().slice(-30)
-    .map(d => ({ date: d, hits: v[d].hits || 0, uniq: v[d].uniq || 0 }));
+  const keys = Object.keys(v).sort().slice(-30);
+  const days = keys.map(d => ({ date: d, hits: v[d].hits || 0, uniq: v[d].uniq || 0 }));
   const t = v[today] || { hits: 0, uniq: 0 };
+  const union = new Set();
+  keys.forEach(d => Object.keys(v[d].seen || {}).forEach(k => union.add(k)));
   res.json({
     today:  { hits: t.hits || 0, uniq: t.uniq || 0 },
     days,
-    total30: days.reduce((a, d) => ({ hits: a.hits + d.hits, uniq: a.uniq + d.uniq }), { hits: 0, uniq: 0 }),
+    total30: { hits: days.reduce((a, d) => a + d.hits, 0), uniq: union.size },
   });
 });
 
