@@ -2044,20 +2044,19 @@ class App {
             </div>
           </div>
           <div class="ov-stats">${cardsHtml}</div>
-          <div class="ov-widgets">
+          ${(() => {
+            /* Виджеты — две независимые вертикальные стопки, чтобы карточки
+               паковались плотно и не оставляли дыр при разной высоте:
+               слева Задачи + Лента, справа Ресурсы + Посещаемость */
+            const tasksCard = `
             <div class="ov-card">
               <div class="ov-card-head"><span>Задачи</span>
                 <button class="ov-add" id="ovAddTask" title="Новая задача">＋</button>
               </div>
               ${tasksHtml}
               <button class="ov-link" id="ovAllTasks">Все задачи →</button>
-            </div>
-            ${perksHtml}
-          </div>
-          ${(() => {
-            /* Нижний ряд левой колонки: Лента активности + Посещаемость сайта.
-               Вдвоём — лента в одну колонку; поодиночке — на всю ширину (лента в две). */
-            const feedCard = hasTerm && logs.length ? (twoCol => `
+            </div>`;
+            const feedCard = hasTerm && logs.length ? `
             <div class="ov-card">
               <div class="ov-card-head"><span>Лента активности</span>
                 <button class="ov-add" id="ovAllLogs" title="Весь журнал">→</button>
@@ -2074,7 +2073,7 @@ class App {
                   </div>`;
                 }).join('')}
               </div>
-            </div>`) : null;
+            </div>` : '';
             const visitsCard = visits ? (() => {
               // 14 дней, даты локальные (МСК) — совпадают с ключами сервера
               const byDate = Object.fromEntries((visits.days || []).map(x => [x.date, x]));
@@ -2096,11 +2095,11 @@ class App {
               </div>
               <div class="ov-visit-bars">${bars}</div>
             </div>`;
-            })() : null;
-            if (feedCard && visitsCard) return `<div class="ov-widgets">${feedCard(false)}${visitsCard}</div>`;
-            if (feedCard)  return feedCard(true);
-            if (visitsCard) return `<div class="ov-widgets">${visitsCard}<div></div></div>`;
-            return '';
+            })() : '';
+            return `<div class="ov-widgets">
+              <div class="ov-stack">${tasksCard}${feedCard}</div>
+              <div class="ov-stack">${perksHtml}${visitsCard}</div>
+            </div>`;
           })()}
         </div>
         <div class="ov-side">
