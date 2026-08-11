@@ -2029,7 +2029,10 @@ app.post('/api/owners/:id/settle', (req, res) => {
   const owner = (db.owners || []).find(o => o.id === req.params.id);
   if (!owner) return res.status(404).json({ error: 'Сотрудник не найден' });
   const pct    = owner.profitPercent || 0;
-  const unpaid = (db.sales || []).filter(s => s.ownerId === owner.id && !s.sharePaid);
+  // body.saleIds — рассчитать только выбранные продажи; без них — все нерассчитанные
+  const ids    = Array.isArray(req.body?.saleIds) ? req.body.saleIds : null;
+  const unpaid = (db.sales || []).filter(s => s.ownerId === owner.id && !s.sharePaid &&
+    (!ids || ids.includes(s.id)));
   const total  = Math.round(unpaid.reduce((sum, s) =>
     sum + ((s.buyPrice || 0) + (s.deliveryCost || 0)) * (s.qty || 1) +
     (s.netProfit || 0) * pct / 100, 0));
@@ -2047,6 +2050,21 @@ app.post('/api/owners/:id/settle', (req, res) => {
   logToTelegram({ type: 'emp_payment', ts: now,
     desc: `💵 Расчёт с ${owner.name}: +${total.toLocaleString('ru-RU')} ₽ — доля с ${unpaid.length} прод.` });
   res.json({ ok: true, total, count: unpaid.length });
+});
+
+/* Пометить продажу рассчитанной/нерассчитанной БЕЗ движения денег (root):
+   «уже платил вручную» — paid:true; вернуть в «к выплате» — paid:false */
+app.post('/api/sales/:id/share-mark', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db   = load();
+  const sale = (db.sales || []).find(s => s.id === req.params.id);
+  if (!sale) return res.status(404).json({ error: 'Продажа не найдена' });
+  const paid = !!req.body?.paid;
+  sale.sharePaid = paid;
+  if (paid) sale.sharePaidAt = new Date().toISOString();
+  else { delete sale.sharePaidAt; }
+  save(db);
+  res.json({ ok: true, sharePaid: paid });
 });
 
 app.post('/api/payments', (req, res) => {
