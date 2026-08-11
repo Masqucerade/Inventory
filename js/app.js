@@ -2412,7 +2412,7 @@ class App {
             </div>
             <div class="sale-entry-right">
               <div class="sale-entry-profit pos">+${fmtMoney(Math.round(shareOf(s)))}</div>
-              <div class="sale-entry-revenue">моя доля</div>
+              <div class="sale-entry-revenue">${s.sharePaid ? 'выплачено ✓' : 'моя доля'}</div>
             </div>
           </div>`).join('')}</div>`
         : `<div class="plan-empty">Ваши вещи ещё не продавались</div>`}` : ''}
@@ -4568,14 +4568,33 @@ class App {
          </div>`
       : '';
 
+    // Нерассчитанные доли с продаж: сколько компания должна каждому за его
+    // проданные вещи (закуп + доставка + % прибыли; продажи без sharePaid)
+    const dueByOwner = {};
+    sales.forEach(s => {
+      if (!s.ownerId || s.sharePaid) return;
+      const o = this.owners.find(x => x.id === s.ownerId);
+      if (!o) return;
+      const share = ((s.buyPrice || 0) + (s.deliveryCost || 0)) * (s.qty || 1) +
+                    (s.netProfit || 0) * (o.profitPercent || 0) / 100;
+      const d = dueByOwner[s.ownerId] || (dueByOwner[s.ownerId] = { sum: 0, cnt: 0 });
+      d.sum += share; d.cnt++;
+    });
+
     const empSectionHtml = this.owners.length
       ? `<div class="section-title">Сотрудники</div>
          <div class="emp-bal-list">${this.owners.map(o => {
            const bal = empBals[o.id] || 0;
            const ep  = bal >= 0;
+           const due = dueByOwner[o.id];
+           const dueSum = due ? Math.round(due.sum) : 0;
            return `<div class="emp-bal-card" data-owner-id="${o.id}">
              <div class="emp-bal-avatar" style="background:${o.color}">${o.name[0].toUpperCase()}</div>
-             <div class="emp-bal-name">${this.esc(o.name)}</div>
+             <div class="emp-bal-info">
+               <div class="emp-bal-name">${this.esc(o.name)}</div>
+               ${dueSum > 0 ? `<div class="emp-bal-due">К выплате с продаж: <b>${fmtMoney(dueSum)}</b> · ${due.cnt} прод.</div>` : ''}
+             </div>
+             ${dueSum > 0 ? `<button class="emp-settle-btn" data-settle="${o.id}" data-settle-sum="${dueSum}" data-settle-cnt="${due.cnt}">Рассчитать</button>` : ''}
              <div class="emp-bal-amount ${ep ? 'pos' : 'neg'}">${ep ? '+' : '−'}${fmtMoney(Math.abs(bal))}</div>
              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--text3);flex-shrink:0">
                <polyline points="9 18 15 12 9 6"/>
@@ -4823,6 +4842,29 @@ class App {
 
     el.querySelectorAll('.emp-bal-card').forEach(card =>
       card.addEventListener('click', () => this.openEmpModal(card.dataset.ownerId))
+    );
+
+    /* «Рассчитать» — вывод доли сотрудника с нерассчитанных продаж одной операцией */
+    el.querySelectorAll('.emp-settle-btn').forEach(btn =>
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const ownerId = btn.dataset.settle;
+        const owner   = this.owners.find(o => o.id === ownerId);
+        const sum     = parseInt(btn.dataset.settleSum) || 0;
+        const cnt     = btn.dataset.settleCnt;
+        if (!await this.confirm(
+          `Рассчитать ${owner?.name}: вывести ${fmtMoney(sum)} со счёта компании — доля с ${cnt} прод.?`,
+          'Рассчитать', false)) return;
+        if (this._settling) return;
+        this._settling = true;
+        try {
+          const r = await this.db.settleOwner(ownerId);
+          this.toast(`${owner?.name}: выплачено ${fmtMoney(r.total)} за ${r.count} прод. ✓`);
+          this.renderFinance();
+        } catch (err) {
+          this.toast(err.message || 'Ошибка — проверьте соединение');
+        } finally { this._settling = false; }
+      })
     );
 
     el.querySelectorAll('.pay-del[data-sale-id]').forEach(btn =>

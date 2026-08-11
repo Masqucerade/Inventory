@@ -2020,6 +2020,35 @@ app.get('/api/payments', (req, res) => {
   res.json((load().payments || []).slice().reverse());
 });
 
+/* Расчёт с сотрудником за проданные вещи (root): одной операцией —
+   вывод из бюджета + начисление сотруднику, продажи помечаются sharePaid,
+   чтобы доля не выплатилась дважды. Доля = закуп + доставка + % прибыли. */
+app.post('/api/owners/:id/settle', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db    = load();
+  const owner = (db.owners || []).find(o => o.id === req.params.id);
+  if (!owner) return res.status(404).json({ error: 'Сотрудник не найден' });
+  const pct    = owner.profitPercent || 0;
+  const unpaid = (db.sales || []).filter(s => s.ownerId === owner.id && !s.sharePaid);
+  const total  = Math.round(unpaid.reduce((sum, s) =>
+    sum + ((s.buyPrice || 0) + (s.deliveryCost || 0)) * (s.qty || 1) +
+    (s.netProfit || 0) * pct / 100, 0));
+  if (!unpaid.length || total <= 0)
+    return res.status(400).json({ error: 'Нет нерассчитанных продаж' });
+  const now = new Date().toISOString();
+  if (!db.payments) db.payments = [];
+  if (!db.employeePayments) db.employeePayments = [];
+  db.payments.push({ id: uid(), type: 'charge', amount: total,
+    desc: `Вывод — ${owner.name} · расчёт за продажи (${unpaid.length} шт.)`, ts: now });
+  db.employeePayments.push({ id: uid(), ownerId: owner.id, ownerName: owner.name,
+    type: 'credit', amount: total, desc: `Доля с продаж (${unpaid.length} шт.)`, ts: now });
+  unpaid.forEach(s => { s.sharePaid = true; s.sharePaidAt = now; });
+  save(db);
+  logToTelegram({ type: 'emp_payment', ts: now,
+    desc: `💵 Расчёт с ${owner.name}: +${total.toLocaleString('ru-RU')} ₽ — доля с ${unpaid.length} прод.` });
+  res.json({ ok: true, total, count: unpaid.length });
+});
+
 app.post('/api/payments', (req, res) => {
   const db    = load();
   const entry = { id: uid(), ...req.body, ts: new Date().toISOString() };
