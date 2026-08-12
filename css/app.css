@@ -1672,6 +1672,17 @@ body.select-mode .bottom-nav { display: none; }
 .emp-sale-divider {
   font-size: 10.5px; letter-spacing: .8px; text-transform: uppercase;
   color: var(--hint); margin: 10px 0 2px; }
+
+/* Бронь размера: тумблер в редакторе и пометка на чипах */
+.size-extra { display: flex; gap: 8px; align-items: center; margin-top: 7px; }
+.size-extra .size-owner-select { flex: 1; margin-top: 0; }
+.size-reserve {
+  flex-shrink: 0; padding: 8px 12px; border-radius: 8px;
+  background: var(--fill); color: var(--text3);
+  font-size: 12px; font-weight: 600; transition: all .12s; white-space: nowrap;
+}
+.size-reserve.on { background: var(--accent); color: var(--on-accent); }
+.size-pill.res { opacity: .72; border-style: dashed; }
 .emp-bal-amount { font-size: 14px; font-weight: 700; letter-spacing: -0.4px; flex-shrink: 0; }
 .emp-bal-amount.pos { color: #4ade80; }
 .emp-bal-amount.neg { color: #f87171; }

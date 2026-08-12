@@ -666,6 +666,11 @@ body.theme-type .cart-badge { background: #17150f; color: #f6f5f1; }
 .m-desc + .cart-add-btn, .m-sizes + .cart-add-btn { margin-top: 26px; }
 .cart-add-btn + .tg-btn.ghost { margin-top: 10px; }
 .m-size-pick.picked { background: var(--gold); color: #17130b; border-color: var(--gold); }
+/* Забронированный размер — виден, но недоступен */
+.m-size-reserved { opacity: .45; cursor: not-allowed; border-style: dashed;
+  display: inline-flex; align-items: center; gap: 6px; background: transparent; font-family: var(--font-b); }
+.m-size-res { font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; color: var(--gold); }
+body.theme-type .m-size-res { color: #8a8577; }
 body.theme-type .m-size-pick.picked { background: #17150f; color: #f6f5f1; border-color: #17150f; }
 @keyframes need-size-pulse { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 .m-sizes.need-size .m-size-pick { border-color: var(--gold); animation: need-size-pulse .3s ease 2; }

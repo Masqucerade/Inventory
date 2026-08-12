@@ -580,10 +580,13 @@ function publicItem(i) {
     oldPrice:     (i.oldPrice && i.price && i.oldPrice > i.price) ? i.oldPrice : null,
     inStock:      i.orderStatus === 'in_stock',
     sold:         isSoldOut(i),
-    reserved:     i.orderStatus === 'processing',   // «В заказе» → лента «Зарезервировано»
+    // «В заказе» или забронированы все размеры в наличии → лента «Зарезервировано»
+    reserved:     i.orderStatus === 'processing' ||
+      (Array.isArray(i.sizes) && i.sizes.some(s => (s.qty || 0) > 0) &&
+       i.sizes.filter(s => (s.qty || 0) > 0).every(s => s.reserved)),
     photos,
     thumbs,
-    sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0).map(s => ({ size: s.size, qty: s.qty })) : null,
+    sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0).map(s => ({ size: s.size, qty: s.qty, reserved: !!s.reserved })) : null,
     description:  i.description || '',
     measurements: i.measurements || '',
     categoryId:   i.categoryId || null,
@@ -787,7 +790,15 @@ app.post('/api/public/order', (req, res) => {
   // Цены и названия берём из базы — данным клиента не доверяем
   const items = reqItems.map(x => {
     const it = (db.items || []).find(i => i.id === x?.id && i.showOnSite);
-    return it ? { id: it.id, name: it.name, price: it.price ?? null, size: String(x.size || '').slice(0, 20) } : null;
+    if (!it) return null;
+    const size = String(x.size || '').slice(0, 20);
+    // Забронированный размер заказать нельзя (UI его и не даёт выбрать);
+    // товар со всеми забронированными размерами — тоже
+    const inStockSizes = (it.sizes || []).filter(s => (s.qty || 0) > 0);
+    if (inStockSizes.length && inStockSizes.every(s => s.reserved)) return null;
+    const sRec = (it.sizes || []).find(s => (s.size || '') === size);
+    if (sRec?.reserved) return null;
+    return { id: it.id, name: it.name, price: it.price ?? null, size };
   }).filter(Boolean);
   if (!items.length) return res.status(400).json({ error: 'Товары не найдены' });
 

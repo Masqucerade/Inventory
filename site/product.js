@@ -65,8 +65,9 @@ async function boot() {
         <p class="m-price">${fmtPrice(i.price)}${i.oldPrice ? ` <s class="old-price">${fmtPrice(i.oldPrice)}</s><em class="disc-badge">−${Math.round((1 - i.price / i.oldPrice) * 100)}%</em>` : ''}</p>
         ${i.sold
           ? `<span class="good-tag sold p-sold-tag">Продано</span>`
-          : `<div class="m-sizes" id="pSizes">${(i.sizes || []).filter(s => s.size).map(s =>
-              `<button type="button" class="m-size m-size-pick" data-size="${esc(s.size)}">${esc(s.size)}</button>`).join('')}</div>`}
+          : `<div class="m-sizes" id="pSizes">${(i.sizes || []).filter(s => s.size).map(s => s.reserved
+              ? `<button type="button" class="m-size m-size-reserved" disabled title="Размер забронирован">${esc(s.size)}<span class="m-size-res">бронь</span></button>`
+              : `<button type="button" class="m-size m-size-pick" data-size="${esc(s.size)}">${esc(s.size)}</button>`).join('')}</div>`}
         ${i.description ? `<p class="m-desc">${esc(i.description)}</p>` : ''}
         ${i.measurements ? `
         <div class="m-fit" id="mFit">
@@ -85,6 +86,9 @@ async function boot() {
         ${i.sold
           ? `<p class="p-sold-note">Эта вещь уже нашла владельца. Напишите нам — подберём похожую.</p>
              <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}" target="_blank" rel="noopener">Написать в Telegram</a>`
+          : ((i.sizes || []).some(s => s.size) && !(i.sizes || []).some(s => s.size && !s.reserved))
+          ? `<p class="p-sold-note">Все размеры сейчас забронированы. Напишите нам — сообщим, если бронь освободится.</p>
+             <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}?text=${msg}" target="_blank" rel="noopener">Написать в Telegram</a>`
           : `<button class="tg-btn cart-add-btn" id="addCartBtn" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
