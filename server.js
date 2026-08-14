@@ -569,6 +569,13 @@ app.post('/api/login', (req, res) => {
 // Товар «продан» — всё распродано или объявление завершено; такие уходят в «Архив» витрины
 const isSoldOut = (i) => i.orderStatus === 'done' || (parseInt(i.quantity) || 0) <= 0;
 
+/* Бронь размера — поштучная (reservedQty). Старый булев флаг reserved
+   читаем как «забронированы все штуки размера». Не больше остатка. */
+const reservedQtyOf = s => Math.min(parseInt(s.qty) || 0,
+  s.reservedQty != null ? (parseInt(s.reservedQty) || 0) : (s.reserved ? (parseInt(s.qty) || 0) : 0));
+// Свободный остаток размера (остаток минус бронь)
+const freeQtyOf = s => Math.max(0, (parseInt(s.qty) || 0) - reservedQtyOf(s));
+
 function publicItem(i) {
   const photos = Array.isArray(i.photos) && i.photos.length ? i.photos : (i.photo ? [i.photo] : []);
   const thumbs = Array.isArray(i.thumbs) && i.thumbs.length ? i.thumbs : photos;
@@ -580,13 +587,15 @@ function publicItem(i) {
     oldPrice:     (i.oldPrice && i.price && i.oldPrice > i.price) ? i.oldPrice : null,
     inStock:      i.orderStatus === 'in_stock',
     sold:         isSoldOut(i),
-    // «В заказе» или забронированы все размеры в наличии → лента «Зарезервировано»
+    // «В заказе» или забронированы все штуки всех размеров → лента «Зарезервировано»
     reserved:     i.orderStatus === 'processing' ||
       (Array.isArray(i.sizes) && i.sizes.some(s => (s.qty || 0) > 0) &&
-       i.sizes.filter(s => (s.qty || 0) > 0).every(s => s.reserved)),
+       i.sizes.filter(s => (s.qty || 0) > 0).every(s => freeQtyOf(s) <= 0)),
     photos,
     thumbs,
-    sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0).map(s => ({ size: s.size, qty: s.qty, reserved: !!s.reserved })) : null,
+    // reserved у размера = свободных (не забронированных) штук не осталось
+    sizes:        Array.isArray(i.sizes) ? i.sizes.filter(s => (s.qty || 0) > 0)
+      .map(s => ({ size: s.size, qty: s.qty, reserved: freeQtyOf(s) <= 0 })) : null,
     description:  i.description || '',
     measurements: i.measurements || '',
     categoryId:   i.categoryId || null,
@@ -792,12 +801,12 @@ app.post('/api/public/order', (req, res) => {
     const it = (db.items || []).find(i => i.id === x?.id && i.showOnSite);
     if (!it) return null;
     const size = String(x.size || '').slice(0, 20);
-    // Забронированный размер заказать нельзя (UI его и не даёт выбрать);
-    // товар со всеми забронированными размерами — тоже
+    // Размер без свободных штук (всё в брони) заказать нельзя;
+    // товар, где всё в брони, — тоже (UI это и не даёт сделать)
     const inStockSizes = (it.sizes || []).filter(s => (s.qty || 0) > 0);
-    if (inStockSizes.length && inStockSizes.every(s => s.reserved)) return null;
+    if (inStockSizes.length && inStockSizes.every(s => freeQtyOf(s) <= 0)) return null;
     const sRec = (it.sizes || []).find(s => (s.size || '') === size);
-    if (sRec?.reserved) return null;
+    if (sRec && freeQtyOf(sRec) <= 0) return null;
     return { id: it.id, name: it.name, price: it.price ?? null, size };
   }).filter(Boolean);
   if (!items.length) return res.status(400).json({ error: 'Товары не найдены' });
@@ -2194,7 +2203,11 @@ function adjustStock(db, itemId, size, delta) {
   if (!item) return;
   if (item.sizes && item.sizes.length) {
     const sz = item.sizes.find(s => (s.size || '') === (size || '')) || item.sizes[0];
-    if (sz) sz.qty = Math.max(0, (parseInt(sz.qty) || 0) + delta);
+    if (sz) {
+      sz.qty = Math.max(0, (parseInt(sz.qty) || 0) + delta);
+      // Остаток упал ниже брони — ужимаем бронь до остатка
+      if ((parseInt(sz.reservedQty) || 0) > sz.qty) sz.reservedQty = sz.qty;
+    }
     item.quantity = item.sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
   } else {
     item.quantity = Math.max(0, (parseInt(item.quantity) || 0) + delta);

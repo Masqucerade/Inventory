@@ -1538,17 +1538,24 @@ class App {
       const dec = e.target.closest('.size-dec');
       const inc = e.target.closest('.size-inc');
       const rm  = e.target.closest('.size-remove');
-      const rez = e.target.closest('.size-reserve');
-      if (dec) { const i = +dec.dataset.idx; this._sizes[i].qty = Math.max(0, (this._sizes[i].qty||0) - 1); this.renderSizes(); }
+      const rdec = e.target.closest('.rsv-dec');
+      const rinc = e.target.closest('.rsv-inc');
+      // Бронь не может превышать остаток размера
+      const clampRsv = (i) => { const s = this._sizes[i];
+        s.reservedQty = Math.max(0, Math.min(s.reservedQty || 0, s.qty || 0)); };
+      if (dec) { const i = +dec.dataset.idx; this._sizes[i].qty = Math.max(0, (this._sizes[i].qty||0) - 1); clampRsv(i); this.renderSizes(); }
       if (inc) { const i = +inc.dataset.idx; this._sizes[i].qty = (this._sizes[i].qty||0) + 1; this.renderSizes(); }
       if (rm)  { const i = +rm.dataset.idx;  this._sizes.splice(i, 1); this.renderSizes(); }
-      if (rez) { const i = +rez.dataset.idx; this._sizes[i].reserved = !this._sizes[i].reserved; this.renderSizes(); }
+      if (rdec) { const i = +rdec.dataset.idx; this._sizes[i].reservedQty = (this._sizes[i].reservedQty || 0) - 1; clampRsv(i); this.renderSizes(); }
+      if (rinc) { const i = +rinc.dataset.idx; this._sizes[i].reservedQty = (this._sizes[i].reservedQty || 0) + 1; clampRsv(i); this.renderSizes(); }
     });
     document.getElementById('sizesList').addEventListener('input', (e) => {
       const si = e.target.closest('.size-row-input');
       const qi = e.target.closest('.size-qty-input');
       if (si) { const i = +si.dataset.idx; this._sizes[i].size = si.value; }
-      if (qi) { const i = +qi.dataset.idx; this._sizes[i].qty  = parseInt(qi.value) || 0; this.updateTotal(); }
+      if (qi) { const i = +qi.dataset.idx; this._sizes[i].qty  = parseInt(qi.value) || 0;
+        this._sizes[i].reservedQty = Math.max(0, Math.min(this._sizes[i].reservedQty || 0, this._sizes[i].qty || 0));
+        this.updateTotal(); }
     });
     document.getElementById('sizesList').addEventListener('change', (e) => {
       const os = e.target.closest('.size-owner-select');
@@ -3213,7 +3220,7 @@ class App {
 
     const sizesArr  = item.sizes?.length > 0 ? item.sizes : (item.size ? [{size: item.size, qty: item.quantity||0}] : []);
     const sizePills = sizesArr.filter(s => s.qty > 0 || s.size)
-      .map(s => `<span class="size-pill${s.reserved ? ' res' : ''}">${this.esc(s.size||'?')}${s.qty !== 1 ? ' ×'+s.qty : ''}${s.reserved ? ' · бронь' : ''}</span>`).join('');
+      .map(s => `<span class="size-pill${this.rsvQty(s) ? ' res' : ''}">${this.esc(s.size||'?')}${s.qty !== 1 ? ' ×'+s.qty : ''}${this.rsvLabel(s)}</span>`).join('');
 
     // Разделение по владельцам: собираем уникальных владельцев размеров
     const splitOwners = [...new Set(sizesArr.map(s => s.ownerId || item.ownerId).filter(Boolean))]
@@ -3265,7 +3272,7 @@ class App {
     const cover = item.thumbs?.[0] || item.photos?.[0] || item.photo;
     const sizesArr = item.sizes?.length > 0 ? item.sizes : (item.size ? [{ size: item.size, qty: item.quantity || 0 }] : []);
     const sizes = sizesArr.filter(s => s.size || s.qty)
-      .map(s => `${this.esc(s.size || '?')}${s.qty !== 1 ? '×' + s.qty : ''}${s.reserved ? '(бронь)' : ''}`).join(' · ');
+      .map(s => `${this.esc(s.size || '?')}${s.qty !== 1 ? '×' + s.qty : ''}${this.rsvQty(s) ? `(бронь${this.rsvQty(s) < (s.qty || 0) ? ' ' + this.rsvQty(s) : ''})` : ''}`).join(' · ');
     const siteTag = item.showOnSite
       ? `<svg class="row-site" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="На сайте"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`
       : '';
@@ -3325,7 +3332,7 @@ class App {
                 <span class="owner-split-qty">${g.qty} шт</span>
               </div>
               <div class="owner-split-sizes">
-                ${g.sizes.map(s => `<span class="size-pill${s.reserved ? ' res' : ''}">${this.esc(s.size || '—')}${(parseInt(s.qty) || 0) !== 1 ? ' ×' + (parseInt(s.qty) || 0) : ''}${s.reserved ? ' · бронь' : ''}</span>`).join('')}
+                ${g.sizes.map(s => `<span class="size-pill${this.rsvQty(s) ? ' res' : ''}">${this.esc(s.size || '—')}${(parseInt(s.qty) || 0) !== 1 ? ' ×' + (parseInt(s.qty) || 0) : ''}${this.rsvLabel(s)}</span>`).join('')}
               </div>
             </div>`).join('')}
         </div>`;
@@ -3604,7 +3611,9 @@ class App {
         this._selOwner  = item.ownerId     || null;
         this._selStatus = item.orderStatus || 'ordered';
         this._sizes = item.sizes?.length > 0
-          ? item.sizes.map(s => ({ size: s.size || '', qty: s.qty || 0, ownerId: s.ownerId || null }))
+          ? item.sizes.map(s => ({ size: s.size || '', qty: s.qty || 0, ownerId: s.ownerId || null,
+              // Старый булев флаг брони читаем как «вся штука в брони»
+              reservedQty: Math.min(s.qty || 0, s.reservedQty != null ? s.reservedQty : (s.reserved ? (s.qty || 0) : 0)) }))
           : [{ size: item.size || '', qty: item.quantity || 1 }];
         this._photos = Array.isArray(item.photos) && item.photos.length
           ? item.photos.map((full, i) => ({ full, thumb: item.thumbs?.[i] || full }))
@@ -3788,6 +3797,18 @@ class App {
       </button>`;
   }
 
+  /* Бронь размера в штуках (старый булев флаг = вся бронь) */
+  rsvQty(s) {
+    return Math.min(s.qty || 0,
+      s.reservedQty != null ? (s.reservedQty || 0) : (s.reserved ? (s.qty || 0) : 0));
+  }
+  /* Подпись брони для чипа размера: «· бронь» (всё) или «· бронь N» (часть) */
+  rsvLabel(s) {
+    const rq = this.rsvQty(s);
+    if (!rq) return '';
+    return rq >= (s.qty || 0) ? ' · бронь' : ` · бронь ${rq}`;
+  }
+
   renderSizes() {
     const list = document.getElementById('sizesList');
     if (!list) return;
@@ -3814,9 +3835,13 @@ class App {
             <option value="">Владелец — как у объявления</option>
             ${this.owners.map(o => `<option value="${o.id}"${s.ownerId === o.id ? ' selected' : ''}>${this.esc(o.name)}</option>`).join('')}
           </select>` : ''}
-          <button type="button" class="size-reserve${s.reserved ? ' on' : ''}" data-idx="${i}"
-            title="${s.reserved ? 'Снять бронь с размера' : 'Забронировать размер — на сайте его нельзя будет заказать'}">
-            ${s.reserved ? 'Бронь ✓' : 'Бронь'}</button>
+          <div class="size-reserve-ctl${(s.reservedQty || 0) > 0 ? ' on' : ''}"
+               title="Бронь: столько штук нельзя заказать на сайте">
+            <span>Бронь</span>
+            <button type="button" class="rsv-dec" data-idx="${i}">−</button>
+            <b>${s.reservedQty || 0}</b>
+            <button type="button" class="rsv-inc" data-idx="${i}">+</button>
+          </div>
         </div>
       </div>`).join('');
     this.updateTotal();

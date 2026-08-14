@@ -1676,12 +1676,20 @@ body.select-mode .bottom-nav { display: none; }
 /* Бронь размера: тумблер в редакторе и пометка на чипах */
 .size-extra { display: flex; gap: 8px; align-items: center; margin-top: 7px; }
 .size-extra .size-owner-select { flex: 1; margin-top: 0; }
-.size-reserve {
-  flex-shrink: 0; padding: 8px 12px; border-radius: 8px;
-  background: var(--fill); color: var(--text3);
-  font-size: 12px; font-weight: 600; transition: all .12s; white-space: nowrap;
+.size-reserve-ctl {
+  flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 8px; background: var(--fill);
+  color: var(--text3); font-size: 12px; font-weight: 600; white-space: nowrap;
+  transition: all .12s;
 }
-.size-reserve.on { background: var(--accent); color: var(--on-accent); }
+.size-reserve-ctl.on { background: var(--accent); color: var(--on-accent); }
+.size-reserve-ctl b { min-width: 14px; text-align: center; font-size: 13px; }
+.size-reserve-ctl .rsv-dec, .size-reserve-ctl .rsv-inc {
+  width: 22px; height: 22px; border-radius: 6px; background: transparent;
+  color: inherit; font-size: 14px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.size-reserve-ctl .rsv-dec:active, .size-reserve-ctl .rsv-inc:active { opacity: .6; }
 .size-pill.res { opacity: .72; border-style: dashed; }
 .emp-bal-amount { font-size: 14px; font-weight: 700; letter-spacing: -0.4px; flex-shrink: 0; }
 .emp-bal-amount.pos { color: #4ade80; }
