@@ -1668,32 +1668,53 @@ app.post('/api/items/:id/tg-post', async (req, res) => {
     `<a href="${buyUrl}">Купить</a> / <a href="${url}">Актуальное наличие</a>`,
   ].filter(Boolean).join('\n');
 
-  // Все фото товара альбомом (лимит Telegram — 10); webp → jpeg через /avito-img
-  const jpegUrl = p => `https://${CANONICAL_HOST}/avito-img/${path.basename(String(p)).replace(/\.\w+$/, '')}.jpg`;
+  // Все фото товара альбомом (лимит Telegram — 10); webp → jpeg (кэш общий с /avito-img).
+  // Загружаем БАЙТЫ напрямую (multipart): скачивание по URL не работает —
+  // серверы Bot API не достукиваются до шлюза в РФ
+  const jpegBufferOf = async (photoRef) => {
+    const base = path.basename(String(photoRef)).replace(/\.\w+$/, '');
+    const src = ['.webp', '.jpg', '.jpeg', '.png'].map(e => path.join(PHOTOS_DIR, base + e)).find(p => fs.existsSync(p));
+    if (!src) return null;
+    if (/\.jpe?g$/i.test(src)) return fs.readFileSync(src);
+    if (!sharp) return null;
+    const cache = path.join(PHOTOS_DIR, base + '-avito.jpg');
+    if (!fs.existsSync(cache)) fs.writeFileSync(cache, await sharp(src).jpeg({ quality: 90 }).toBuffer());
+    return fs.readFileSync(cache);
+  };
   const photoRefs = (Array.isArray(it.photos) && it.photos.length ? it.photos : (it.photo ? [it.photo] : []))
     .filter(p => String(p).startsWith('/photos/'))
     .slice(0, 10);
 
   try {
-    let method, body;
-    if (photoRefs.length > 1) {
+    const buffers = [];
+    for (const p of photoRefs) {
+      const buf = await jpegBufferOf(p).catch(() => null);
+      if (buf) buffers.push(buf);
+    }
+    let method;
+    const form = new FormData();
+    form.append('chat_id', channel);
+    if (buffers.length > 1) {
       // Альбом: подпись живёт на первом фото
       method = 'sendMediaGroup';
-      body = { chat_id: channel, media: photoRefs.map((p, i) => ({
-        type: 'photo', media: jpegUrl(p),
+      form.append('media', JSON.stringify(buffers.map((_, i) => ({
+        type: 'photo', media: `attach://p${i}`,
         ...(i === 0 ? { caption, parse_mode: 'HTML' } : {}),
-      })) };
-    } else if (photoRefs.length === 1) {
+      }))));
+      buffers.forEach((buf, i) => form.append(`p${i}`, new Blob([buf], { type: 'image/jpeg' }), `p${i}.jpg`));
+    } else if (buffers.length === 1) {
       method = 'sendPhoto';
-      body = { chat_id: channel, photo: jpegUrl(photoRefs[0]), caption, parse_mode: 'HTML' };
+      form.append('photo', new Blob([buffers[0]], { type: 'image/jpeg' }), 'photo.jpg');
+      form.append('caption', caption);
+      form.append('parse_mode', 'HTML');
     } else {
       method = 'sendMessage';
-      body = { chat_id: channel, text: caption, parse_mode: 'HTML' };
+      form.append('text', caption);
+      form.append('parse_mode', 'HTML');
     }
-    // Альбому нужен запас: Telegram скачивает каждое фото по URL
+    // Запас времени: альбом из 10 фото — до пары десятков МБ аплоада
     const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body), signal: AbortSignal.timeout(30_000),
+      method: 'POST', body: form, signal: AbortSignal.timeout(120_000),
     });
     const d = await r.json().catch(() => ({}));
     if (!d.ok) throw new Error(d.description || 'Telegram отклонил сообщение');
@@ -1717,10 +1738,10 @@ app.post('/api/items/:id/tg-post', async (req, res) => {
         ? 'Бот не админ канала — добавьте бота администратором с правом публиковать'
       : /bot was kicked/i.test(m)
         ? 'Бот удалён из канала — верните его администратором'
-      : /(failed to get HTTP URL content|wrong file identifier|WEBPAGE|wrong type of the web page)/i.test(m)
-        ? `Telegram не смог скачать фото с ${CANONICAL_HOST} — проверьте, что сайт открывается извне`
+      : /(PHOTO_INVALID_DIMENSIONS|IMAGE_PROCESS_FAILED|file is too big)/i.test(m)
+        ? 'Telegram не принял одно из фото (слишком большое или битое) — перезалейте его в товаре'
       : /abort/i.test(m)
-        ? 'Telegram отвечал слишком долго — попробуйте ещё раз'
+        ? 'Отправка не успела за 2 минуты (много больших фото?) — попробуйте ещё раз'
       : m;
     res.status(502).json({ error: 'Не удалось отправить: ' + hint });
   }
