@@ -1415,7 +1415,11 @@ app.get('/api/items', (req, res) => {
   let rows = load().items || [];
   const { ownerId, orderStatus, search } = req.query;
   if (ownerId)     rows = rows.filter(i => i.ownerId === ownerId);
-  if (orderStatus) rows = rows.filter(i => i.orderStatus === orderStatus);
+  // «В заказе» показывает и товары с забронированными размерами:
+  // бронь учитывается как «В заказе», хотя статус товара может быть другим
+  if (orderStatus) rows = rows.filter(i => i.orderStatus === orderStatus ||
+    (orderStatus === 'processing' && i.orderStatus !== 'done' &&
+     (i.sizes || []).some(s => reservedQtyOf(s) > 0)));
   if (search) {
     const q = search.toLowerCase();
     const catName = {};
