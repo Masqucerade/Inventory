@@ -3697,11 +3697,12 @@ html.is-web #guideModal { height: min(760px, 86vh); }
 /* Широкий экран: банковский дашборд — карта слева, действия и показатели справа,
    ниже операции и продажи в две колонки */
 @media (min-width: 820px) {
-  /* Один экран без скролла страницы: #financeContent — это сам .view-body,
-     он занимает всю высоту; длинные списки прокручиваются внутри колонок */
+  /* Колонки со своими скроллами; если экран низкий — страница мягко
+     прокручивается, чтобы нижние списки всегда были рабочего размера */
   html.is-web #financeContent {
     display: flex; flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: var(--sep) transparent;
   }
   html.is-web #financeContent > .fin-hero,
   html.is-web #financeContent > .fin-cols {
@@ -3720,14 +3721,14 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   html.is-web .fin-hero-side .finance-actions { margin-bottom: 0; }
   html.is-web .fin-hero-side .fin-btn { padding: 18px 8px 16px; font-size: 13px; }
   html.is-web .fin-hero-side .section-title { margin: 18px 0 8px 2px; }
-  html.is-web .fin-hero-side .sales-summary { flex: 1; margin-bottom: 0; }
+  html.is-web .fin-hero-side .sales-summary { flex: 0 0 auto; margin-bottom: 0; }
   html.is-web .fin-hero-side .sales-stat-card {
     display: flex; flex-direction: column; justify-content: center; gap: 7px;
     padding: 16px 16px 18px;
   }
   html.is-web .fin-hero-side .sales-stat-val { font-size: 26px; }
 
-  html.is-web .fin-cols { display: flex; gap: 22px; align-items: stretch; flex: 1; min-height: 220px; margin-top: 2px; }
+  html.is-web .fin-cols { display: flex; gap: 22px; align-items: stretch; flex: 1; min-height: 340px; margin-top: 2px; flex-shrink: 0; }
   html.is-web .fin-col { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
   html.is-web .fin-col .section-title { flex-shrink: 0; }
   /* Списки скроллятся внутри колонок — страница остаётся на месте */
@@ -3746,7 +3747,7 @@ html.is-web #guideModal { height: min(760px, 86vh); }
   html.is-web .fin-col .pay-list::-webkit-scrollbar-thumb,
   html.is-web .fin-col .plan-list::-webkit-scrollbar-thumb,
   html.is-web .fin-col .emp-bal-list::-webkit-scrollbar-thumb { background: var(--sep); border-radius: 3px; }
-  html.is-web .fin-col .emp-bal-list { flex-shrink: 0; max-height: 230px; overflow-y: auto; }
+  html.is-web .fin-col .emp-bal-list { flex-shrink: 0; max-height: 320px; overflow-y: auto; }
 }
 
 /* =============================================
