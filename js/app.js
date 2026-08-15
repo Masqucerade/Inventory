@@ -3242,7 +3242,7 @@ class App {
             <div class="item-type-size">${this.esc(this.categories.find(c => c.id === item.categoryId)?.name || '')}</div>
           </div>
           <div class="item-top-badges">
-            <span class="status-badge ${item.orderStatus}">${st.label}</span>${item.parcel && (item.orderStatus === 'ordered' || item.orderStatus === 'at_warehouse') ? `<span class="parcel-badge" title="Посылка">#${this.esc(String(item.parcel))}</span>` : ''}${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
+            <span class="status-badge ${item.orderStatus}">${st.label}</span>${(() => { const r = (item.sizes || []).reduce((s, x) => s + this.rsvQty(x), 0); return r ? `<span class="status-badge processing" title="Забронировано — учитывается как «В заказе»">Бронь ×${r}</span>` : ''; })()}${item.parcel && (item.orderStatus === 'ordered' || item.orderStatus === 'at_warehouse') ? `<span class="parcel-badge" title="Посылка">#${this.esc(String(item.parcel))}</span>` : ''}${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="2" y1="12" x2="22" y2="12"/>
@@ -3283,7 +3283,7 @@ class App {
       <span class="row-brand">${this.esc(item.brand || '—')}</span>
       <span class="row-owner">${owner ? `<span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}` : '—'}</span>
       <span class="row-sizes">${sizes || '—'}</span>
-      <span><span class="status-badge ${item.orderStatus}">${st.label}</span></span>
+      <span><span class="status-badge ${item.orderStatus}">${st.label}</span>${(() => { const r = (item.sizes || []).reduce((s, x) => s + this.rsvQty(x), 0); return r ? ` <span class="status-badge processing" title="Забронировано">Бронь ×${r}</span>` : ''; })()}</span>
       <span class="row-qty">${item.quantity || 0}</span>
       <span class="row-price">${item.price ? fmtMoney(item.price) : '—'}</span>
       <span class="row-total">${item.total ? fmtMoney(item.total) : '—'}</span>
@@ -3406,7 +3406,7 @@ class App {
         <div class="detail-row detail-status-row" id="detailStatusRow" style="cursor:pointer">
           <span class="detail-key">Статус</span>
           <span class="detail-val" style="display:flex;align-items:center;gap:8px">
-            <span class="status-badge ${item.orderStatus}" id="detailStatusBadge">${st.label}</span>
+            <span class="status-badge ${item.orderStatus}" id="detailStatusBadge">${st.label}</span>${(() => { const r = (item.sizes || []).reduce((s, x) => s + this.rsvQty(x), 0); return r ? `<span class="status-badge processing" title="Забронировано — учитывается как «В заказе»">Бронь ×${r}</span>` : ''; })()}
             <svg id="detailStatusChevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--text3);flex-shrink:0;transition:transform .2s">
               <polyline points="6 9 12 15 18 9"/>
             </svg>
@@ -4613,6 +4613,11 @@ class App {
       d.sum += share; d.cnt++;
     });
 
+    // Сколько компания должна сотрудникам: остатки на их счетах (начислено,
+    // но не выплачено) + ещё не рассчитанные доли с продаж их вещей
+    const empOwed  = Object.values(empBals).reduce((s, v) => s + Math.max(0, v), 0);
+    const dueTotal = Math.round(Object.values(dueByOwner).reduce((s, d) => s + d.sum, 0));
+
     const empSectionHtml = this.owners.length
       ? `<div class="section-title">Сотрудники</div>
          <div class="emp-bal-list">${this.owners.map(o => {
@@ -4764,10 +4769,12 @@ class App {
         <div class="bank-mrz">${mrz1}<br>${mrz2}</div>
       </div>
 
-      ${(salesProfit || pendingDebt || paidDebt) ? `
+      ${(salesProfit || pendingDebt || paidDebt || empOwed || dueTotal) ? `
       <div class="bank-breakdown">
         ${salesProfit ? `<div class="budget-row"><span>Прибыль с продаж</span><span class="pos">+${fmtMoney(salesProfit)}</span></div>` : ''}
         ${paidDebt ? `<div class="budget-row"><span>Погашено сотрудникам</span><span class="neg">−${fmtMoney(paidDebt)}</span></div>` : ''}
+        ${empOwed ? `<div class="budget-row"><span title="Начислено сотрудникам, но ещё не выплачено (из бюджета уже вычтено)">На счетах сотрудников · к выплате</span><span class="neg">${fmtMoney(empOwed)}</span></div>` : ''}
+        ${dueTotal ? `<div class="budget-row"><span title="Доли сотрудников с продаж их вещей, по которым ещё не нажато «Рассчитать»">Доли с продаж · не рассчитано</span><span class="neg">${fmtMoney(dueTotal)}</span></div>` : ''}
         ${pendingDebt ? `
           <div class="budget-row debt debt-toggle" id="debtToggle">
             <span>Долг сотрудникам
@@ -5394,9 +5401,12 @@ class App {
 
     const hideCosts = !!this.currentUser?.hideCosts && this.currentUser?.role !== 'root';
     const byStatus = {}, byOwner = {}, byType = {};
-    // Бар «по статусам» — по всем товарам (штуки, «Завершено» отдельной строкой)
+    // Бар «по статусам» — по всем товарам (штуки, «Завершено» отдельной строкой).
+    // Забронированные штуки учитываются как «В заказе» — они уже заняты клиентами
     allItems.forEach(i => {
-      byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + (i.quantity || 0);
+      const rsv = (i.sizes || []).reduce((s, x) => s + this.rsvQty(x), 0);
+      byStatus[i.orderStatus] = (byStatus[i.orderStatus] || 0) + Math.max(0, (i.quantity || 0) - rsv);
+      if (rsv) byStatus.processing = (byStatus.processing || 0) + rsv;
     });
     items.forEach(i => {
       const qty = i.quantity || 0;
@@ -6669,7 +6679,8 @@ class App {
     document.getElementById('saleSizeDivider').style.display = hasSizes ? '' : 'none';
     if (hasSizes) {
       document.getElementById('saleSizeSelect').innerHTML =
-        sizes.map(s => `<option value="${this.esc(s.size)}">${this.esc(s.size)} (${s.qty} шт)</option>`).join('');
+        sizes.map(s => { const r = this.rsvQty(s);
+          return `<option value="${this.esc(s.size)}">${this.esc(s.size)} (${s.qty} шт${r ? `, бронь ${r}` : ''})</option>`; }).join('');
     }
     this._updateSalePreview();
   }
