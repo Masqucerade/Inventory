@@ -9,7 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=152">
+  <link rel="stylesheet" href="css/app.css?v=153">
 </head>
 <body>
 
@@ -1598,12 +1598,25 @@
           <input type="text" class="form-input" id="saleNote" placeholder="Покупатель, канал продажи…" autocomplete="off">
         </div>
       </div>
+
+      <div class="form-card hidden" id="saleNotifyCard">
+        <div class="form-group monarc-form-row">
+          <div>
+            <span class="form-label" style="margin:0">Сообщить команде</span>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px" id="saleNotifyHint">Отправить уведомление в группу сотрудников</div>
+          </div>
+          <label class="monarc-toggle site-toggle">
+            <input type="checkbox" id="saleNotifyTeam">
+            <span class="monarc-toggle-slider"></span>
+          </label>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<script src="js/db.js?v=66"></script>
+<script src="js/db.js?v=67"></script>
 <script src="js/backup.js?v=46"></script>
-<script src="js/app.js?v=203"></script>
+<script src="js/app.js?v=204"></script>
 </body>
 </html>

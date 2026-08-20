@@ -2476,6 +2476,32 @@ class App {
 
       <div class="site-sec-head" style="margin-top:22px">
         <div>
+          <div class="site-sec-title">Группа сотрудников</div>
+          <div class="site-sec-hint">Уведомления о продажах — по галочке «Сообщить команде» при записи продажи</div>
+        </div>
+      </div>
+      <div class="settings-section" id="tgTeamSection">
+        <div class="settings-row" style="cursor:default">
+          <div class="settings-row-icon" style="background:${status.teamChat ? 'rgba(74,222,128,.12)' : 'var(--fill2)'}">${uiIcon(status.teamChat ? 'checkCircle' : 'msg', 14)}</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">${status.teamChat
+              ? `Группа подключена<span class="promo-badge on" style="margin-left:8px">${this.esc(status.teamChatTitle || status.teamChat)}</span>`
+              : 'Группа не выбрана'}</div>
+            <div class="settings-row-sub">${status.teamChat
+              ? 'В группу уходят название, размер, цена и владелец — без закупа и прибыли'
+              : 'Добавьте бота в группу, напишите там любое сообщение и нажмите «Найти группы»'}</div>
+          </div>
+          <div class="tg-team-acts">
+            <button class="chip" id="tgTeamFind">Найти группы</button>
+            ${status.teamChat ? `<button class="chip" id="tgTeamTest">Тест</button>
+              <button class="chip" id="tgTeamOff">Отключить</button>` : ''}
+          </div>
+        </div>
+        <div id="tgTeamList"></div>
+      </div>
+
+      <div class="site-sec-head" style="margin-top:22px">
+        <div>
           <div class="site-sec-title">Опубликовать товар</div>
           <div class="site-sec-hint">Показаны товары с сайта в наличии; непубликованные — сверху</div>
         </div>
@@ -2526,6 +2552,50 @@ class App {
     this._tgFilter = 'all';
     this._tgBrand  = 'all';
     this._renderTgPubList('');
+    /* ── Группа сотрудников: поиск, выбор, тест, отключение ── */
+    document.getElementById('tgTeamFind')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.textContent = 'Ищу…';
+      try {
+        const groups = await this.db.getTgGroups();
+        const list = document.getElementById('tgTeamList');
+        list.innerHTML = groups.length
+          ? groups.map(g => `
+            <div class="settings-row tg-group-pick" data-gid="${this.esc(g.id)}" data-gtitle="${this.esc(g.title)}">
+              <div class="settings-row-icon" style="background:var(--fill2)">${uiIcon('msg', 13)}</div>
+              <div class="settings-row-info">
+                <div class="settings-row-title">${this.esc(g.title)}</div>
+                <div class="settings-row-sub">id ${this.esc(g.id)} — нажмите, чтобы выбрать</div>
+              </div>
+            </div>`).join('')
+          : `<div class="settings-row" style="cursor:default"><div class="settings-row-info">
+               <div class="settings-row-sub">Групп не видно. Добавьте бота в группу и напишите там любое сообщение, затем повторите поиск.</div>
+             </div></div>`;
+        list.querySelectorAll('.tg-group-pick').forEach(row =>
+          row.addEventListener('click', async () => {
+            try {
+              await this.db.setTgTeamChat(row.dataset.gid, row.dataset.gtitle);
+              this.toast(`Группа «${row.dataset.gtitle}» подключена ✓`);
+              this.renderTgView();
+            } catch (err) { this.toast(err.message || 'Ошибка'); }
+          })
+        );
+      } catch (err) { this.toast(err.message || 'Ошибка'); }
+      finally { btn.textContent = 'Найти группы'; }
+    });
+    document.getElementById('tgTeamTest')?.addEventListener('click', async () => {
+      try { await this.db.testTgTeamChat(); this.toast('Тестовое сообщение отправлено ✓'); }
+      catch (err) { this.toast(err.message || 'Ошибка'); }
+    });
+    document.getElementById('tgTeamOff')?.addEventListener('click', async () => {
+      if (!await this.confirm('Отключить уведомления о продажах в группу?', 'Отключить', false)) return;
+      try {
+        await this.db.setTgTeamChat('', '');
+        this.toast('Группа отключена');
+        this.renderTgView();
+      } catch (err) { this.toast(err.message || 'Ошибка'); }
+    });
+
     const sInp = document.getElementById('tgPubSearch');
     const sClr = document.getElementById('tgPubClear');
     sInp?.addEventListener('input', () => {
@@ -6648,6 +6718,19 @@ class App {
     document.getElementById('saleSizeGroup').style.display   = 'none';
     document.getElementById('saleSizeDivider').style.display = 'none';
 
+    // Галочка «Сообщить команде» — только если группа сотрудников настроена
+    // (вкладка Telegram). Состояние запоминается между продажами.
+    const nCard = document.getElementById('saleNotifyCard');
+    const nBox  = document.getElementById('saleNotifyTeam');
+    nCard.classList.add('hidden');
+    this.db.getTgChannelStatus().then(st => {
+      if (!st?.teamChat) return;
+      nCard.classList.remove('hidden');
+      nBox.checked = localStorage.getItem('saleNotifyTeam') !== '0';
+      document.getElementById('saleNotifyHint').textContent =
+        `Отправить в группу${st.teamChatTitle ? ` «${st.teamChatTitle}»` : ''}: название, размер и цена`;
+    }).catch(() => {});
+
     if (prefillId) {
       sel.value = prefillId;
       this._onSaleItemChange();   // подставит закуп/доставку/размеры выбранного товара
@@ -6730,14 +6813,18 @@ class App {
     // и остаток спишется два раза
     if (this._savingSale) return;
     this._savingSale = true;
+    const notifyCard = document.getElementById('saleNotifyCard');
+    const notifyTeam = !notifyCard.classList.contains('hidden') &&
+                       document.getElementById('saleNotifyTeam').checked;
+    localStorage.setItem('saleNotifyTeam', notifyTeam ? '1' : '0');
     try {
-      await this.db.addSale({ itemId, itemName, size, salePrice, buyPrice, deliveryCost: delivery, note });
+      await this.db.addSale({ itemId, itemName, size, salePrice, buyPrice, deliveryCost: delivery, note, notifyTeam });
       await this.db.logAction('sale', `Продажа: «${itemName}»${size ? ` (${size})` : ''} — ${fmtMoney(salePrice)}`, { salePrice, buyPrice, deliveryCost: delivery });
       this.closeModal('saleModal');
       await this.loadData();          // обновить остатки в кэше
       this.renderInventoryList();     // отразить списание в списке товаров
       this.renderFinance();
-      this.toast(`Продажа записана · +${fmtMoney(salePrice - buyPrice - delivery)} ₽`);
+      this.toast(`Продажа записана · +${fmtMoney(salePrice - buyPrice - delivery)} ₽${notifyTeam ? ' · команде отправлено' : ''}`);
     } catch (e) {
       this.toast('Ошибка записи продажи — проверьте соединение');
     } finally {

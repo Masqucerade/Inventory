@@ -1691,6 +1691,11 @@ body.select-mode .bottom-nav { display: none; }
 }
 .size-reserve-ctl .rsv-dec:active, .size-reserve-ctl .rsv-inc:active { opacity: .6; }
 .size-pill.res { opacity: .72; border-style: dashed; }
+
+/* Группа сотрудников на вкладке Telegram */
+.tg-team-acts { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.tg-group-pick { cursor: pointer; }
+.tg-group-pick:active { background: var(--fill); }
 .emp-bal-amount { font-size: 14px; font-weight: 700; letter-spacing: -0.4px; flex-shrink: 0; }
 .emp-bal-amount.pos { color: #4ade80; }
 .emp-bal-amount.neg { color: #f87171; }

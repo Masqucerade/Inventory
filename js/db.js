@@ -343,6 +343,27 @@ class InventoryDB {
     try { const r = await fetch('/api/tg-channel/status'); return r.ok ? r.json() : { configured: false }; }
     catch { return { configured: false }; }
   }
+  async getTgGroups() {
+    const r = await fetch('/api/tg-groups');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось получить список групп');
+    return d;
+  }
+  async setTgTeamChat(chat, title = '') {
+    const r = await fetch('/api/tg-team-chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat, title }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось сохранить');
+    return d;
+  }
+  async testTgTeamChat() {
+    const r = await fetch('/api/tg-team-chat/test', { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось отправить');
+    return d;
+  }
   async tgPostItem(id, dangerPassword = '') {
     const r = await fetch(`/api/items/${id}/tg-post`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

@@ -1638,12 +1638,89 @@ function checkDanger(req, res) {
    быть админом канала. Фото уходит JPEG-ом через /avito-img (Telegram
    капризен к webp). Доступ — раздел «Сайт»: это продвижение витрины. */
 app.get('/api/tg-channel/status', (req, res) => {
+  const meta = load().meta || {};
   res.json({
     configured: !!(process.env.TG_LOG_TOKEN && process.env.TG_CHANNEL),
     channel: process.env.TG_CHANNEL || '',
     buyUser: (process.env.TG_BUY_USER || 'msqcrd').replace(/^@/, ''),
+    // Группа сотрудников: туда уходят уведомления о продажах (по галочке)
+    teamChat:      meta.tgTeamChat || '',
+    teamChatTitle: meta.tgTeamChatTitle || '',
+    botReady:      !!process.env.TG_LOG_TOKEN,
   });
 });
+
+/* ─── ГРУППА СОТРУДНИКОВ: уведомления о продажах ───
+   Бота добавляют в группу, в ней пишут любое сообщение — и группа
+   появляется в списке ниже (getUpdates видит только чаты с активностью). */
+app.get('/api/tg-groups', async (req, res) => {
+  if (!hasAccess(req.user, 'tg')) return res.status(403).json({ error: 'Нет доступа к разделу' });
+  const token = process.env.TG_LOG_TOKEN;
+  if (!token) return res.status(400).json({ error: 'Бот не настроен (TG_LOG_TOKEN)' });
+  _tgChatsRefreshedAt = 0;                       // принудительно опрашиваем Telegram
+  await refreshTgChats(token);
+  const groups = load().tgGroups || {};
+  res.json(Object.entries(groups).map(([id, title]) => ({ id, title })));
+});
+
+app.post('/api/tg-team-chat', (req, res) => {
+  if (!hasAccess(req.user, 'tg')) return res.status(403).json({ error: 'Нет доступа к разделу' });
+  const db = load();
+  if (!db.meta) db.meta = {};
+  const chat = String(req.body?.chat || '').trim().slice(0, 64);
+  db.meta.tgTeamChat      = chat;
+  db.meta.tgTeamChatTitle = chat ? String(req.body?.title || '').trim().slice(0, 120) : '';
+  save(db);
+  res.json({ ok: true, teamChat: db.meta.tgTeamChat, teamChatTitle: db.meta.tgTeamChatTitle });
+});
+
+app.post('/api/tg-team-chat/test', async (req, res) => {
+  if (!hasAccess(req.user, 'tg')) return res.status(403).json({ error: 'Нет доступа к разделу' });
+  const token = process.env.TG_LOG_TOKEN;
+  const chat  = (load().meta || {}).tgTeamChat;
+  if (!token || !chat) return res.status(400).json({ error: 'Группа не выбрана' });
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chat, parse_mode: 'HTML',
+        text: '<b>MASQUCERADE INC.</b>\n\nПроверка связи — сюда будут приходить уведомления о продажах.' }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!d.ok) throw new Error(d.description || 'Telegram отклонил сообщение');
+    res.json({ ok: true });
+  } catch (e) {
+    const m = String(e.message || '');
+    res.status(502).json({ error: /chat not found/i.test(m)
+      ? 'Группа не найдена — добавьте бота в группу и напишите там любое сообщение'
+      : /bot was kicked|not a member/i.test(m)
+      ? 'Бот не состоит в группе — добавьте его обратно'
+      : m });
+  }
+});
+
+/* Уведомление команде о продаже: только факт и цена, без закупа и прибыли —
+   в группе могут быть сотрудники, которым закупочные цены не показываем */
+function notifyTeamSale(sale, byName) {
+  const token = process.env.TG_LOG_TOKEN;
+  const db    = load();
+  const chat  = (db.meta || {}).tgTeamChat;
+  if (!token || !chat) return;
+  const owner = (db.owners || []).find(o => o.id === sale.ownerId);
+  const date  = new Date(sale.soldAt).toLocaleString('ru-RU',
+    { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' });
+  const qty   = Math.max(1, parseInt(sale.qty) || 1);
+  const text = [
+    '🎉 <b>Продажа</b>',
+    '',
+    `<b>${escAttr(sale.itemName || 'Товар')}</b>${sale.size ? ` · размер ${escAttr(sale.size)}` : ''}${qty > 1 ? ` · ${qty} шт` : ''}`,
+    `Цена: <b>${new Intl.NumberFormat('ru-RU').format(sale.salePrice || 0)} ₽</b>`,
+    owner ? `Владелец: ${escAttr(owner.name)}` : null,
+    '',
+    `<i>${escAttr(byName || '')}${byName ? ' · ' : ''}${date}</i>`,
+  ].filter(l => l !== null).join('\n');
+  tgSend(token, chat, text);
+}
 
 app.post('/api/items/:id/tg-post', async (req, res) => {
   if (!hasAccess(req.user, 'tg')) return res.status(403).json({ error: 'Нет доступа к разделу' });
@@ -1831,10 +1908,16 @@ async function refreshTgChats(token) {
     if (!d.ok) return;
     const db = load();
     db.tgChats = db.tgChats || {};
+    db.tgGroups = db.tgGroups || {};
     (d.result || []).forEach(u => {
       const chat = u.message?.chat || u.edited_message?.chat;
       if (chat?.type === 'private' && chat.username) {
         db.tgChats[chat.username.toLowerCase()] = String(chat.id);
+      }
+      // Группы, где бот состоит — чтобы выбрать «группу сотрудников» из списка,
+      // не выясняя её id вручную (нужно одно сообщение в группе после добавления бота)
+      if (chat && (chat.type === 'group' || chat.type === 'supergroup')) {
+        db.tgGroups[String(chat.id)] = chat.title || String(chat.id);
       }
     });
     save(db);
@@ -2254,6 +2337,9 @@ function adjustStock(db, itemId, size, delta) {
 app.post('/api/sales', (req, res) => {
   const db   = load();
   const sale = { id: uid(), soldAt: new Date().toISOString(), ...req.body };
+  // Флаг «сообщить команде» — управляющий, в записи продажи ему не место
+  const notifyTeam = !!sale.notifyTeam;
+  delete sale.notifyTeam;
   sale.qty       = Math.max(1, parseInt(sale.qty) || 1);
   sale.netProfit = (sale.salePrice || 0) - (sale.buyPrice || 0) - (sale.deliveryCost || 0);
   // Снимок категории и владельца на момент продажи — для статистики
@@ -2271,6 +2357,7 @@ app.post('/api/sales', (req, res) => {
   if (!db.sales) db.sales = [];
   db.sales.unshift(sale);
   save(db);
+  if (notifyTeam) notifyTeamSale(sale, req.user?.name || req.user?.login);
   res.json(sale);
 });
 
