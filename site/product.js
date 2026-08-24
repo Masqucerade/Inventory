@@ -66,7 +66,7 @@ async function boot() {
         ${i.sold
           ? `<span class="good-tag sold p-sold-tag">Продано</span>`
           : `<div class="m-sizes" id="pSizes">${(i.sizes || []).filter(s => s.size).map(s => s.reserved
-              ? `<button type="button" class="m-size m-size-reserved" disabled title="Размер забронирован">${esc(s.size)}<span class="m-size-res">бронь</span></button>`
+              ? `<button type="button" class="m-size m-size-reserved" disabled title="Этот размер уже в заказе">${esc(s.size)}<span class="m-size-res">в заказе</span></button>`
               : `<button type="button" class="m-size m-size-pick" data-size="${esc(s.size)}">${esc(s.size)}</button>`).join('')}</div>`}
         ${i.description ? `<p class="m-desc">${esc(i.description)}</p>` : ''}
         ${i.measurements ? `
@@ -87,7 +87,7 @@ async function boot() {
           ? `<p class="p-sold-note">Эта вещь уже нашла владельца. Напишите нам — подберём похожую.</p>
              <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}" target="_blank" rel="noopener">Написать в Telegram</a>`
           : ((i.sizes || []).some(s => s.size) && !(i.sizes || []).some(s => s.size && !s.reserved))
-          ? `<p class="p-sold-note">Все размеры сейчас забронированы. Напишите нам — сообщим, если бронь освободится.</p>
+          ? `<p class="p-sold-note">Все размеры сейчас в заказе. Напишите нам — сообщим, как только освободится.</p>
              <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}?text=${msg}" target="_blank" rel="noopener">Написать в Telegram</a>`
           : `<button class="tg-btn cart-add-btn" id="addCartBtn" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">

@@ -1541,7 +1541,7 @@ class App {
       const rm  = e.target.closest('.size-remove');
       const rdec = e.target.closest('.rsv-dec');
       const rinc = e.target.closest('.rsv-inc');
-      // Бронь не может превышать остаток размера
+      // «В заказе» не может превышать остаток размера
       const clampRsv = (i) => { const s = this._sizes[i];
         s.reservedQty = Math.max(0, Math.min(s.reservedQty || 0, s.qty || 0)); };
       if (dec) { const i = +dec.dataset.idx; this._sizes[i].qty = Math.max(0, (this._sizes[i].qty||0) - 1); clampRsv(i); this.renderSizes(); }
@@ -3609,7 +3609,7 @@ class App {
             <div class="item-type-size">${this.esc(this.categories.find(c => c.id === item.categoryId)?.name || '')}</div>
           </div>
           <div class="item-top-badges">
-            <span class="status-badge ${item.orderStatus}">${st.label}</span>${(() => { const r = (item.sizes || []).reduce((s, x) => s + this.rsvQty(x), 0); return r ? `<span class="status-badge processing" title="Забронировано — учитывается как «В заказе»">Бронь ×${r}</span>` : ''; })()}${item.parcel && (item.orderStatus === 'ordered' || item.orderStatus === 'at_warehouse') ? `<span class="parcel-badge" title="Посылка">#${this.esc(String(item.parcel))}</span>` : ''}${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
+            <span class="status-badge ${item.orderStatus}">${st.label}</span>${(() => { const r = (item.sizes || []).reduce((s, x) => s + this.rsvQty(x), 0); return r ? `<span class="status-badge processing" title="Штук в заказе (забронированы под клиентов)">В заказе ×${r}</span>` : ''; })()}${item.parcel && (item.orderStatus === 'ordered' || item.orderStatus === 'at_warehouse') ? `<span class="parcel-badge" title="Посылка">#${this.esc(String(item.parcel))}</span>` : ''}${item.showOnSite ? `<span class="site-tag" title="Виден на сайте">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="2" y1="12" x2="22" y2="12"/>
@@ -3639,7 +3639,7 @@ class App {
     const cover = item.thumbs?.[0] || item.photos?.[0] || item.photo;
     const sizesArr = item.sizes?.length > 0 ? item.sizes : (item.size ? [{ size: item.size, qty: item.quantity || 0 }] : []);
     const sizes = sizesArr.filter(s => s.size || s.qty)
-      .map(s => `${this.esc(s.size || '?')}${s.qty !== 1 ? '×' + s.qty : ''}${this.rsvQty(s) ? `(бронь${this.rsvQty(s) < (s.qty || 0) ? ' ' + this.rsvQty(s) : ''})` : ''}`).join(' · ');
+      .map(s => `${this.esc(s.size || '?')}${s.qty !== 1 ? '×' + s.qty : ''}${this.rsvQty(s) ? `(${this.rsvQty(s) < (s.qty || 0) ? this.rsvQty(s) + ' ' : ''}в заказе)` : ''}`).join(' · ');
     const siteTag = item.showOnSite
       ? `<svg class="row-site" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="На сайте"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`
       : '';
@@ -3650,7 +3650,7 @@ class App {
       <span class="row-brand">${this.esc(item.brand || '—')}</span>
       <span class="row-owner">${owner ? `<span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}` : '—'}</span>
       <span class="row-sizes">${sizes || '—'}</span>
-      <span><span class="status-badge ${item.orderStatus}">${st.label}</span>${(() => { const r = (item.sizes || []).reduce((s, x) => s + this.rsvQty(x), 0); return r ? ` <span class="status-badge processing" title="Забронировано">Бронь ×${r}</span>` : ''; })()}</span>
+      <span><span class="status-badge ${item.orderStatus}">${st.label}</span>${(() => { const r = (item.sizes || []).reduce((s, x) => s + this.rsvQty(x), 0); return r ? ` <span class="status-badge processing" title="Штук в заказе">В заказе ×${r}</span>` : ''; })()}</span>
       <span class="row-qty">${item.quantity || 0}</span>
       <span class="row-price">${item.price ? fmtMoney(item.price) : '—'}</span>
       <span class="row-total">${item.total ? fmtMoney(item.total) : '—'}</span>
@@ -3773,7 +3773,7 @@ class App {
         <div class="detail-row detail-status-row" id="detailStatusRow" style="cursor:pointer">
           <span class="detail-key">Статус</span>
           <span class="detail-val" style="display:flex;align-items:center;gap:8px">
-            <span class="status-badge ${item.orderStatus}" id="detailStatusBadge">${st.label}</span>${(() => { const r = (item.sizes || []).reduce((s, x) => s + this.rsvQty(x), 0); return r ? `<span class="status-badge processing" title="Забронировано — учитывается как «В заказе»">Бронь ×${r}</span>` : ''; })()}
+            <span class="status-badge ${item.orderStatus}" id="detailStatusBadge">${st.label}</span>${(() => { const r = (item.sizes || []).reduce((s, x) => s + this.rsvQty(x), 0); return r ? `<span class="status-badge processing" title="Штук в заказе (забронированы под клиентов)">В заказе ×${r}</span>` : ''; })()}
             <svg id="detailStatusChevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--text3);flex-shrink:0;transition:transform .2s">
               <polyline points="6 9 12 15 18 9"/>
             </svg>
@@ -4164,16 +4164,16 @@ class App {
       </button>`;
   }
 
-  /* Бронь размера в штуках (старый булев флаг = вся бронь) */
+  /* Сколько штук размера в заказе (старый булев флаг = весь размер) */
   rsvQty(s) {
     return Math.min(s.qty || 0,
       s.reservedQty != null ? (s.reservedQty || 0) : (s.reserved ? (s.qty || 0) : 0));
   }
-  /* Подпись брони для чипа размера: «· бронь» (всё) или «· бронь N» (часть) */
+  /* Подпись на чипе размера: «· в заказе» (всё) или «· 1 в заказе» (часть) */
   rsvLabel(s) {
     const rq = this.rsvQty(s);
     if (!rq) return '';
-    return rq >= (s.qty || 0) ? ' · бронь' : ` · бронь ${rq}`;
+    return rq >= (s.qty || 0) ? ' · в заказе' : ` · ${rq} в заказе`;
   }
 
   renderSizes() {
@@ -4203,8 +4203,8 @@ class App {
             ${this.owners.map(o => `<option value="${o.id}"${s.ownerId === o.id ? ' selected' : ''}>${this.esc(o.name)}</option>`).join('')}
           </select>` : ''}
           <div class="size-reserve-ctl${(s.reservedQty || 0) > 0 ? ' on' : ''}"
-               title="Бронь: столько штук нельзя заказать на сайте">
-            <span>Бронь</span>
+               title="Столько штук уже в заказе у клиентов — на сайте их купить нельзя">
+            <span>В заказе</span>
             <button type="button" class="rsv-dec" data-idx="${i}">−</button>
             <b>${s.reservedQty || 0}</b>
             <button type="button" class="rsv-inc" data-idx="${i}">+</button>
@@ -6990,8 +6990,8 @@ class App {
     document.getElementById('saleSizeDivider').style.display = hasSizes ? '' : 'none';
     if (hasSizes) {
       document.getElementById('saleSizeSelect').innerHTML =
-        sizes.map(s => { const r = this.rsvQty(s);
-          return `<option value="${this.esc(s.size)}">${this.esc(s.size)} (${s.qty} шт${r ? `, бронь ${r}` : ''})</option>`; }).join('');
+        sizes.map(s => { const r = this.rsvQty(s); const free = Math.max(0, (s.qty || 0) - r);
+          return `<option value="${this.esc(s.size)}">${this.esc(s.size)} — ${s.qty} шт${r ? ` (свободно ${free}, в заказе ${r})` : ''}</option>`; }).join('');
     }
     this._updateSalePreview();
   }

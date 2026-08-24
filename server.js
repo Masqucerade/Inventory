@@ -2317,7 +2317,11 @@ function adjustStock(db, itemId, size, delta) {
     const sz = item.sizes.find(s => (s.size || '') === (size || '')) || item.sizes[0];
     if (sz) {
       sz.qty = Math.max(0, (parseInt(sz.qty) || 0) + delta);
-      // Остаток упал ниже брони — ужимаем бронь до остатка
+      // Продали размер, у которого были штуки «в заказе» — закрываем их:
+      // обычно продаётся именно то, что клиент забронировал
+      const rsv = parseInt(sz.reservedQty) || 0;
+      if (delta < 0 && rsv > 0) sz.reservedQty = Math.max(0, rsv + delta);
+      // Остаток упал ниже «в заказе» — ужимаем до остатка
       if ((parseInt(sz.reservedQty) || 0) > sz.qty) sz.reservedQty = sz.qty;
     }
     item.quantity = item.sizes.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
