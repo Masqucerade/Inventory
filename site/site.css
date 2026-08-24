@@ -1382,3 +1382,36 @@ body.theme-type .site-logo .brand-mark { display: none; }
 /* Шапка Type: только лого, без надписи (и в мобильном меню тоже) */
 body.theme-type #logoName,
 body.theme-type #mobLogoName { display: none; }
+
+/* ─── Переключатель языка (глобус в шапке) ─── */
+.lang-switch { position: relative; display: flex; align-items: center; }
+.lang-btn {
+  display: flex; align-items: center; gap: 5px;
+  height: 42px; padding: 0 8px;
+  background: none; border: none; cursor: pointer; color: var(--text2);
+  font-family: var(--font-b); font-size: 11px; letter-spacing: .09em;
+  transition: color .2s;
+}
+.lang-btn:hover { color: var(--text); }
+.lang-switch.open .lang-btn { color: var(--text); }
+.lang-cur { font-weight: 500; }
+.lang-menu {
+  position: absolute; top: calc(100% - 2px); right: 0; z-index: 60;
+  min-width: 132px; padding: 5px;
+  background: var(--bg); border: 1px solid var(--line);
+  display: none; flex-direction: column;
+}
+.lang-switch.open .lang-menu { display: flex; }
+.lang-menu button {
+  padding: 9px 12px; background: none; border: none; cursor: pointer;
+  text-align: left; color: var(--text2);
+  font-family: var(--font-b); font-size: 12px; letter-spacing: .04em;
+  transition: color .18s, background .18s;
+}
+.lang-menu button:hover { color: var(--text); background: var(--line); }
+.lang-menu button.on { color: var(--gold); }
+body.theme-type .lang-menu button.on { color: var(--text); font-weight: 600; }
+
+/* В мобильном меню — строкой снизу, меню раскрывается вверх */
+.lang-switch-mob .lang-btn { height: auto; padding: 0; font-size: 12px; }
+.lang-switch-mob .lang-menu { top: auto; bottom: calc(100% + 6px); left: 0; right: auto; }

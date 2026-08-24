@@ -6,7 +6,7 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmtPrice = (p) => p == null || p === '' ? '—' :
-    new Intl.NumberFormat('ru-RU').format(p) + ' ₽';
+    new Intl.NumberFormat(window.mqLang === 'en' ? 'en-US' : 'ru-RU').format(p) + ' ₽';
 
   const read  = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
   const write = (list) => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch {} updateBadge(); };
@@ -34,8 +34,8 @@
     overlay.setAttribute('aria-hidden', 'true');
     overlay.innerHTML = `
       <div class="co-top">
-        <span class="co-title">Корзина</span>
-        <button class="mob-close" id="coClose" type="button" aria-label="Закрыть корзину">
+        <span class="co-title">${T('c.title')}</span>
+        <button class="mob-close" id="coClose" type="button" aria-label="${T('c.close')}">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
@@ -62,12 +62,12 @@
     const cart = read();
     if (!cart.length) {
       body.innerHTML = `<div class="co-empty">
-        <p>Корзина пуста</p>
-        <span>Добавляйте вещи со страниц товаров — и оформите заявку одним разом</span>
+        <p>${T('c.empty')}</p>
+        <span>${T('c.emptyHint')}</span>
       </div>`;
       return;
     }
-    body.innerHTML = `<div class="co-empty"><p>Загружаем…</p></div>`;
+    body.innerHTML = `<div class="co-empty"><p>${T('loading')}</p></div>`;
     let items = [];
     try {
       items = await fetch('/api/public/cart-info', {
@@ -75,7 +75,7 @@
         body: JSON.stringify({ ids: cart.map(c => c.id) }),
       }).then(r => r.json());
     } catch (_) {
-      body.innerHTML = `<div class="co-empty"><p>Не удалось загрузить корзину</p><span>Проверьте соединение и попробуйте ещё раз</span></div>`;
+      body.innerHTML = `<div class="co-empty"><p>${T('c.loadErr')}</p><span>${T('c.loadErrHint')}</span></div>`;
       return;
     }
     const byId = new Map(items.map(i => [i.id, i]));
@@ -98,7 +98,7 @@
         });
         const d = await r.json().catch(() => ({}));
         if (r.ok && d.ok) promo = d;
-        else { writePromo(''); promoMsg = d.error || 'Промокод больше не действует'; }
+        else { writePromo(''); promoMsg = d.error || T('c.promo.expired'); }
       } catch (_) { /* сеть моргнула — не сбрасываем код */ }
     }
 
@@ -111,9 +111,9 @@
             <a class="co-thumb" href="/product/${encodeURIComponent(i.id)}">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy" draggable="false">` : ''}</a>
             <div class="co-info">
               <a class="co-name" href="/product/${encodeURIComponent(i.id)}">${esc(i.name)}</a>
-              <span class="co-meta">${c.size ? `Размер: ${esc(c.size)} · ` : ''}${fmtPrice(i.price)}</span>
+              <span class="co-meta">${c.size ? `${T('c.size')}: ${esc(c.size)} · ` : ''}${fmtPrice(i.price)}</span>
             </div>
-            <button class="co-remove" type="button" aria-label="Убрать из корзины">
+            <button class="co-remove" type="button" aria-label="${T('c.remove')}">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>`;
@@ -122,25 +122,24 @@
       <div class="co-promo">
         ${promo
           ? `<div class="co-promo-applied">
-               <span>Промокод <b>${esc(promo.code)}</b> · ${esc(promo.label)}</span>
-               <button type="button" id="coPromoRemove">убрать</button>
+               <span>${T('c.promo.label')} <b>${esc(promo.code)}</b> · ${esc(promo.label)}</span>
+               <button type="button" id="coPromoRemove">${T('c.promo.remove')}</button>
              </div>`
           : `<div class="co-promo-row">
-               <input class="co-input co-promo-input" id="coPromoInput" type="text" placeholder="Промокод" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false">
-               <button class="tg-btn ghost co-promo-btn" id="coPromoApply" type="button">Применить</button>
+               <input class="co-input co-promo-input" id="coPromoInput" type="text" placeholder="${T('c.promo.ph')}" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false">
+               <button class="tg-btn ghost co-promo-btn" id="coPromoApply" type="button">${T('c.promo.apply')}</button>
              </div>`}
         <p class="co-promo-msg" id="coPromoMsg" ${promoMsg ? '' : 'hidden'}>${esc(promoMsg)}</p>
       </div>
-      ${promo ? `<div class="co-total co-discount"><span>Скидка</span><b>−${fmtPrice(promo.discount).replace(' ₽', '')} ₽</b></div>` : ''}
-      <div class="co-total"><span>Итого</span><b>${promo ? `<s class="co-total-old">${fmtPrice(total)}</s> ` : ''}${fmtPrice(promo ? promo.final : total)}</b></div>
+      ${promo ? `<div class="co-total co-discount"><span>${T('c.discount')}</span><b>−${fmtPrice(promo.discount).replace(' ₽', '')} ₽</b></div>` : ''}
+      <div class="co-total"><span>${T('c.total')}</span><b>${promo ? `<s class="co-total-old">${fmtPrice(total)}</s> ` : ''}${fmtPrice(promo ? promo.final : total)}</b></div>
       <form class="co-form" id="coForm">
-        <p class="co-form-title">Оформление заявки</p>
-        <input class="co-input" id="coName" type="text" placeholder="Имя" autocomplete="name" maxlength="100">
-        <input class="co-input" id="coContact" type="text" placeholder="Telegram или телефон *" autocomplete="tel" maxlength="150" required>
-        <textarea class="co-input" id="coComment" placeholder="Комментарий (необязательно)" rows="2" maxlength="500"></textarea>
-        <button class="tg-btn co-submit" type="submit">Отправить заявку</button>
-        <p class="co-hint">Мы свяжемся с вами, подтвердим наличие и обсудим оплату и доставку.
-        Или напишите нам напрямую: <a href="https://t.me/Masqucerade" target="_blank" rel="noopener">Telegram</a></p>
+        <p class="co-form-title">${T('c.formTitle')}</p>
+        <input class="co-input" id="coName" type="text" placeholder="${T('c.name')}" autocomplete="name" maxlength="100">
+        <input class="co-input" id="coContact" type="text" placeholder="${T('c.contact')}" autocomplete="tel" maxlength="150" required>
+        <textarea class="co-input" id="coComment" placeholder="${T('c.comment')}" rows="2" maxlength="500"></textarea>
+        <button class="tg-btn co-submit" type="submit">${T('c.submit')}</button>
+        <p class="co-hint">${T('c.hint')} <a href="https://t.me/Masqucerade" target="_blank" rel="noopener">Telegram</a></p>
       </form>`;
 
     body.querySelectorAll('.co-remove').forEach(btn =>
@@ -164,11 +163,11 @@
           body: JSON.stringify({ code, ids: read().map(c => c.id) }),
         });
         const d = await r.json().catch(() => ({}));
-        if (!r.ok || !d.ok) throw new Error(d.error || 'Промокод не найден');
+        if (!r.ok || !d.ok) throw new Error(d.error || T('c.promo.notFound'));
         writePromo(d.code);
         render();
       } catch (err) {
-        btn.disabled = false; btn.textContent = 'Применить';
+        btn.disabled = false; btn.textContent = T('c.promo.apply');
         msg.textContent = err.message;
         msg.hidden = false;
       }
@@ -184,7 +183,7 @@
       const contact = body.querySelector('#coContact').value.trim();
       if (!contact) { body.querySelector('#coContact').focus(); return; }
       const btn = body.querySelector('.co-submit');
-      btn.disabled = true; btn.textContent = 'Отправляем…';
+      btn.disabled = true; btn.textContent = T('c.sending');
       try {
         const r = await fetch('/api/public/order', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -197,17 +196,17 @@
           }),
         });
         const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.error || 'Ошибка');
+        if (!r.ok) throw new Error(d.error || T('c.err'));
         write([]);
         writePromo('');
         body.innerHTML = `<div class="co-empty co-success">
-          <p>Заявка отправлена ✓</p>
-          <span>Мы свяжемся с вами в ближайшее время — подтвердим наличие и обсудим доставку.</span>
-          <a class="tg-btn ghost co-success-btn" href="/">Вернуться в каталог</a>
+          <p>${T('c.success')}</p>
+          <span>${T('c.successHint')}</span>
+          <a class="tg-btn ghost co-success-btn" href="/">${T('c.back')}</a>
         </div>`;
       } catch (err) {
-        btn.disabled = false; btn.textContent = 'Отправить заявку';
-        alert(err.message || 'Не удалось отправить — попробуйте ещё раз или напишите в Telegram');
+        btn.disabled = false; btn.textContent = T('c.submit');
+        alert(err.message || T('c.sendErr'));
       }
     });
   }

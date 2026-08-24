@@ -5,13 +5,14 @@ const TG_USERNAME = 'Masqucerade';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtPrice = (p) => p == null || p === '' ? '' :
-  new Intl.NumberFormat('ru-RU').format(p) + ' ₽';
+  new Intl.NumberFormat(window.mqLang === 'en' ? 'en-US' : 'ru-RU').format(p) + ' ₽';
 
 // Износ вещи (как у Gurbich: «НОВОЕ С БИРКАМИ»)
+const T = window.mqT || (k => k);
 const CONDITIONS = {
-  new:       'Новое с биркой',
-  excellent: 'Отличное состояние',
-  good:      'Хорошее состояние',
+  new:       T('cond.new'),
+  excellent: T('cond.excellent'),
+  good:      T('cond.good'),
 };
 
 const ID = decodeURIComponent(location.pathname.split('/').pop());
@@ -26,7 +27,7 @@ async function boot() {
     ]);
   } catch (e) {
     document.getElementById('productWrap').innerHTML =
-      '<div class="goods-empty">Товар не найден — <a href="/" style="text-decoration:underline">вернуться на главную</a></div>';
+      `<div class="goods-empty">${T('err.notfound')} — <a href="/" style="text-decoration:underline">${T('err.toHome')}</a></div>`;
     return;
   }
   const i = data.item;
@@ -43,13 +44,13 @@ async function boot() {
   const photos = i.photos || [];
   const msg    = encodeURIComponent(`Здравствуйте! Интересует «${i.name}» с вашего сайта.`);
   // Лента на фото: продано / зарезервировано («В заказе»)
-  const ribbonOf = (x) => x.sold ? '<span class="photo-ribbon">Продано</span>'
-    : x.reserved ? '<span class="photo-ribbon reserved">Зарезервировано</span>' : '';
+  const ribbonOf = (x) => x.sold ? `<span class="photo-ribbon">${T('st.sold')}</span>`
+    : x.reserved ? `<span class="photo-ribbon reserved">${T('st.reserved')}</span>` : '';
 
   document.getElementById('productWrap').innerHTML = `
     <div class="product-grid">
       <div class="product-gallery">
-        <div class="p-photo-main${i.sold ? ' is-sold' : ''}" id="pPhotoMain" title="Открыть на весь экран">
+        <div class="p-photo-main${i.sold ? ' is-sold' : ''}" id="pPhotoMain" title="${T('p.zoom')}">
           ${photos.length
             ? `<img id="pMainImg" src="${esc(photos[0])}" alt="${esc(i.name)}" draggable="false">`
             : '<span class="no-photo">Masqucerade</span>'}
@@ -64,9 +65,9 @@ async function boot() {
         ${i.condition ? `<p class="p-cond${i.condition === 'new' ? ' cond-new' : ''}">${CONDITIONS[i.condition] || ''}</p>` : ''}
         <p class="m-price">${fmtPrice(i.price)}${i.oldPrice ? ` <s class="old-price">${fmtPrice(i.oldPrice)}</s><em class="disc-badge">−${Math.round((1 - i.price / i.oldPrice) * 100)}%</em>` : ''}</p>
         ${i.sold
-          ? `<span class="good-tag sold p-sold-tag">Продано</span>`
+          ? `<span class="good-tag sold p-sold-tag">${T('st.sold')}</span>`
           : `<div class="m-sizes" id="pSizes">${(i.sizes || []).filter(s => s.size).map(s => s.reserved
-              ? `<button type="button" class="m-size m-size-reserved" disabled title="Этот размер уже в заказе">${esc(s.size)}<span class="m-size-res">в заказе</span></button>`
+              ? `<button type="button" class="m-size m-size-reserved" disabled title="${T('p.sizeInOrder')}">${esc(s.size)}<span class="m-size-res">${T('st.inOrder')}</span></button>`
               : `<button type="button" class="m-size m-size-pick" data-size="${esc(s.size)}">${esc(s.size)}</button>`).join('')}</div>`}
         ${i.description ? `<p class="m-desc">${esc(i.description)}</p>` : ''}
         ${i.measurements ? `
@@ -76,7 +77,7 @@ async function boot() {
               <path d="M21.3 8.7 15.3 2.7a1 1 0 0 0-1.4 0l-11.2 11.2a1 1 0 0 0 0 1.4l6 6a1 1 0 0 0 1.4 0l11.2-11.2a1 1 0 0 0 0-1.4z"/>
               <path d="m7.5 10.5 1.5 1.5"/><path d="m10.5 7.5 1.5 1.5"/><path d="m13.5 4.5 1.5 1.5"/>
             </svg>
-            Замеры и посадка
+            ${T('p.fit')}
             <svg class="m-fit-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <polyline points="6 9 12 15 18 9"/>
             </svg>
@@ -84,29 +85,29 @@ async function boot() {
           <div class="m-fit-body">${esc(i.measurements)}</div>
         </div>` : ''}
         ${i.sold
-          ? `<p class="p-sold-note">Эта вещь уже нашла владельца. Напишите нам — подберём похожую.</p>
-             <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}" target="_blank" rel="noopener">Написать в Telegram</a>`
+          ? `<p class="p-sold-note">${T('p.soldNote')}</p>
+             <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}" target="_blank" rel="noopener">${T('tg.write')}</a>`
           : ((i.sizes || []).some(s => s.size) && !(i.sizes || []).some(s => s.size && !s.reserved))
-          ? `<p class="p-sold-note">Все размеры сейчас в заказе. Напишите нам — сообщим, как только освободится.</p>
-             <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}?text=${msg}" target="_blank" rel="noopener">Написать в Telegram</a>`
+          ? `<p class="p-sold-note">${T('p.allInOrder')}</p>
+             <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}?text=${msg}" target="_blank" rel="noopener">${T('tg.write')}</a>`
           : `<button class="tg-btn cart-add-btn" id="addCartBtn" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
               </svg>
-              В корзину
+              ${T('p.addCart')}
             </button>
             <a class="tg-btn ghost" href="https://t.me/${TG_USERNAME}?text=${msg}" target="_blank" rel="noopener">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M21.4 4.1 2.9 11.3c-1 .4-1 1.8.1 2.1l4.6 1.4 1.8 5.5c.3.9 1.4 1.1 2 .4l2.6-2.7 4.8 3.5c.8.6 1.9.2 2.1-.8l3-14.9c.2-1.1-.8-2-1.5-1.7zM8.5 14.4l9.4-6.9c.3-.2.6.2.4.4l-7.6 7.5-.3 3-1.9-4z"/>
               </svg>
-              Написать в Telegram
+              ${T('tg.write')}
             </a>
-            <p class="p-note">В продаже только оригинальные вещи · отправка по России и всему миру</p>`}
+            <p class="p-note">${T('p.note')}</p>`}
       </div>
     </div>
     ${data.related && data.related.length ? `
     <section class="related-sec">
-      <h2>Похожие товары</h2>
+      <h2>${T('p.related')}</h2>
       <div class="goods-grid related-grid">
         ${data.related.map(r => {
           const cover = (r.thumbs && r.thumbs[0]) || (r.photos && r.photos[0]) || null;
@@ -145,7 +146,7 @@ async function boot() {
     window.mqCart.add(i.id, pickedSize);
     const btn = document.getElementById('addCartBtn');
     btn.classList.add('in-cart');
-    btn.innerHTML = 'В корзине ✓ — открыть';
+    btn.innerHTML = T('p.inCart');
     btn.onclick = () => window.mqCart.open();
     window.mqCart.open();
   });

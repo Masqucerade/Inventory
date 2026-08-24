@@ -9,33 +9,34 @@ const SECTION = document.querySelector('meta[name="mq-section"]')?.content
   || ((path === '/monarc' || path === '/brands') ? 'monarc' : 'type');
 // Отдельный домен Type (если уже подключён) — для кросс-брендовых ссылок
 const TYPE_HOST_PUB = document.querySelector('meta[name="mq-type-host"]')?.content || '';
+const T = window.mqT || (k => k);
 const TITLES  = {
-  monarc: { kicker: 'Оригинальные бренды',           title: 'Monarc'       },
-  type:   { kicker: 'Люкс-качество на каждый день',  title: 'Type Clothes' },
+  monarc: { kicker: T('kicker.monarc'), title: 'Monarc'       },
+  type:   { kicker: T('kicker.type'),   title: 'Type Clothes' },
 };
 document.body.classList.add('theme-' + SECTION);
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtPrice = (p) => p == null || p === '' ? '' :
-  new Intl.NumberFormat('ru-RU').format(p) + ' ₽';
+  new Intl.NumberFormat(window.mqLang === 'en' ? 'en-US' : 'ru-RU').format(p) + ' ₽';
 
 let ITEMS = [], ARCHIVE = [], CATS = [], activeCat = null, activeGarment = null;
 let activeSort = 'default', priceMin = null, priceMax = null, activeBrand = null, activeCond = null;
 
 // Износ вещи — подпись в карточке и на странице товара
 const CONDITIONS = {
-  new:       'Новое с биркой',
-  excellent: 'Отличное состояние',
-  good:      'Хорошее состояние',
+  new:       T('cond.new'),
+  excellent: T('cond.excellent'),
+  good:      T('cond.good'),
 };
 
 // Фиксированные типы одежды
 const GARMENTS = [
-  { id: 'top',       name: 'Верх' },
-  { id: 'bottom',    name: 'Низ' },
-  { id: 'shoes',     name: 'Обувь' },
-  { id: 'outerwear', name: 'Верхняя одежда' },
+  { id: 'top',       name: T('g.top') },
+  { id: 'bottom',    name: T('g.bottom') },
+  { id: 'shoes',     name: T('g.shoes') },
+  { id: 'outerwear', name: T('g.outerwear') },
 ];
 
 /* ─── Фильтры ↔ URL: ссылками на раздел/бренд/фильтры можно делиться ─── */
@@ -119,7 +120,7 @@ async function boot() {
     setTimeout(initScrollHint, 350);
   } catch (e) {
     document.getElementById('goodsGrid').innerHTML =
-      '<div class="goods-empty">Не удалось загрузить каталог — попробуйте обновить страницу</div>';
+      `<div class="goods-empty">${T('err.catalog')}</div>`;
   }
 }
 
@@ -137,9 +138,9 @@ function catSubtree(id) {
 
 // Фиксированные разделы витрины — как у Gurbich (Под заказ → Другое)
 const HDR_SECTIONS = [
-  { id: 'm', label: 'Мужское' },
-  { id: 'w', label: 'Женское' },
-  { id: 'a', label: 'Аксессуары' },
+  { id: 'm', label: 'Мужское',    name: T('sec.m') },
+  { id: 'w', label: 'Женское',    name: T('sec.w') },
+  { id: 'a', label: 'Аксессуары', name: T('sec.a') },
 ];
 // Категория верхнего уровня с тем же названием, что и раздел (если заведена в панели)
 function sectionCat(sec) {
@@ -189,26 +190,26 @@ function renderHeaderNav() {
 
     // Совсем нечего показать — обычная ссылка без панели
     if (!catsCol.length && !gList.length)
-      return `<a class="hnav${secActive ? ' active' : ''}" data-cat="${esc(dataCat)}" href="#">${esc(sec.label)}</a>`;
+      return `<a class="hnav${secActive ? ' active' : ''}" data-cat="${esc(dataCat)}" href="#">${esc(sec.name || sec.label)}</a>`;
 
     const gCat = ` data-cat="${esc(dataCat)}"`;
     return `<div class="hnav-group${secActive ? ' active' : ''}">
-      <a class="hnav${secActive ? ' active' : ''}" href="#">${esc(sec.label)}<span class="hnav-caret" aria-hidden="true">▾</span></a>
+      <a class="hnav${secActive ? ' active' : ''}" href="#">${esc(sec.name || sec.label)}<span class="hnav-caret" aria-hidden="true">▾</span></a>
       <div class="hnav-drop">
         <div class="mega-inner">
           <div class="mega-head">
-            <p class="mega-kicker">Раздел</p>
-            <div class="mega-title">${esc(sec.label)}</div>
-            <a class="mega-all" data-cat="${esc(dataCat)}" data-garment="" href="#">Смотреть все →</a>
+            <p class="mega-kicker">${T('mega.section')}</p>
+            <div class="mega-title">${esc(sec.name || sec.label)}</div>
+            <a class="mega-all" data-cat="${esc(dataCat)}" data-garment="" href="#">${T('mega.all')}</a>
           </div>
           ${catsCol.length ? `<div class="mega-col">
-            <p class="mega-col-title">Категории</p>
+            <p class="mega-col-title">${T('mega.cats')}</p>
             <div class="mega-links">
               ${catsCol.map(s => `<a class="hnav-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
             </div>
           </div>` : ''}
           ${gList.length ? `<div class="mega-col">
-            <p class="mega-col-title">Тип одежды</p>
+            <p class="mega-col-title">${T('mega.garments')}</p>
             <div class="mega-links">
               ${gList.map(g => `<a class="hnav-sub${activeGarment === g.id && activeCat === dataCat ? ' active' : ''}"${gCat} data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
             </div>
@@ -220,7 +221,7 @@ function renderHeaderNav() {
   // «Другое» — вместо «Под заказ» у Gurbich (остальные товары)
   // «Архив» — проданные вещи (как у Gurbich)
   if (ARCHIVE.length)
-    html += `<a class="hnav${activeCat === '__archive__' ? ' active' : ''}" data-cat="__archive__" href="#">Архив</a>`;
+    html += `<a class="hnav${activeCat === '__archive__' ? ' active' : ''}" data-cat="__archive__" href="#">${T('sec.archive')}</a>`;
   nav.innerHTML = html;
   bindMegaHover(nav);
   renderMobileMenu();   // мобильное меню строится из тех же данных
@@ -305,15 +306,15 @@ function renderSearchResults(q) {
     catName(i.categoryId).toLowerCase().includes(q);
   // Активные — первыми, проданные из архива — в конце с пометкой
   const res = [...ITEMS.filter(match), ...ARCHIVE.filter(match)].slice(0, 40);
-  if (label) label.textContent = q ? (res.length ? `Найдено: ${res.length}` : '') : 'Все товары';
+  if (label) label.textContent = q ? (res.length ? `${T('search.found')}: ${res.length}` : '') : T('search.all');
   list.innerHTML = res.length ? res.map(i => {
     const cover = (i.thumbs && i.thumbs[0]) || (i.photos && i.photos[0]) || null;
     return `<a class="sr-row" href="/product/${encodeURIComponent(i.id)}">
       <span class="sr-thumb">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy" draggable="false">` : ''}</span>
       <span class="sr-name">${esc(i.name)}</span>
-      <span class="sr-meta">${i.sold ? '<em class="sr-sold">Продано</em>' : esc(fmtPrice(i.price))}</span>
+      <span class="sr-meta">${i.sold ? `<em class="sr-sold">${T('st.sold')}</em>` : esc(fmtPrice(i.price))}</span>
     </a>`;
-  }).join('') : `<div class="sr-empty">Ничего не найдено</div>`;
+  }).join('') : `<div class="sr-empty">${T('search.none')}</div>`;
 }
 
 function toggleSearch(open) {
@@ -361,12 +362,12 @@ function renderMobileMenu() {
 
     // Нечего раскрывать — обычный пункт-ссылка
     if (!catsCol.length && !gList.length)
-      return `<a class="mob-link${activeCat === dataCat ? ' active' : ''}" data-cat="${esc(dataCat)}" href="#">${esc(sec.label)}</a>`;
+      return `<a class="mob-link${activeCat === dataCat ? ' active' : ''}" data-cat="${esc(dataCat)}" href="#">${esc(sec.name || sec.label)}</a>`;
 
     return `<div class="mob-acc${_mobOpenSec === sec.id ? ' open' : ''}" data-sec="${esc(sec.id)}">
-      <button class="mob-acc-head" type="button">${esc(sec.label)}${caret}</button>
+      <button class="mob-acc-head" type="button">${esc(sec.name || sec.label)}${caret}</button>
       <div class="mob-acc-body">
-        <a class="mob-sub mob-sub-all" data-cat="${esc(dataCat)}" data-garment="" href="#">Смотреть все →</a>
+        <a class="mob-sub mob-sub-all" data-cat="${esc(dataCat)}" data-garment="" href="#">${T('mega.all')}</a>
         ${catsCol.map(s => `<a class="mob-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
         ${gList.map(g => `<a class="mob-sub${activeGarment === g.id && activeCat === dataCat ? ' active' : ''}"${gCat} data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
       </div>
@@ -374,7 +375,7 @@ function renderMobileMenu() {
   }).join('');
 
   if (ARCHIVE.length)
-    html += `<a class="mob-link${activeCat === '__archive__' ? ' active' : ''}" data-cat="__archive__" href="#">Архив</a>`;
+    html += `<a class="mob-link${activeCat === '__archive__' ? ' active' : ''}" data-cat="__archive__" href="#">${T('sec.archive')}</a>`;
   body.innerHTML = html;
 }
 
@@ -478,15 +479,15 @@ function renderFilters() {
 
   const garmentRow = gShown.length
     ? `<div class="cat-row garment-row">` +
-      `<span class="cat-row-label">Тип</span>` +
-      `<button class="cat-chip${!activeGarment ? ' active' : ''}" data-garment="">Все</button>` +
+      `<span class="cat-row-label">${T('f.type')}</span>` +
+      `<button class="cat-chip${!activeGarment ? ' active' : ''}" data-garment="">${T('f.all')}</button>` +
       gShown.map(g => `<button class="cat-chip${activeGarment === g.id ? ' active' : ''}" data-garment="${esc(g.id)}">${esc(g.name)}</button>`).join('') +
       `</div>`
     : '';
   const brandRow = brands.length
     ? `<div class="cat-row brand-row">` +
-      `<span class="cat-row-label">Бренд</span>` +
-      `<button class="cat-chip${!activeBrand ? ' active' : ''}" data-brand="">Все</button>` +
+      `<span class="cat-row-label">${T('f.brand')}</span>` +
+      `<button class="cat-chip${!activeBrand ? ' active' : ''}" data-brand="">${T('f.all')}</button>` +
       brands.map(b => `<button class="cat-chip${activeBrand === b ? ' active' : ''}" data-brand="${esc(b)}">${esc(b)}</button>`).join('') +
       `</div>`
     : '';
@@ -494,18 +495,18 @@ function renderFilters() {
   const usedC = new Set(ITEMS.map(i => i.condition).filter(Boolean));
   const condRow = usedC.size
     ? `<div class="cat-row cond-row">` +
-      `<span class="cat-row-label">Износ</span>` +
-      `<button class="cat-chip${!activeCond ? ' active' : ''}" data-cond="">Все</button>` +
+      `<span class="cat-row-label">${T('f.cond')}</span>` +
+      `<button class="cat-chip${!activeCond ? ' active' : ''}" data-cond="">${T('f.all')}</button>` +
       Object.entries(CONDITIONS).filter(([id]) => usedC.has(id))
         .map(([id, name]) => `<button class="cat-chip${activeCond === id ? ' active' : ''}" data-cond="${id}">${name}</button>`).join('') +
       `</div>`
     : '';
   const priceRow = `<div class="cat-row price-row">
-    <span class="cat-row-label">Цена</span>
+    <span class="cat-row-label">${T('f.price')}</span>
     <span class="price-range">
-      <input type="number" id="priceMin" inputmode="numeric" min="0" placeholder="Цена от" value="${priceMin ?? ''}">
+      <input type="number" id="priceMin" inputmode="numeric" min="0" placeholder="${T('f.from')}" value="${priceMin ?? ''}">
       <i>—</i>
-      <input type="number" id="priceMax" inputmode="numeric" min="0" placeholder="до ₽" value="${priceMax ?? ''}">
+      <input type="number" id="priceMax" inputmode="numeric" min="0" placeholder="${T('f.to')}" value="${priceMax ?? ''}">
     </span></div>`;
 
   el.innerHTML = garmentRow + brandRow + condRow + priceRow;
@@ -551,7 +552,7 @@ if (_catChips) _catChips.addEventListener('click', (e) => {
 });
 
 /* ─── Мини-кнопка сортировки (три палочки) с выпадающим меню ─── */
-const SORTS = [['default', 'По умолчанию'], ['new', 'Сначала новые'], ['asc', 'Сначала дешевле'], ['desc', 'Сначала дороже']];
+const SORTS = [['default', T('sort.default')], ['new', T('sort.new')], ['asc', T('sort.asc')], ['desc', T('sort.desc')]];
 
 function renderSortUI() {
   const wrap = document.getElementById('sortWrap');
@@ -629,19 +630,19 @@ function updateCatalogChrome() {
     if (activeBrand)   parts.push(activeBrand);
     if (activeCond)    parts.push(CONDITIONS[activeCond]);
     if (activeGarment) parts.push((GARMENTS.find(g => g.id === activeGarment) || {}).name);
-    if (activeCat === '__archive__') parts.push('Архив');
-    else if (activeCat === '__other__') parts.push('Другое');
+    if (activeCat === '__archive__') parts.push(T('sec.archive'));
+    else if (activeCat === '__other__') parts.push(T('sec.other'));
     else if (activeCat && activeCat.startsWith('__sec-')) {
       const s = HDR_SECTIONS.find(x => `__sec-${x.id}__` === activeCat);
-      parts.push(s ? s.label : 'Товары');
+      parts.push(s ? (s.name || s.label) : T('sec.goods'));
     }
     else if (activeCat) parts.push((CATS.find(c => c.id === activeCat) || {}).name);
     gh.hidden = false;
-    gh.textContent = parts.filter(Boolean).join(' · ') || 'Товары';
+    gh.textContent = parts.filter(Boolean).join(' · ') || T('sec.goods');
   } else {
     // При обложке строка заголовка держит кнопку «Фильтры» — не прячем
     gh.hidden = !_streamHasContent && !document.body.classList.contains('has-cover');
-    gh.textContent = 'Все товары';
+    gh.textContent = T('sec.all');
   }
 }
 
@@ -662,11 +663,11 @@ function cardHTML(i) {
   // странице товара. Карточка — обычная ссылка на /product/:id.
   const cover = (i.thumbs && i.thumbs[0]) || (i.photos && i.photos[0]) || null;
   // Лента на фото заменяет текстовый тег для проданных и зарезервированных
-  const ribbon = i.sold ? '<span class="photo-ribbon">Продано</span>'
-    : i.reserved ? '<span class="photo-ribbon reserved">Зарезервировано</span>' : '';
+  const ribbon = i.sold ? `<span class="photo-ribbon">${T('st.sold')}</span>`
+    : i.reserved ? `<span class="photo-ribbon reserved">${T('st.reserved')}</span>` : '';
   const tag = (i.sold || i.reserved)
     ? ''
-    : `<span class="good-tag ${i.inStock ? 'in-stock' : 'preorder'}">${i.inStock ? 'В наличии' : 'Под заказ'}</span>`;
+    : `<span class="good-tag ${i.inStock ? 'in-stock' : 'preorder'}">${i.inStock ? T('st.inStock') : T('st.preorder')}</span>`;
   return `
     <a class="good-card${i.sold ? ' sold' : ''}" href="/product/${encodeURIComponent(i.id)}">
       <div class="good-photo">
@@ -717,7 +718,7 @@ function renderGrid() {
   else items.sort((a, b) => (a._rnd || 0) - (b._rnd || 0));   // «По умолчанию» — случайный порядок визита
 
   if (!items.length) {
-    el.innerHTML = '<div class="goods-empty">Пока пусто — загляните позже</div>';
+    el.innerHTML = `<div class="goods-empty">${T('empty.catalog')}</div>`;
     return;
   }
   el.innerHTML = items.map(cardHTML).join('');
