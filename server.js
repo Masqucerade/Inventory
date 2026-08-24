@@ -1295,6 +1295,8 @@ app.post('/api/perks', (req, res) => {
     note:  String(req.body.note  || '').trim().slice(0, 200),
     value: String(req.body.value || '').trim().slice(0, 500),
     url:   String(req.body.url   || '').trim().slice(0, 300),
+    // Дата окончания оплаты — попадает в календарь и в утреннее напоминание
+    paidUntil: /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.paidUntil || '')) ? req.body.paidUntil : '',
     createdAt: new Date().toISOString(),
   };
   db.perks.push(perk);
@@ -1312,6 +1314,8 @@ app.put('/api/perks/:id', (req, res) => {
   if (req.body.note  != null) p.note  = String(req.body.note).trim().slice(0, 200);
   if (req.body.value != null) p.value = String(req.body.value).trim().slice(0, 500);
   if (req.body.url   != null) p.url   = String(req.body.url).trim().slice(0, 300);
+  if (req.body.paidUntil != null)
+    p.paidUntil = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.paidUntil)) ? req.body.paidUntil : '';
   save(db);
   res.json(p);
 });
@@ -2732,6 +2736,175 @@ function scheduleTaskDigest() {
   }, 5 * 60 * 1000);
 }
 
+/* ─── КАЛЕНДАРЬ-НАПОМИНАЛКА (личный, root) ───
+   db.reminders: {id, title, note, date 'YYYY-MM-DD'|null, time 'HH:MM'|null,
+   repeat none|weekly|monthly, done, doneDates[], createdBy}. Дела без даты
+   живут в колонке «Без даты», повторы разворачиваются виртуально. */
+const REPEATS = ['none', 'weekly', 'monthly'];
+
+// Выпадает ли дело на конкретный день (с учётом повтора)
+function remOccursOn(rem, dateStr) {
+  if (!rem.date || dateStr < rem.date) return false;
+  if (!rem.repeat || rem.repeat === 'none') return dateStr === rem.date;
+  const [by, bm, bd] = rem.date.split('-').map(Number);
+  const [ty, tm, td] = dateStr.split('-').map(Number);
+  if (rem.repeat === 'weekly')
+    return (Date.UTC(ty, tm - 1, td) - Date.UTC(by, bm - 1, bd)) / 86400000 % 7 === 0;
+  // Ежемесячно: 31-е в коротком месяце падает на последний день
+  const lastDay = new Date(Date.UTC(ty, tm, 0)).getUTCDate();
+  return td === Math.min(bd, lastDay);
+}
+const remDone = (rem, dateStr) => (rem.repeat && rem.repeat !== 'none')
+  ? (rem.doneDates || []).includes(dateStr) : !!rem.done;
+
+const myReminders = (db, user) => (db.reminders || []).filter(r => r.createdBy === user.id);
+
+function normalizeRem(body) {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body.date || '')) ? body.date : null;
+  return {
+    title:  String(body.title || '').trim().slice(0, 120),
+    note:   String(body.note  || '').trim().slice(0, 500),
+    date,
+    time:   date && /^\d{2}:\d{2}$/.test(String(body.time || '')) ? body.time : null,
+    repeat: date && REPEATS.includes(body.repeat) ? body.repeat : 'none',
+  };
+}
+
+app.get('/api/reminders', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  res.json(myReminders(load(), req.user));
+});
+
+app.post('/api/reminders', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const data = normalizeRem(req.body || {});
+  if (!data.title) return res.status(400).json({ error: 'Введите название' });
+  const db = load();
+  if (!db.reminders) db.reminders = [];
+  const rem = { id: uid(), ...data, done: false, doneDates: [],
+    createdBy: req.user.id, createdAt: new Date().toISOString() };
+  db.reminders.push(rem);
+  save(db);
+  res.json(rem);
+});
+
+app.put('/api/reminders/:id', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db  = load();
+  const rem = (db.reminders || []).find(r => r.id === req.params.id && r.createdBy === req.user.id);
+  if (!rem) return res.status(404).json({ error: 'Дело не найдено' });
+  const data = normalizeRem({ ...rem, ...req.body });
+  if (!data.title) return res.status(400).json({ error: 'Введите название' });
+  Object.assign(rem, data);
+  if (rem.repeat === 'none') rem.doneDates = [];
+  else rem.done = false;
+  save(db);
+  res.json(rem);
+});
+
+/* Отметка выполнения: у повторяющегося — на конкретную дату, у разового — целиком */
+app.post('/api/reminders/:id/done', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db  = load();
+  const rem = (db.reminders || []).find(r => r.id === req.params.id && r.createdBy === req.user.id);
+  if (!rem) return res.status(404).json({ error: 'Дело не найдено' });
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.date || '')) ? req.body.date : null;
+  if (rem.repeat && rem.repeat !== 'none' && day) {
+    rem.doneDates = rem.doneDates || [];
+    rem.doneDates = rem.doneDates.includes(day)
+      ? rem.doneDates.filter(d => d !== day)
+      : [...rem.doneDates, day].slice(-400);
+  } else {
+    rem.done = !rem.done;
+    rem.doneAt = rem.done ? new Date().toISOString() : null;
+  }
+  save(db);
+  res.json(rem);
+});
+
+app.delete('/api/reminders/:id', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  db.reminders = (db.reminders || []).filter(r => !(r.id === req.params.id && r.createdBy === req.user.id));
+  save(db);
+  res.json({ ok: true });
+});
+
+/* ─── НАПОМИНАНИЯ В TELEGRAM ───
+   Утром в 9:00 МСК — сводка дел на день (+ подписки, у которых кончается
+   оплата); за 15 минут до времени дела — отдельный пуш. Отметки о доставке
+   хранятся в самом деле, поэтому рестарт не приводит к дублям. */
+const REM_DIGEST_HOUR = 9;
+
+function mskNow() {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const g = t => p.find(x => x.type === t)?.value;
+  return { date: `${g('year')}-${g('month')}-${g('day')}`,
+           hour: parseInt(g('hour'), 10), minute: parseInt(g('minute'), 10) };
+}
+
+async function sendRemindersTick() {
+  const token = process.env.TG_LOG_TOKEN;
+  if (!token) return;
+  const db  = load();
+  const now = mskNow();
+  const nowMin = now.hour * 60 + now.minute;
+  let dirty = false;
+
+  for (const u of (db.users || [])) {
+    if (!u.tgChatId) continue;
+    const mine = (db.reminders || []).filter(r => r.createdBy === u.id);
+    if (!mine.length) continue;
+    const today = mine.filter(r => remOccursOn(r, now.date) && !remDone(r, now.date));
+
+    // 1. Утренняя сводка — раз в день
+    if (now.hour >= REM_DIGEST_HOUR && u.remDigestDate !== now.date) {
+      u.remDigestDate = now.date; dirty = true;
+      const dateStr = new Date().toLocaleDateString('ru-RU',
+        { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' });
+      // Подписки, у которых оплата кончается в ближайшие 3 дня
+      const soon = (db.perks || []).filter(pk => {
+        if (!pk.paidUntil) return false;
+        const diff = (Date.parse(pk.paidUntil) - Date.parse(now.date)) / 86400000;
+        return diff >= 0 && diff <= 3;
+      });
+      if (today.length || soon.length) {
+        const chatId = await resolveTgChat(token, u.tgChatId);
+        if (chatId) tgSend(token, chatId,
+          `<b>MASQUCERADE INC.</b>\n<i>Напоминания · ${escAttr(dateStr)}</i>\n` +
+          (today.length ? '\n' + today
+            .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
+            .map(r => `•  ${r.time ? `<b>${escAttr(r.time)}</b>  ` : ''}${escAttr(r.title)}`).join('\n') + '\n' : '') +
+          (soon.length ? '\n' + soon.map(pk =>
+            `⏳  ${escAttr(pk.title)} — оплачен до ${escAttr(pk.paidUntil)}`).join('\n') : ''));
+      }
+    }
+
+    // 2. За 15 минут до дела со временем
+    for (const r of today) {
+      if (!r.time) continue;
+      const [hh, mm] = r.time.split(':').map(Number);
+      const stamp = `${now.date} ${r.time}`;
+      if (r.notifiedFor === stamp) continue;
+      const left = hh * 60 + mm - nowMin;
+      if (left > 15 || left < -5) continue;      // окно: за 15 мин до и 5 мин после
+      r.notifiedFor = stamp; dirty = true;
+      const chatId = await resolveTgChat(token, u.tgChatId);
+      if (chatId) tgSend(token, chatId,
+        `⏰ <b>${escAttr(r.title)}</b>\n${escAttr(r.time)}${left > 0 ? ` — через ${left} мин` : ''}` +
+        (r.note ? `\n\n${escAttr(r.note)}` : ''));
+    }
+  }
+  if (dirty) save(db);
+}
+
+function scheduleReminders() {
+  setInterval(() => sendRemindersTick().catch(e => console.error('reminders:', e.message)), 2 * 60 * 1000);
+}
+
 /* Ручной запуск сводки (root) — проверить оформление, не дожидаясь вечера */
 app.post('/api/tasks/digest', async (req, res) => {
   if (!requireRoot(req, res)) return;
@@ -3413,5 +3586,6 @@ app.listen(PORT, () => {
   migratePanelGuide();
   scheduleBackup();
   scheduleTaskDigest();
+  scheduleReminders();
   scheduleRfMonitor();
 });

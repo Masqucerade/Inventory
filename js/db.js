@@ -339,6 +339,31 @@ class InventoryDB {
   async deleteOrder(id) { await fetch(`/api/orders/${id}`, { method:'DELETE' }); }
 
   /* ─── ПОСТ О ТОВАРЕ В TG-КАНАЛ ─── */
+  /* ─── КАЛЕНДАРЬ-НАПОМИНАЛКА (root) ─── */
+  async getReminders() {
+    try { const r = await fetch('/api/reminders'); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+  async addReminder(data) {
+    const r = await fetch('/api/reminders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось создать');
+    return d;
+  }
+  async updateReminder(id, data) {
+    const r = await fetch(`/api/reminders/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось сохранить');
+    return d;
+  }
+  async toggleReminder(id, date = null) {
+    const r = await fetch(`/api/reminders/${id}/done`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка');
+    return d;
+  }
+  async deleteReminder(id) { await fetch(`/api/reminders/${id}`, { method: 'DELETE' }); }
+
   async getTgChannelStatus() {
     try { const r = await fetch('/api/tg-channel/status'); return r.ok ? r.json() : { configured: false }; }
     catch { return { configured: false }; }

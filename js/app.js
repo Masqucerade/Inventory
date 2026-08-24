@@ -238,6 +238,7 @@ class App {
     if (section === 'profile') return true;        // личная страница есть у каждого
     if (section === 'overview') return true;       // дашборд-сводка есть у каждого
     if (section === 'roles') return u.role === 'root';   // роли и права — только root
+    if (section === 'calendar') return u.role === 'root'; // личный календарь root'а
     if (u.role === 'root') return true;
     // Сотрудник: вкладки «Проект» нет — её содержимое живёт на «Личном»
     if (section === 'project') return false;
@@ -366,7 +367,7 @@ class App {
     const body = document.getElementById('moreSheetBody');
     const btn  = document.getElementById('navMoreBtn');
     if (!body || !btn) return;
-    const views = ['project', 'site', 'promos', 'tg', 'roles', 'settings'].filter(v => this.hasAccess(v));
+    const views = ['project', 'calendar', 'site', 'promos', 'tg', 'roles', 'settings'].filter(v => this.hasAccess(v));
     btn.classList.toggle('hidden', !views.length);
     // Иконки и подписи берём у самих кнопок навигации — один источник правды
     body.innerHTML = views.map(v => {
@@ -2239,6 +2240,7 @@ class App {
     document.getElementById('perkNote').value  = perk?.note  || '';
     document.getElementById('perkValue').value = perk?.value || '';
     document.getElementById('perkUrl').value   = perk?.url   || '';
+    document.getElementById('perkPaidUntil').value = perk?.paidUntil || '';
     if (!this._perkModalBound) {
       this._perkModalBound = true;
       document.getElementById('perkModalClose').addEventListener('click', () => this.closeModal('perkModal'));
@@ -2249,6 +2251,7 @@ class App {
           note:  document.getElementById('perkNote').value.trim(),
           value: document.getElementById('perkValue').value.trim(),
           url:   document.getElementById('perkUrl').value.trim(),
+          paidUntil: document.getElementById('perkPaidUntil').value || '',
         };
         if (!data.title) { this.toast('Введите название'); return; }
         try {
@@ -2287,6 +2290,292 @@ class App {
         ${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(w => `<span class="ov-cal-wd">${w}</span>`).join('')}
         ${cells}
       </div>`;
+  }
+
+  /* ──────────────────────────────────────────
+     КАЛЕНДАРЬ-НАПОМИНАЛКА (личный, root)
+     Дела с датой живут в сетке месяца, дела-«когда-нибудь» — в колонке
+     «Без даты». Повторы разворачиваются виртуально, отметка выполнения
+     у повторяющихся хранится по дням (doneDates).
+     ────────────────────────────────────────── */
+  _dstr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  _remOccursOn(r, day) {
+    if (!r.date || day < r.date) return false;
+    if (!r.repeat || r.repeat === 'none') return day === r.date;
+    const [by, bm, bd] = r.date.split('-').map(Number);
+    const [ty, tm, td] = day.split('-').map(Number);
+    if (r.repeat === 'weekly')
+      return (Date.UTC(ty, tm - 1, td) - Date.UTC(by, bm - 1, bd)) / 86400000 % 7 === 0;
+    const last = new Date(Date.UTC(ty, tm, 0)).getUTCDate();   // 31-е в коротком месяце → последний день
+    return td === Math.min(bd, last);
+  }
+  _remDone(r, day) {
+    return (r.repeat && r.repeat !== 'none') ? (r.doneDates || []).includes(day) : !!r.done;
+  }
+  _remsOn(day) {
+    return (this._reminders || []).filter(r => this._remOccursOn(r, day))
+      .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+  }
+  _perksOn(day) {
+    return (this._calPerks || []).filter(pk => pk.paidUntil === day);
+  }
+
+  async renderCalendar() {
+    const el = document.getElementById('calendarContent');
+    if (!el) return;
+    el.innerHTML = `<div class="ov-skel">
+      <div class="skel-block" style="height:380px"></div>
+      <div class="skel-row"><div class="skel-block" style="height:150px"></div><div class="skel-block" style="height:150px"></div></div>
+    </div>`;
+    const [reminders, perks] = await Promise.all([this.db.getReminders(), this.db.getPerks()]);
+    if (this.currentView !== 'calendar') return;
+    this._reminders = reminders;
+    this._calPerks  = perks;
+    const now = new Date();
+    if (!this._calSel)   this._calSel   = this._dstr(now);
+    if (!this._calMonth) this._calMonth = { y: now.getFullYear(), m: now.getMonth() };
+    this._calPaint();
+  }
+
+  _calPaint() {
+    const el = document.getElementById('calendarContent');
+    if (!el) return;
+    const MON   = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    const MON_G = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+    const WDAY  = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+    const today = this._dstr(new Date());
+    const { y, m } = this._calMonth;
+
+    /* ── Сетка месяца: всегда 6 недель, чтобы блок не прыгал по высоте ── */
+    const firstDow = (new Date(y, m, 1).getDay() + 6) % 7;      // пн = 0
+    const start    = new Date(y, m, 1 - firstDow);
+    let cells = '';
+    for (let i = 0; i < 42; i++) {
+      const dt   = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      const day  = this._dstr(dt);
+      const rems = this._remsOn(day);
+      const undone  = rems.filter(r => !this._remDone(r, day));
+      const perksOn = this._perksOn(day);
+      const dots = [
+        ...undone.slice(0, 3).map(() => `<i class="cal-dot${day < today ? ' over' : ''}"></i>`),
+        ...(undone.length ? [] : rems.slice(0, 2).map(() => '<i class="cal-dot done"></i>')),
+        ...perksOn.slice(0, 1).map(() => '<i class="cal-dot perk"></i>'),
+      ].join('');
+      const cls = [
+        dt.getMonth() !== m ? 'other' : '',
+        day === today ? 'today' : '',
+        day === this._calSel ? 'sel' : '',
+      ].filter(Boolean).join(' ');
+      cells += `<button type="button" class="cal-cell ${cls}" data-day="${day}">
+        <span class="cal-num">${dt.getDate()}</span>
+        <span class="cal-dots">${dots}</span>
+      </button>`;
+    }
+
+    /* ── Сводка: сегодня и просроченное ── */
+    const todayCnt = this._remsOn(today).filter(r => !this._remDone(r, today)).length;
+    const overdue  = (this._reminders || []).filter(r =>
+      r.date && r.date < today && (!r.repeat || r.repeat === 'none') && !r.done).length;
+
+    /* ── Строка дела ── */
+    const remRow = (r, day) => {
+      const done = this._remDone(r, day);
+      return `<div class="cal-item${done ? ' done' : ''}" data-rem="${r.id}" data-day="${day || ''}">
+        <button type="button" class="cal-check" data-check="${r.id}" data-day="${day || ''}" aria-label="Выполнено">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </button>
+        <div class="cal-item-info">
+          <div class="cal-item-title">${r.time ? `<b>${this.esc(r.time)}</b> ` : ''}${this.esc(r.title)}</div>
+          ${r.note ? `<div class="cal-item-note">${this.esc(r.note)}</div>` : ''}
+        </div>
+        ${r.repeat && r.repeat !== 'none'
+          ? `<span class="cal-repeat" title="${r.repeat === 'weekly' ? 'Каждую неделю' : 'Каждый месяц'}">${uiIcon('repeat', 11)}</span>` : ''}
+      </div>`;
+    };
+
+    /* ── Выбранный день ── */
+    const sel     = this._calSel;
+    const selDate = new Date(sel + 'T00:00:00');
+    const selRems = this._remsOn(sel);
+    const selPerks = this._perksOn(sel);
+    const left    = selRems.filter(r => !this._remDone(r, sel)).length;
+    const dayCard = `
+      <div class="cal-card">
+        <div class="cal-card-head">
+          <div>
+            <div class="cal-card-title">${selDate.getDate()} ${MON_G[selDate.getMonth()]}${sel === today ? ' · сегодня' : ''}</div>
+            <div class="cal-card-sub">${WDAY[selDate.getDay()]}${selRems.length ? ` · ${left} из ${selRems.length}` : ''}</div>
+          </div>
+          <button class="ov-add" id="calAddDay" title="Дело на этот день">＋</button>
+        </div>
+        ${selRems.length || selPerks.length
+          ? `<div class="cal-list">
+               ${selRems.map(r => remRow(r, sel)).join('')}
+               ${selPerks.map(pk => `
+                 <div class="cal-item perk-row" data-perk="${pk.id}">
+                   <span class="cal-perk-ic">${uiIcon('creditCard', 12)}</span>
+                   <div class="cal-item-info">
+                     <div class="cal-item-title">${this.esc(pk.title)}</div>
+                     <div class="cal-item-note">оплачен до этого дня</div>
+                   </div>
+                 </div>`).join('')}
+             </div>`
+          : `<div class="cal-empty">На этот день дел нет</div>`}
+      </div>`;
+
+    /* ── Дела без даты ── */
+    const free = (this._reminders || []).filter(r => !r.date && !r.done);
+    const freeDone = (this._reminders || []).filter(r => !r.date && r.done);
+    const freeCard = `
+      <div class="cal-card">
+        <div class="cal-card-head">
+          <div>
+            <div class="cal-card-title">Без даты</div>
+            <div class="cal-card-sub">${free.length ? `${free.length} ${this._plural(free.length, 'дело', 'дела', 'дел')}` : 'пусто'}</div>
+          </div>
+          <button class="ov-add" id="calAddFree" title="Дело без даты">＋</button>
+        </div>
+        ${free.length || freeDone.length
+          ? `<div class="cal-list">
+               ${free.map(r => remRow(r, '')).join('')}
+               ${freeDone.length ? `<div class="cal-done-sep">выполнено</div>${freeDone.slice(0, 5).map(r => remRow(r, '')).join('')}` : ''}
+             </div>`
+          : `<div class="cal-empty">Сюда попадают дела, у которых нет срока</div>`}
+      </div>`;
+
+    el.innerHTML = `
+      <div class="cal-wrap">
+        <div class="cal-main">
+          <div class="cal-head">
+            <div>
+              <div class="cal-month">${MON[m]} <span>${y}</span></div>
+              <div class="cal-summary">${todayCnt ? `${todayCnt} ${this._plural(todayCnt, 'дело', 'дела', 'дел')} сегодня` : 'на сегодня дел нет'}${overdue ? ` · <b class="cal-over">${overdue} просрочено</b>` : ''}</div>
+            </div>
+            <div class="cal-nav">
+              <button type="button" class="cal-nav-btn" id="calPrev" aria-label="Прошлый месяц">‹</button>
+              <button type="button" class="cal-today-btn" id="calToday">Сегодня</button>
+              <button type="button" class="cal-nav-btn" id="calNext" aria-label="Следующий месяц">›</button>
+            </div>
+          </div>
+          <div class="cal-grid">
+            ${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(w => `<span class="cal-wd">${w}</span>`).join('')}
+            ${cells}
+          </div>
+        </div>
+        <div class="cal-side">${dayCard}${freeCard}</div>
+      </div>`;
+
+    /* ── Бинды ── */
+    document.getElementById('calPrev')?.addEventListener('click', () => {
+      this._calMonth = { y: m === 0 ? y - 1 : y, m: (m + 11) % 12 };
+      this._calPaint();
+    });
+    document.getElementById('calNext')?.addEventListener('click', () => {
+      this._calMonth = { y: m === 11 ? y + 1 : y, m: (m + 1) % 12 };
+      this._calPaint();
+    });
+    document.getElementById('calToday')?.addEventListener('click', () => {
+      const n = new Date();
+      this._calMonth = { y: n.getFullYear(), m: n.getMonth() };
+      this._calSel = this._dstr(n);
+      this._calPaint();
+    });
+    el.querySelectorAll('.cal-cell').forEach(c => c.addEventListener('click', () => {
+      this._calSel = c.dataset.day;
+      const [cy, cm] = c.dataset.day.split('-').map(Number);
+      if (cm - 1 !== m) this._calMonth = { y: cy, m: cm - 1 };   // клик по «чужому» дню листает месяц
+      this._calPaint();
+    }));
+    document.getElementById('calAddDay')?.addEventListener('click', () => this.openReminderModal(null, this._calSel));
+    document.getElementById('calAddFree')?.addEventListener('click', () => this.openReminderModal(null, null));
+    el.querySelectorAll('.cal-check').forEach(b => b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        await this.db.toggleReminder(b.dataset.check, b.dataset.day || null);
+        this._reminders = await this.db.getReminders();
+        this._calPaint();
+      } catch (err) { this.toast(err.message || 'Ошибка'); }
+    }));
+    el.querySelectorAll('.cal-item[data-rem]').forEach(row => row.addEventListener('click', (e) => {
+      if (e.target.closest('.cal-check')) return;
+      const rem = (this._reminders || []).find(r => r.id === row.dataset.rem);
+      if (rem) this.openReminderModal(rem);
+    }));
+    el.querySelectorAll('.cal-item[data-perk]').forEach(row => row.addEventListener('click', () => {
+      const pk = (this._calPerks || []).find(x => x.id === row.dataset.perk);
+      if (pk) this.openPerkModal(pk);
+    }));
+  }
+
+  _plural(n, one, few, many) {
+    const n10 = n % 10, n100 = n % 100;
+    if (n10 === 1 && n100 !== 11) return one;
+    if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) return few;
+    return many;
+  }
+
+  openReminderModal(rem = null, presetDate = null) {
+    this._editingRemId = rem?.id || null;
+    document.getElementById('reminderModalTitle').textContent = rem ? 'Дело' : 'Новое дело';
+    document.getElementById('reminderModalSave').textContent  = rem ? 'Сохранить' : 'Добавить';
+    document.getElementById('remTitle').value  = rem?.title || '';
+    document.getElementById('remNote').value   = rem?.note  || '';
+    const noDate = rem ? !rem.date : !presetDate;
+    document.getElementById('remNoDate').checked = noDate;
+    document.getElementById('remDate').value   = rem?.date || presetDate || this._dstr(new Date());
+    document.getElementById('remTime').value   = rem?.time || '';
+    document.getElementById('remRepeat').value = rem?.repeat || 'none';
+    document.getElementById('remDateFields').classList.toggle('hidden', noDate);
+    document.getElementById('remDeleteBtn').classList.toggle('hidden', !rem);
+
+    if (!this._remModalBound) {
+      this._remModalBound = true;
+      document.getElementById('reminderModalClose').addEventListener('click', () => this.closeModal('reminderModal'));
+      document.getElementById('remNoDate').addEventListener('change', (e) =>
+        document.getElementById('remDateFields').classList.toggle('hidden', e.target.checked));
+      document.getElementById('remDeleteBtn').addEventListener('click', async () => {
+        if (!this._editingRemId) return;
+        if (!await this.confirm('Удалить это дело?')) return;
+        await this.db.deleteReminder(this._editingRemId);
+        this.closeModal('reminderModal');
+        this.toast('Дело удалено');
+        this.renderCalendar();
+      });
+      document.getElementById('reminderModalSave').addEventListener('click', async () => {
+        const noDateNow = document.getElementById('remNoDate').checked;
+        const data = {
+          title:  document.getElementById('remTitle').value.trim(),
+          note:   document.getElementById('remNote').value.trim(),
+          date:   noDateNow ? null : document.getElementById('remDate').value,
+          time:   noDateNow ? null : document.getElementById('remTime').value,
+          repeat: noDateNow ? 'none' : document.getElementById('remRepeat').value,
+        };
+        if (!data.title) { this.toast('Введите название'); return; }
+        if (!noDateNow && !data.date) { this.toast('Выберите дату'); return; }
+        try {
+          if (this._editingRemId) {
+            await this.db.updateReminder(this._editingRemId, data);
+            this.toast('Сохранено ✓');
+          } else {
+            await this.db.addReminder(data);
+            this.toast('Дело добавлено ✓');
+          }
+          if (data.date) {
+            const [ny, nm] = data.date.split('-').map(Number);
+            this._calMonth = { y: ny, m: nm - 1 };
+            this._calSel   = data.date;
+          }
+          this.closeModal('reminderModal');
+          this.renderCalendar();
+        } catch (e) { this.toast(e.message || 'Ошибка сохранения'); }
+      });
+    }
+    this.openModal('reminderModal');
+    setTimeout(() => document.getElementById('remTitle').focus(), 350);
   }
 
   /* Вывод со счёта компании: списание с бюджета + пополнение сотруднику
