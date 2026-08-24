@@ -1415,3 +1415,5 @@ body.theme-type .lang-menu button.on { color: var(--text); font-weight: 600; }
 /* В мобильном меню — строкой снизу, меню раскрывается вверх */
 .lang-switch-mob .lang-btn { height: auto; padding: 0; font-size: 12px; }
 .lang-switch-mob .lang-menu { top: auto; bottom: calc(100% + 6px); left: 0; right: auto; }
+/* Глобус — той же величины, что корзина и поиск */
+.lang-btn { width: 42px; height: 42px; padding: 0; justify-content: center; }

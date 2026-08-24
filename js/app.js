@@ -8067,6 +8067,7 @@ class App {
         ${tabBtn('items', 'Товары', onSite.length)}
         ${tabBtn('orders', 'Заявки', orders.filter(o => o.status === 'new').length)}
         ${tabBtn('faq', 'FAQ', faq.length)}
+        ${tabBtn('lang', 'Языки', '')}
       </div>`;
 
     el.innerHTML = hero + tabs + `<div id="sitePane"></div>`;
@@ -8105,6 +8106,7 @@ class App {
     if (this._siteSubTab === 'items')       this._renderSiteItems(pane);
     else if (this._siteSubTab === 'faq')    this._renderSiteFaq(pane);
     else if (this._siteSubTab === 'orders') this._renderSiteOrders(pane);
+    else if (this._siteSubTab === 'lang')   this._renderSiteLang(pane);
     else                                    this._renderSiteShowcase(pane);
     if (animate) { pane.classList.remove('pane-in'); void pane.offsetWidth; pane.classList.add('pane-in'); }
   }
@@ -8179,6 +8181,51 @@ class App {
         <div class="site-item-price">${it.price ? fmtMoney(it.price) : '—'}</div>
       </button>`;
     }).join('')}</div>`;
+  }
+
+  /* ── Вкладка «Языки»: английские версии текстов витрины ──
+     Строки собираются из данных панели (товары, категории, подборки, блоки,
+     FAQ). Пустой перевод = на английской витрине показывается оригинал. */
+  async _renderSiteLang(pane) {
+    pane.innerHTML = `<div class="site-mgmt-empty"><span>${uiIcon('fileText', 16)}</span>Собираем тексты витрины…</div>`;
+    const { groups, map } = await this.db.getI18n();
+    this._i18nMap = { ...map };
+
+    const total = groups.reduce((a, g) => a + g.strings.length, 0);
+    const done  = groups.reduce((a, g) => a + g.strings.filter(x => (map[x] || '').trim()).length, 0);
+
+    pane.innerHTML = `
+      <div class="site-sec-head">
+        <div>
+          <div class="site-sec-title">Английские тексты витрины</div>
+          <div class="site-sec-hint">Переведено ${done} из ${total} · пустые строки на сайте останутся на русском</div>
+        </div>
+        <button class="site-mini-add" id="i18nSave">Сохранить</button>
+      </div>
+      ${groups.map(g => `
+        <div class="lang-group">
+          <div class="lang-group-title">${this.esc(g.label)}</div>
+          ${g.strings.map(str => `
+            <div class="lang-row">
+              <div class="lang-src" title="${this.esc(str)}">${this.esc(str)}</div>
+              <input class="lang-input" type="text" data-src="${this.esc(str)}"
+                     value="${this.esc(map[str] || '')}" placeholder="English…" maxlength="1000">
+            </div>`).join('')}
+        </div>`).join('') || `<div class="site-mgmt-empty"><span>${uiIcon('fileText', 16)}</span>Пока нечего переводить — добавьте товары и блоки витрины</div>`}`;
+
+    pane.querySelectorAll('.lang-input').forEach(inp =>
+      inp.addEventListener('input', () => { this._i18nMap[inp.dataset.src] = inp.value; }));
+
+    document.getElementById('i18nSave')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.textContent = 'Сохраняю…'; btn.disabled = true;
+      try {
+        const r = await this.db.saveI18n(this._i18nMap);
+        this.toast(`Переводы сохранены ✓ (${r.count})`);
+        this._renderSiteLang(pane);
+      } catch (err) { this.toast(err.message || 'Ошибка'); }
+      finally { btn.textContent = 'Сохранить'; btn.disabled = false; }
+    });
   }
 
   /* ── Вкладка «Авито»: статус связки, заказы, объявления со статистикой ── */

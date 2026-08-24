@@ -733,6 +733,19 @@ app.get('/api/public/blocks', (req, res) => {
   res.json(blocks);
 });
 
+/* ─── ПЕРЕВОДЫ КОНТЕНТА (RU → EN) ───
+   Названия товаров, подборок, категорий и FAQ — это данные из панели.
+   Здесь их английские версии: карта «исходная строка → перевод».
+   Пусто = витрина показывает оригинал. */
+app.get('/api/public/i18n', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  const map = (load().i18n || {}).en || {};
+  // Наружу — только непустые переводы
+  const out = {};
+  Object.entries(map).forEach(([k, v]) => { if (v && String(v).trim()) out[k] = v; });
+  res.json(out);
+});
+
 app.get('/api/public/faq', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.json((load().faq || []).filter(f => f.showOnSite).map(f => ({
@@ -1055,6 +1068,47 @@ app.get('/api/avito/status', async (req, res) => {
     accounts: AVITO_ACCOUNTS.map(a => ({ key: a.key, label: a.label })),
     feedUrl: `https://${CANONICAL_HOST}/avito/feed.xml?key=${AVITO_KEY}`,
   });
+});
+
+/* Строки витрины, которые стоит перевести — собираем из данных панели */
+function i18nSourceStrings(db) {
+  const groups = [];
+  const push = (label, list) => {
+    const uniq = [...new Set(list.map(x => String(x || '').trim()).filter(Boolean))];
+    if (uniq.length) groups.push({ label, strings: uniq });
+  };
+  const site = (db.items || []).filter(i => i.showOnSite);
+  push('Товары — названия', site.map(i => i.name));
+  push('Товары — описания', site.map(i => i.description));
+  push('Категории', (db.categories || []).map(c => c.name));
+  push('Подборки', (db.collections || []).flatMap(c => [c.title, c.description]));
+  push('Блоки витрины', (db.blocks || []).flatMap(b =>
+    [b.heading, b.body, b.text, b.kicker, b.sub, b.captionA, b.captionB, b.btnLabel]));
+  push('FAQ', (db.faq || []).filter(f => f.showOnSite).flatMap(f =>
+    [f.title, f.body, ...(f.lines || []).flatMap(l => [l.label, l.text])]));
+  return groups;
+}
+
+app.get('/api/i18n', (req, res) => {
+  if (!hasAccess(req.user, 'site')) return res.status(403).json({ error: 'Нет доступа к разделу' });
+  const db = load();
+  res.json({ groups: i18nSourceStrings(db), map: (db.i18n || {}).en || {} });
+});
+
+app.post('/api/i18n', (req, res) => {
+  if (!hasAccess(req.user, 'site')) return res.status(403).json({ error: 'Нет доступа к разделу' });
+  const db = load();
+  if (!db.i18n) db.i18n = {};
+  const cur = db.i18n.en || {};
+  const patch = req.body?.map && typeof req.body.map === 'object' ? req.body.map : {};
+  Object.entries(patch).forEach(([k, v]) => {
+    const key = String(k).slice(0, 500);
+    const val = String(v ?? '').trim().slice(0, 1000);
+    if (val) cur[key] = val; else delete cur[key];
+  });
+  db.i18n.en = cur;
+  save(db);
+  res.json({ ok: true, count: Object.keys(cur).length });
 });
 
 /* ─── СВЕРКА НАЛИЧИЯ: Авито ↔ панель ───

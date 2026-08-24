@@ -10,6 +10,7 @@ const SECTION = document.querySelector('meta[name="mq-section"]')?.content
 // Отдельный домен Type (если уже подключён) — для кросс-брендовых ссылок
 const TYPE_HOST_PUB = document.querySelector('meta[name="mq-type-host"]')?.content || '';
 const T = window.mqT || (k => k);
+const TR = window.mqTr || (x => x);   // перевод контента из панели (EN)
 const TITLES  = {
   monarc: { kicker: T('kicker.monarc'), title: 'Monarc'       },
   type:   { kicker: T('kicker.type'),   title: 'Type Clothes' },
@@ -83,6 +84,7 @@ function stateFromUrl() {
 }
 
 async function boot() {
+  await (window.mqContentReady || Promise.resolve());   // переводы контента
   document.getElementById('sectionKicker').textContent = TITLES[SECTION].kicker;
   document.getElementById('sectionTitle').textContent  = TITLES[SECTION].title;
   // Monarc — «Masqucerade», Type — «Type-clothes»; на страницах брендов серверный title не трогаем
@@ -205,7 +207,7 @@ function renderHeaderNav() {
           ${catsCol.length ? `<div class="mega-col">
             <p class="mega-col-title">${T('mega.cats')}</p>
             <div class="mega-links">
-              ${catsCol.map(s => `<a class="hnav-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
+              ${catsCol.map(s => `<a class="hnav-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(TR(s.name))}</a>`).join('')}
             </div>
           </div>` : ''}
           ${gList.length ? `<div class="mega-col">
@@ -311,7 +313,7 @@ function renderSearchResults(q) {
     const cover = (i.thumbs && i.thumbs[0]) || (i.photos && i.photos[0]) || null;
     return `<a class="sr-row" href="/product/${encodeURIComponent(i.id)}">
       <span class="sr-thumb">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy" draggable="false">` : ''}</span>
-      <span class="sr-name">${esc(i.name)}</span>
+      <span class="sr-name">${esc(TR(i.name))}</span>
       <span class="sr-meta">${i.sold ? `<em class="sr-sold">${T('st.sold')}</em>` : esc(fmtPrice(i.price))}</span>
     </a>`;
   }).join('') : `<div class="sr-empty">${T('search.none')}</div>`;
@@ -368,7 +370,7 @@ function renderMobileMenu() {
       <button class="mob-acc-head" type="button">${esc(sec.name || sec.label)}${caret}</button>
       <div class="mob-acc-body">
         <a class="mob-sub mob-sub-all" data-cat="${esc(dataCat)}" data-garment="" href="#">${T('mega.all')}</a>
-        ${catsCol.map(s => `<a class="mob-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(s.name)}</a>`).join('')}
+        ${catsCol.map(s => `<a class="mob-sub${activeCat === s.id ? ' active' : ''}" data-cat="${esc(s.id)}" href="#">${esc(TR(s.name))}</a>`).join('')}
         ${gList.map(g => `<a class="mob-sub${activeGarment === g.id && activeCat === dataCat ? ' active' : ''}"${gCat} data-garment="${esc(g.id)}" href="#">${esc(g.name)}</a>`).join('')}
       </div>
     </div>`;
@@ -671,12 +673,12 @@ function cardHTML(i) {
   return `
     <a class="good-card${i.sold ? ' sold' : ''}" href="/product/${encodeURIComponent(i.id)}">
       <div class="good-photo">
-        ${cover ? `<img src="${esc(cover)}" alt="${esc(i.name)}" loading="lazy" draggable="false">`
+        ${cover ? `<img src="${esc(cover)}" alt="${esc(TR(i.name))}" loading="lazy" draggable="false">`
                 : '<span class="no-photo">Masqucerade</span>'}
         ${ribbon}
       </div>
       <div class="good-info">
-        <div class="good-name">${esc(i.name)}</div>
+        <div class="good-name">${esc(TR(i.name))}</div>
         <div class="good-meta">
           <span class="good-price">${fmtPrice(i.price)}${i.oldPrice ? ` <s class="old-price">${fmtPrice(i.oldPrice)}</s><em class="disc-badge">−${Math.round((1 - i.price / i.oldPrice) * 100)}%</em>` : ''}</span>
           <span class="good-sizes">${esc(sizesLabel(i.sizes))}</span>
@@ -745,9 +747,9 @@ function bannerHtml(b) {
   const ext   = b.linkType === 'tg' || b.linkType === 'url';
   const style = `object-fit:${b.fit === 'contain' ? 'contain' : 'cover'};object-position:${esc(b.pos || 'center center')}`;
   const cap   = (b.heading || b.sub)
-    ? `<div class="block-banner-cap">${b.heading ? `<h2>${nl2br(b.heading)}</h2>` : ''}${b.sub ? `<p>${nl2br(b.sub)}</p>` : ''}</div>`
+    ? `<div class="block-banner-cap">${b.heading ? `<h2>${nl2br(TR(b.heading))}</h2>` : ''}${b.sub ? `<p>${nl2br(TR(b.sub))}</p>` : ''}</div>`
     : '';
-  const inner = `<img src="${esc(b.image)}" alt="${esc(b.heading || '')}" loading="lazy" draggable="false" style="${style}">${cap}`;
+  const inner = `<img src="${esc(b.image)}" alt="${esc(TR(b.heading || ''))}" loading="lazy" draggable="false" style="${style}">${cap}`;
   const cls   = `site-block block-banner banner-${b.height || 'm'}${b.fit === 'contain' ? ' banner-contain' : ''}`;
   return href
     ? `<a class="${cls}" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
@@ -756,22 +758,22 @@ function bannerHtml(b) {
 function textHtml(b) {
   if (!b.heading && !b.body) return '';
   return `<section class="site-block block-text">
-    ${b.heading ? `<h2>${nl2br(b.heading)}</h2>` : ''}
-    ${b.body ? `<div class="block-text-body">${nl2br(b.body)}</div>` : ''}
+    ${b.heading ? `<h2>${nl2br(TR(b.heading))}</h2>` : ''}
+    ${b.body ? `<div class="block-text-body">${nl2br(TR(b.body))}</div>` : ''}
   </section>`;
 }
 function statementHtml(b) {
   if (!b.text) return '';
   return `<section class="site-block block-statement">
-    ${b.kicker ? `<p class="statement-kicker">${esc(b.kicker)}</p>` : ''}
-    <p class="statement-text">${nl2br(b.text)}</p>
+    ${b.kicker ? `<p class="statement-kicker">${esc(TR(b.kicker))}</p>` : ''}
+    <p class="statement-text">${nl2br(TR(b.text))}</p>
   </section>`;
 }
 function marqueeHtml(b) {
   if (!b.text) return '';
-  const seg = `<span class="marquee-seg">${esc(b.text)}<i class="marquee-star">✦</i></span>`;
+  const seg = `<span class="marquee-seg">${esc(TR(b.text))}<i class="marquee-star">✦</i></span>`;
   // два одинаковых ряда подряд → бесшовная петля
-  return `<div class="site-block block-marquee" aria-label="${esc(b.text)}">
+  return `<div class="site-block block-marquee" aria-label="${esc(TR(b.text))}">
     <div class="marquee-inner">${seg.repeat(8)}</div>
     <div class="marquee-inner" aria-hidden="true">${seg.repeat(8)}</div>
   </div>`;
@@ -780,7 +782,7 @@ function duoTile(img, caption, linkType, linkValue) {
   const href = blockLinkHref({ linkType, linkValue });
   const ext  = linkType === 'tg' || linkType === 'url';
   const inner = `${img ? `<img src="${esc(img)}" alt="${esc(caption)}" loading="lazy" draggable="false">` : ''}
-    ${caption ? `<div class="block-banner-cap"><h2>${nl2br(caption)}</h2></div>` : ''}`;
+    ${caption ? `<div class="block-banner-cap"><h2>${nl2br(TR(caption))}</h2></div>` : ''}`;
   return href
     ? `<a class="duo-tile" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
     : `<div class="duo-tile">${inner}</div>`;
@@ -809,32 +811,32 @@ function collectionHtml(c, items) {
     <div class="collection-top">
       <div class="collection-top-text">
         <div class="collection-head">
-          <p class="collection-kicker">Подборка</p>    </div>
-        <h2>${esc(c.title)}</h2>
-        ${c.description ? `<p class="collection-desc">${esc(c.description)}</p>` : ''}
+          <p class="collection-kicker">${T('coll.kicker')}</p>    </div>
+        <h2>${esc(TR(c.title))}</h2>
+        ${c.description ? `<p class="collection-desc">${esc(TR(c.description))}</p>` : ''}
       </div>
       ${c.logo ? `<img class="collection-logo" src="${esc(c.logo)}" alt="" loading="lazy" draggable="false">` : ''}
     </div>
     <div class="collection-carousel">
       <div class="goods-grid collection-grid">${items.map(cardHTML).join('')}</div>
-      <button class="carousel-prev" aria-label="Листать назад" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></button>
-      <button class="carousel-next" aria-label="Листать дальше" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button>
+      <button class="carousel-prev" aria-label="${T('carousel.prev')}" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></button>
+      <button class="carousel-next" aria-label="${T('carousel.next')}" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button>
     </div>
   </section>`;
 }
 
 // Блок «Товары недели» — витрина выбранных товаров с золотым акцентом
 function weeklyHtml(b, items) {
-  const h = b.heading || 'Товары недели';
-  const custom = h && h !== 'Товары недели';
+  const h = b.heading || T('week.title');
+  const custom = h && h !== T('week.title') && h !== 'Товары недели';
   return `<section class="collection-block week-block">
     <div class="collection-head">
       <p class="collection-kicker week-kicker">★ Товары недели</p>    </div>
-    ${custom ? `<h2>${esc(h)}</h2>` : ''}
+    ${custom ? `<h2>${esc(TR(h))}</h2>` : ''}
     <div class="collection-carousel">
       <div class="goods-grid collection-grid">${items.map(cardHTML).join('')}</div>
-      <button class="carousel-prev" aria-label="Листать назад" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></button>
-      <button class="carousel-next" aria-label="Листать дальше" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button>
+      <button class="carousel-prev" aria-label="${T('carousel.prev')}" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></button>
+      <button class="carousel-next" aria-label="${T('carousel.next')}" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button>
     </div>
   </section>`;
 }
@@ -1020,7 +1022,7 @@ document.getElementById('siteBlocks').addEventListener('click', (e) => {
 function faqBody(f) {
   if (f.lines && f.lines.length) {
     return f.lines.map(l =>
-      `${l.label ? `<div class="faq-a-label">${esc(l.label)}</div>` : ''}<div>${esc(l.text)}</div>`
+      `${l.label ? `<div class="faq-a-label">${esc(TR(l.label))}</div>` : ''}<div>${esc(TR(l.text))}</div>`
     ).join('');
   }
   return esc(f.body || '');
@@ -1045,7 +1047,7 @@ function renderFaq(faq) {
       ? `<div class="faq-subacc">${kids.map(k => itemHtml(k, true)).join('')}</div>` : '';
     return `
     <div class="faq-item${isSub ? ' faq-subitem' : ''}">
-      <button class="faq-q">${esc(f.title)}${plus}</button>
+      <button class="faq-q">${esc(TR(f.title))}${plus}</button>
       <div class="faq-a"><div class="faq-a-inner">${faqBody(f)}${inner}</div></div>
     </div>`;
   };

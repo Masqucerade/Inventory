@@ -340,6 +340,18 @@ class InventoryDB {
 
   /* ─── ПОСТ О ТОВАРЕ В TG-КАНАЛ ─── */
   /* ─── КАЛЕНДАРЬ-НАПОМИНАЛКА (root) ─── */
+  /* ─── ПЕРЕВОДЫ ВИТРИНЫ (RU → EN) ─── */
+  async getI18n() {
+    try { const r = await fetch('/api/i18n'); return r.ok ? r.json() : { groups: [], map: {} }; }
+    catch { return { groups: [], map: {} }; }
+  }
+  async saveI18n(map) {
+    const r = await fetch('/api/i18n', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ map }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось сохранить');
+    return d;
+  }
+
   async avitoSyncCheck() {
     const r = await fetch('/api/avito/sync-check');
     const d = await r.json().catch(() => ({}));

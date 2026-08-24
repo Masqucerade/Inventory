@@ -9,6 +9,7 @@ const fmtPrice = (p) => p == null || p === '' ? '' :
 
 // Износ вещи (как у Gurbich: «НОВОЕ С БИРКАМИ»)
 const T = window.mqT || (k => k);
+const TR = window.mqTr || (x => x);   // перевод контента из панели (EN)
 const CONDITIONS = {
   new:       T('cond.new'),
   excellent: T('cond.excellent'),
@@ -18,6 +19,7 @@ const CONDITIONS = {
 const ID = decodeURIComponent(location.pathname.split('/').pop());
 
 async function boot() {
+  await (window.mqContentReady || Promise.resolve());
   document.getElementById('footTg').href = `https://t.me/${TG_USERNAME}`;
   let data, cats = [];
   try {
@@ -38,7 +40,7 @@ async function boot() {
   // пока Type-домен не подключён, его товары живут на /type
   const typeHost = document.querySelector('meta[name="mq-type-host"]')?.content || '';
   document.getElementById('backLink').href = (i.section === 'type' && !typeHost) ? '/type' : '/';
-  document.title = `${i.name} — Masqucerade INC.`;
+  document.title = `${TR(i.name)} — Masqucerade INC.`;
 
   const cat    = cats.find(c => c.id === i.categoryId);
   const photos = i.photos || [];
@@ -52,7 +54,7 @@ async function boot() {
       <div class="product-gallery">
         <div class="p-photo-main${i.sold ? ' is-sold' : ''}" id="pPhotoMain" title="${T('p.zoom')}">
           ${photos.length
-            ? `<img id="pMainImg" src="${esc(photos[0])}" alt="${esc(i.name)}" draggable="false">`
+            ? `<img id="pMainImg" src="${esc(photos[0])}" alt="${esc(TR(i.name))}" draggable="false">`
             : '<span class="no-photo">Masqucerade</span>'}
           ${ribbonOf(i)}
         </div>
@@ -60,8 +62,8 @@ async function boot() {
           `<button type="button" class="p-thumb${idx === 0 ? ' active' : ''}" data-src="${esc(p)}"><img src="${esc(p)}" alt="" draggable="false"></button>`).join('')}</div>` : ''}
       </div>
       <div class="product-info">
-        <p class="m-cat">${esc(i.brand ? i.brand : (cat ? cat.name : (i.section === 'monarc' ? 'Monarc' : 'Type Clothes')))}</p>
-        <h1 class="p-name">${esc(i.name)}</h1>
+        <p class="m-cat">${esc(i.brand ? i.brand : (cat ? TR(cat.name) : (i.section === 'monarc' ? 'Monarc' : 'Type Clothes')))}</p>
+        <h1 class="p-name">${esc(TR(i.name))}</h1>
         ${i.condition ? `<p class="p-cond${i.condition === 'new' ? ' cond-new' : ''}">${CONDITIONS[i.condition] || ''}</p>` : ''}
         <p class="m-price">${fmtPrice(i.price)}${i.oldPrice ? ` <s class="old-price">${fmtPrice(i.oldPrice)}</s><em class="disc-badge">−${Math.round((1 - i.price / i.oldPrice) * 100)}%</em>` : ''}</p>
         ${i.sold
@@ -69,7 +71,7 @@ async function boot() {
           : `<div class="m-sizes" id="pSizes">${(i.sizes || []).filter(s => s.size).map(s => s.reserved
               ? `<button type="button" class="m-size m-size-reserved" disabled title="${T('p.sizeInOrder')}">${esc(s.size)}<span class="m-size-res">${T('st.inOrder')}</span></button>`
               : `<button type="button" class="m-size m-size-pick" data-size="${esc(s.size)}">${esc(s.size)}</button>`).join('')}</div>`}
-        ${i.description ? `<p class="m-desc">${esc(i.description)}</p>` : ''}
+        ${i.description ? `<p class="m-desc">${esc(TR(i.description))}</p>` : ''}
         ${i.measurements ? `
         <div class="m-fit" id="mFit">
           <button class="m-fit-head" id="mFitHead" type="button">
@@ -82,7 +84,7 @@ async function boot() {
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </button>
-          <div class="m-fit-body">${esc(i.measurements)}</div>
+          <div class="m-fit-body">${esc(TR(i.measurements))}</div>
         </div>` : ''}
         ${i.sold
           ? `<p class="p-sold-note">${T('p.soldNote')}</p>
@@ -113,10 +115,10 @@ async function boot() {
           const cover = (r.thumbs && r.thumbs[0]) || (r.photos && r.photos[0]) || null;
           return `<a class="good-card" href="/product/${encodeURIComponent(r.id)}">
             <div class="good-photo">${cover
-              ? `<img src="${esc(cover)}" alt="${esc(r.name)}" loading="lazy" draggable="false">`
+              ? `<img src="${esc(cover)}" alt="${esc(TR(r.name))}" loading="lazy" draggable="false">`
               : '<span class="no-photo">Masqucerade</span>'}${ribbonOf(r)}</div>
             <div class="good-info">
-              <div class="good-name">${esc(r.name)}</div>
+              <div class="good-name">${esc(TR(r.name))}</div>
               <div class="good-meta"><span class="good-price">${fmtPrice(r.price)}</span></div>
             </div>
           </a>`;

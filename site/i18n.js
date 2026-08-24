@@ -11,7 +11,8 @@
       'nav.back': '← Каталог', 'tg.write': 'Написать в Telegram', 'tg.writeArrow': 'Написать в Telegram →',
       'filters': 'Фильтры', 'sort.aria': 'Сортировка', 'loading': 'Загружаем…',
       'scroll.hint': 'Листайте вниз', 'search.all': 'Все товары', 'search.none': 'Ничего не найдено',
-      'search.found': 'Найдено',
+      'search.found': 'Найдено', 'faq.title': 'Вопросы и ответы', 'coll.kicker': 'Подборка',
+      'week.title': 'Товары недели', 'carousel.prev': 'Листать назад', 'carousel.next': 'Листать дальше',
 
       'sec.m': 'Мужское', 'sec.w': 'Женское', 'sec.a': 'Аксессуары',
       'sec.archive': 'Архив', 'sec.other': 'Другое', 'sec.goods': 'Товары', 'sec.all': 'Все товары',
@@ -63,7 +64,8 @@
       'nav.back': '← Catalog', 'tg.write': 'Message on Telegram', 'tg.writeArrow': 'Message on Telegram →',
       'filters': 'Filters', 'sort.aria': 'Sort', 'loading': 'Loading…',
       'scroll.hint': 'Scroll down', 'search.all': 'All products', 'search.none': 'Nothing found',
-      'search.found': 'Found',
+      'search.found': 'Found', 'faq.title': 'Questions & answers', 'coll.kicker': 'Selection',
+      'week.title': 'Picks of the week', 'carousel.prev': 'Previous', 'carousel.next': 'Next',
 
       'sec.m': 'Men', 'sec.w': 'Women', 'sec.a': 'Accessories',
       'sec.archive': 'Archive', 'sec.other': 'Other', 'sec.goods': 'Products', 'sec.all': 'All products',
@@ -110,6 +112,17 @@
     },
   };
 
+  /* Переводы контента из панели (названия товаров, подборок, FAQ).
+     Грузим один раз при старте; до загрузки — оригинал. */
+  let CONTENT = {};
+  window.mqTr = (str) => {
+    const k = String(str ?? '').trim();
+    return (window.mqLang === 'en' && CONTENT[k]) ? CONTENT[k] : str;
+  };
+  window.mqContentReady = (window.localStorage.getItem('mqLang') === 'en')
+    ? fetch('/api/public/i18n').then(r => r.ok ? r.json() : {}).then(m => { CONTENT = m; }).catch(() => {})
+    : Promise.resolve();
+
   const saved = localStorage.getItem('mqLang');
   const lang  = (saved === 'en' || saved === 'ru') ? saved : 'ru';
   window.mqLang = lang;
@@ -123,16 +136,14 @@
     (root || document).querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', mqT(el.dataset.i18nAria)); });
   }
 
-  const GLOBE = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+  const GLOBE = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
     <circle cx="12" cy="12" r="9"/><path d="M3 12h18"/>
     <path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z"/></svg>`;
 
   /* Переключатель: глобус в шапке, по клику — выбор языка */
   function mount(host) {
     host.innerHTML = `
-      <button class="lang-btn" type="button" aria-label="${mqT('lang.aria')}" aria-expanded="false">
-        ${GLOBE}<span class="lang-cur">${lang.toUpperCase()}</span>
-      </button>
+      <button class="lang-btn" type="button" aria-label="${mqT('lang.aria')}" aria-expanded="false">${GLOBE}</button>
       <div class="lang-menu" role="menu">
         <button type="button" role="menuitem" data-lang="ru"${lang === 'ru' ? ' class="on"' : ''}>Русский</button>
         <button type="button" role="menuitem" data-lang="en"${lang === 'en' ? ' class="on"' : ''}>English</button>

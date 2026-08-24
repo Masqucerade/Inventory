@@ -110,7 +110,7 @@
           return `<div class="co-row" data-id="${esc(c.id)}" data-size="${esc(c.size || '')}">
             <a class="co-thumb" href="/product/${encodeURIComponent(i.id)}">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy" draggable="false">` : ''}</a>
             <div class="co-info">
-              <a class="co-name" href="/product/${encodeURIComponent(i.id)}">${esc(i.name)}</a>
+              <a class="co-name" href="/product/${encodeURIComponent(i.id)}">${esc(TR(i.name))}</a>
               <span class="co-meta">${c.size ? `${T('c.size')}: ${esc(c.size)} · ` : ''}${fmtPrice(i.price)}</span>
             </div>
             <button class="co-remove" type="button" aria-label="${T('c.remove')}">
