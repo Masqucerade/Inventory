@@ -867,23 +867,33 @@ const AVITO_SECRET = (process.env.AVITO_CLIENT_SECRET || '').trim();
 const AVITO_ON     = !!(AVITO_ID && AVITO_SECRET);
 const AVITO_KEY    = AVITO_ON ? crypto.createHash('sha1').update('mq-avito:' + AVITO_SECRET).digest('hex').slice(0, 20) : '';
 
-let _avitoTok = { t: null, exp: 0 };
-async function avitoToken() {
-  if (_avitoTok.t && Date.now() < _avitoTok.exp - 60_000) return _avitoTok.t;
+/* Второй кабинет Авито — env AVITO2_CLIENT_ID / AVITO2_CLIENT_SECRET.
+   Нужен для сверки наличия: объявления живут в двух аккаунтах. */
+const AVITO_ACCOUNTS = [
+  { key: 'a1', label: (process.env.AVITO_NAME  || 'Аккаунт 1').trim(), id: AVITO_ID, secret: AVITO_SECRET },
+  { key: 'a2', label: (process.env.AVITO2_NAME || 'Аккаунт 2').trim(),
+    id: (process.env.AVITO2_CLIENT_ID || '').trim(), secret: (process.env.AVITO2_CLIENT_SECRET || '').trim() },
+].filter(a => a.id && a.secret);
+
+const _avitoToks = {};
+async function avitoTokenFor(acc) {
+  const cached = _avitoToks[acc.key];
+  if (cached?.t && Date.now() < cached.exp - 60_000) return cached.t;
   const r = await fetch('https://api.avito.ru/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: AVITO_ID, client_secret: AVITO_SECRET }),
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: acc.id, client_secret: acc.secret }),
     signal: AbortSignal.timeout(10_000),
   });
   const d = await r.json().catch(() => ({}));
   if (!d.access_token) throw new Error(d.error_description || d.error || 'Авито: не удалось получить токен');
-  _avitoTok = { t: d.access_token, exp: Date.now() + (d.expires_in || 3600) * 1000 };
-  return _avitoTok.t;
+  _avitoToks[acc.key] = { t: d.access_token, exp: Date.now() + (d.expires_in || 3600) * 1000 };
+  return d.access_token;
 }
+const avitoToken = () => avitoTokenFor(AVITO_ACCOUNTS[0]);
 
-async function avitoApi(pathPart, opts = {}) {
-  const tok = await avitoToken();
+async function avitoApiFor(acc, pathPart, opts = {}) {
+  const tok = await avitoTokenFor(acc);
   const r = await fetch('https://api.avito.ru' + pathPart, {
     ...opts,
     headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json', ...(opts.headers || {}) },
@@ -897,10 +907,16 @@ async function avitoApi(pathPart, opts = {}) {
   }
   return d;
 }
+const avitoApi = (pathPart, opts) => avitoApiFor(AVITO_ACCOUNTS[0], pathPart, opts);
 
+const _avitoSelves = {};
+async function avitoSelfFor(acc) {
+  if (!_avitoSelves[acc.key]) _avitoSelves[acc.key] = await avitoApiFor(acc, '/core/v1/accounts/self');
+  return _avitoSelves[acc.key];
+}
 let _avitoSelf = null;
 async function avitoSelf() {
-  if (!_avitoSelf) _avitoSelf = await avitoApi('/core/v1/accounts/self');
+  if (!_avitoSelf) _avitoSelf = await avitoSelfFor(AVITO_ACCOUNTS[0]);
   return _avitoSelf;
 }
 
@@ -1036,8 +1052,82 @@ app.get('/api/avito/status', async (req, res) => {
   res.json({
     configured: true,
     account,
+    accounts: AVITO_ACCOUNTS.map(a => ({ key: a.key, label: a.label })),
     feedUrl: `https://${CANONICAL_HOST}/avito/feed.xml?key=${AVITO_KEY}`,
   });
+});
+
+/* ─── СВЕРКА НАЛИЧИЯ: Авито ↔ панель ───
+   Второй кабинет не всегда успевает снимать проданное, поэтому ищем расхождения:
+   что висит на Авито, но продано/снято в панели, и наоборот. Сопоставляем по
+   названию объявления (в фид Автозагрузки уходит именно name товара). */
+const avitoNorm = s => String(s || '').toLowerCase().replace(/ё/g, 'е')
+  .replace(/[^0-9a-zа-я]+/gi, ' ').trim();
+
+async function avitoActiveAds(acc) {
+  const ads = [];
+  for (let page = 1; page <= 10; page++) {
+    const d = await avitoApiFor(acc, `/core/v1/items?per_page=100&page=${page}&status=active`);
+    const chunk = d.resources || d.items || [];
+    ads.push(...chunk);
+    if (chunk.length < 100) break;
+  }
+  return ads;
+}
+
+app.get('/api/avito/sync-check', async (req, res) => {
+  if (!hasAccess(req.user, 'site')) return res.status(403).json({ error: 'Нет доступа к разделу' });
+  if (!AVITO_ACCOUNTS.length) return res.status(400).json({ error: 'Ключи Авито не настроены' });
+  const db = load();
+
+  // Индекс панели по названию (одинаковые названия — редкость, но храним список)
+  const byName = new Map();
+  (db.items || []).forEach(i => {
+    const k = avitoNorm(i.name);
+    if (!k) return;
+    if (!byName.has(k)) byName.set(k, []);
+    byName.get(k).push(i);
+  });
+
+  const matched  = new Set();
+  const accounts = [];
+  for (const acc of AVITO_ACCOUNTS) {
+    const out = { key: acc.key, label: acc.label, name: '', ads: 0, issues: [], error: null };
+    try {
+      const self = await avitoSelfFor(acc).catch(() => null);
+      out.name = self?.name || self?.email || '';
+      const ads = await avitoActiveAds(acc);
+      out.ads = ads.length;
+      for (const ad of ads) {
+        const list = byName.get(avitoNorm(ad.title)) || [];
+        // Из одноимённых берём «живой», иначе первый — чтобы не поднимать ложную тревогу
+        const item = list.find(i => !isSoldOut(i)) || list[0];
+        const base = { adId: ad.id, adUrl: ad.url || '', title: ad.title || '', adPrice: ad.price ?? null };
+        if (!item) { out.issues.push({ ...base, type: 'unknown' }); continue; }
+        matched.add(item.id);
+        if (isSoldOut(item)) {
+          out.issues.push({ ...base, type: 'sold', itemId: item.id, qty: item.quantity ?? 0 });
+        } else if (!item.showOnAvito) {
+          out.issues.push({ ...base, type: 'off', itemId: item.id });
+        } else if (ad.price != null && item.price && Math.round(ad.price) !== Math.round(item.price)) {
+          out.issues.push({ ...base, type: 'price', itemId: item.id, panelPrice: item.price });
+        }
+      }
+      // Самое важное — вперёд
+      const rank = { sold: 0, off: 1, unknown: 2, price: 3 };
+      out.issues.sort((a, b) => rank[a.type] - rank[b.type]);
+    } catch (e) {
+      out.error = e.message;
+    }
+    accounts.push(out);
+  }
+
+  // В панели помечено «На Авито» и есть в наличии, а активного объявления нет ни в одном кабинете
+  const missing = (db.items || [])
+    .filter(i => i.showOnAvito && !isSoldOut(i) && !matched.has(i.id))
+    .map(i => ({ itemId: i.id, title: i.name, panelPrice: i.price ?? null, qty: i.quantity ?? 0 }));
+
+  res.json({ accounts, missing, checkedAt: new Date().toISOString() });
 });
 
 app.get('/api/avito/items', async (req, res) => {

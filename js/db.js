@@ -340,6 +340,13 @@ class InventoryDB {
 
   /* ─── ПОСТ О ТОВАРЕ В TG-КАНАЛ ─── */
   /* ─── КАЛЕНДАРЬ-НАПОМИНАЛКА (root) ─── */
+  async avitoSyncCheck() {
+    const r = await fetch('/api/avito/sync-check');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось выполнить сверку');
+    return d;
+  }
+
   async getReminders() {
     try { const r = await fetch('/api/reminders'); return r.ok ? r.json() : []; }
     catch { return []; }

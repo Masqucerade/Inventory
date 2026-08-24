@@ -1904,7 +1904,7 @@ class App {
       hasSite ? this.db.getOrders() : Promise.resolve([]),
       this.db.getTasks(),
       this.db.getPerks(),
-      hasTerm ? this.db.getLogs(10) : Promise.resolve([]),
+      hasTerm ? this.db.getLogs(12) : Promise.resolve([]),
       this.db.getRates(),
       hasStats ? this.db.getSiteVisits() : Promise.resolve(null),
     ]);
@@ -2072,8 +2072,8 @@ class App {
               <div class="ov-card-head"><span>Лента активности</span>
                 <button class="ov-add" id="ovAllLogs" title="Весь журнал">→</button>
               </div>
-              <div class="ov-feed ov-feed-2col">
-                ${logs.slice(0, 4).map(lg => {
+              <div class="ov-feed">
+                ${logs.slice(0, 5).map(lg => {
                   const m = LOG_META[lg.type] || { icon: '•', color: 'var(--fill2)' };
                   return `<div class="ov-feed-row">
                     <span class="ov-feed-ic" style="background:${m.color}">${m.icon}</span>
@@ -8193,7 +8193,8 @@ class App {
           <div class="site-sec-hint" style="margin-top:8px;line-height:1.6">
             1. Получите ключи API: avito.ru → Личный кабинет → Настройки → Интеграции<br>
             2. В Railway добавьте переменные <b>AVITO_CLIENT_ID</b> и <b>AVITO_CLIENT_SECRET</b><br>
-            3. Через минуту эта вкладка оживёт: заказы, объявления, фид Автозагрузки
+            3. Второй кабинет — переменные <b>AVITO2_CLIENT_ID</b> и <b>AVITO2_CLIENT_SECRET</b> (для сверки наличия по обоим)<br>
+            4. Через минуту эта вкладка оживёт: заказы, объявления, фид Автозагрузки, сверка наличия
           </div>
         </div>`;
       return;
@@ -8220,10 +8221,69 @@ class App {
           <div class="site-sec-title">Авито · ${this.esc(status.account?.name || '')}</div>
           <div class="site-sec-hint">В фиде: ${(this.items || []).filter(i => i.showOnAvito).length} тов. — включается тумблером «На Авито» в карточке</div>
         </div>
-        <button class="site-mini-add" id="avitoFeedCopy">Скопировать URL фида</button>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button class="site-mini-add" id="avitoSyncBtn">Сверить наличие</button>
+          <button class="site-mini-add" id="avitoFeedCopy">Скопировать URL фида</button>
+        </div>
       </div>
+      <div id="avitoSyncWrap"></div>
       <div id="avitoOrdersWrap"><div class="site-mgmt-empty"><span>${uiIcon('package', 16)}</span>Загружаем заказы…</div></div>
       <div id="avitoItemsWrap" style="margin-top:14px"><div class="site-mgmt-empty"><span>${uiIcon('clipboard', 16)}</span>Загружаем объявления…</div></div>`;
+
+    /* ── Сверка наличия: что висит на Авито, а в панели уже продано ── */
+    document.getElementById('avitoSyncBtn')?.addEventListener('click', async (e) => {
+      const btn  = e.currentTarget;
+      const wrap = document.getElementById('avitoSyncWrap');
+      btn.textContent = 'Сверяю…'; btn.disabled = true;
+      wrap.innerHTML = `<div class="site-mgmt-empty"><span>${uiIcon('repeat', 16)}</span>Сравниваем объявления с панелью…</div>`;
+      try {
+        const d = await this.db.avitoSyncCheck();
+        const LBL = {
+          sold:    ['Продано в панели — снимите с Авито', 'bad'],
+          off:     ['В панели выключен тумблер «На Авито»', 'warn'],
+          unknown: ['Нет такого товара в панели', 'warn'],
+          price:   ['Цена расходится с панелью', 'warn'],
+        };
+        const rows = [];
+        d.accounts.forEach(acc => {
+          const head = `${this.esc(acc.label)}${acc.name ? ` · ${this.esc(acc.name)}` : ''}`;
+          if (acc.error) {
+            rows.push(`<div class="avito-sync-group">${head} — <span class="sync-bad">${this.esc(acc.error)}</span></div>`);
+            return;
+          }
+          rows.push(`<div class="avito-sync-group">${head} — активных объявлений: ${acc.ads}${acc.issues.length ? `, расхождений: <b>${acc.issues.length}</b>` : ' · всё сходится ✓'}</div>`);
+          acc.issues.forEach(is => {
+            const [text, cls] = LBL[is.type] || ['Расхождение', 'warn'];
+            const extra = is.type === 'price'
+              ? ` · Авито ${fmtMoney(is.adPrice)} vs панель ${fmtMoney(is.panelPrice)}` : '';
+            rows.push(`<div class="avito-sync-row ${cls}">
+              <div class="avito-sync-info">
+                <div class="avito-sync-title">${this.esc(is.title)}</div>
+                <div class="avito-sync-sub">${text}${extra}</div>
+              </div>
+              ${is.adUrl ? `<a class="avito-sync-link" href="${this.esc(is.adUrl)}" target="_blank" rel="noopener">Объявление →</a>` : ''}
+            </div>`);
+          });
+        });
+        if (d.missing.length) {
+          rows.push(`<div class="avito-sync-group">Нет активного объявления, хотя в панели «На Авито»: <b>${d.missing.length}</b></div>`);
+          d.missing.forEach(mi => rows.push(`<div class="avito-sync-row warn">
+            <div class="avito-sync-info">
+              <div class="avito-sync-title">${this.esc(mi.title)}</div>
+              <div class="avito-sync-sub">В наличии ${mi.qty} шт — объявление не найдено ни в одном кабинете</div>
+            </div>
+          </div>`));
+        }
+        const total = d.accounts.reduce((a, x) => a + x.issues.length, 0) + d.missing.length;
+        wrap.innerHTML = `<div class="avito-sync">
+          <div class="avito-sync-head">${total ? `Расхождений: ${total}` : 'Расхождений нет — наличие совпадает ✓'}</div>
+          ${rows.join('')}
+        </div>`;
+        this.toast(total ? `Сверка: ${total} расхождений` : 'Сверка: всё сходится ✓');
+      } catch (err) {
+        wrap.innerHTML = `<div class="avito-sync"><div class="avito-sync-head sync-bad">${this.esc(err.message || 'Ошибка сверки')}</div></div>`;
+      } finally { btn.textContent = 'Сверить наличие'; btn.disabled = false; }
+    });
 
     document.getElementById('avitoFeedCopy')?.addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(status.feedUrl); this.toast('URL фида скопирован ✓ — вставьте в Авито → Автозагрузка'); }
