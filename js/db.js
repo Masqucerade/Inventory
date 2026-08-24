@@ -630,15 +630,6 @@ class InventoryDB {
     try { const r = await fetch('/api/rates'); return r.ok ? r.json() : null; }
     catch { return null; }
   }
-  async settleOwner(id, saleIds = null) {
-    const r = await fetch(`/api/owners/${id}/settle`, {
-      method: 'POST',
-      ...(saleIds ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ saleIds }) } : {}),
-    });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.error || 'Не удалось рассчитать');
-    return d;
-  }
   async markSaleShare(id, paid) {
     const r = await fetch(`/api/sales/${id}/share-mark`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paid }),

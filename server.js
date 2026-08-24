@@ -2148,9 +2148,9 @@ app.get('/api/payments', (req, res) => {
   res.json((load().payments || []).slice().reverse());
 });
 
-/* Расчёт с сотрудником за проданные вещи (root): одной операцией —
-   вывод из бюджета + начисление сотруднику, продажи помечаются sharePaid,
-   чтобы доля не выплатилась дважды. Доля = закуп + доставка + % прибыли. */
+/* Разовый расчёт за старые продажи (root): доли с новых продаж начисляются
+   автоматически при записи продажи, этот роут остался для продаж, сделанных
+   до автоначисления — одной операцией вывод из бюджета + начисление сотруднику. */
 app.post('/api/owners/:id/settle', (req, res) => {
   if (!requireRoot(req, res)) return;
   const db    = load();
@@ -2356,6 +2356,42 @@ app.post('/api/sales', (req, res) => {
   if (sale.itemId) adjustStock(db, sale.itemId, sale.size, -sale.qty);
   if (!db.sales) db.sales = [];
   db.sales.unshift(sale);
+
+  /* Доля владельца вещи начисляется на его счёт сразу при продаже:
+     тело (закуп + доставка) возвращается инвестору целиком + его % чистой прибыли.
+     Из бюджета компании вычитается ТОЛЬКО доля прибыли: тело в бюджет и не
+     попадало — в баланс идёт лишь netProfit, а деньги за тело просто проходят
+     через компанию обратно инвестору. */
+  const owner = sale.ownerId ? (db.owners || []).find(o => o.id === sale.ownerId) : null;
+  if (owner) {
+    const pct         = owner.profitPercent || 0;
+    const body        = ((sale.buyPrice || 0) + (sale.deliveryCost || 0)) * sale.qty;
+    const profitShare = Math.round((sale.netProfit || 0) * pct / 100);
+    const share       = Math.round(body + profitShare);
+    const label       = `«${sale.itemName || 'товар'}»${sale.size ? ` (${sale.size})` : ''}`;
+    if (share > 0) {
+      if (!db.employeePayments) db.employeePayments = [];
+      db.employeePayments.push({
+        id: uid(), ownerId: owner.id, ownerName: owner.name, type: 'credit',
+        amount: share, saleId: sale.id, ts: sale.soldAt,
+        desc: `Продажа ${label} · закуп ${fmtRub(body)}${pct ? ` + ${pct}% прибыли` : ''}`,
+      });
+      addLog({ id: uid(), ts: sale.soldAt, type: 'emp_payment',
+        user: req.user?.name || req.user?.login,
+        desc: `${owner.name}: +${fmtRub(share)} — доля с продажи ${label}` });
+    }
+    if (profitShare > 0) {
+      if (!db.payments) db.payments = [];
+      db.payments.push({ id: uid(), type: 'charge', amount: profitShare, saleId: sale.id,
+        ts: sale.soldAt, desc: `Доля прибыли — ${owner.name} · ${label}` });
+    }
+    // Доля уже на счёте сотрудника — в «к выплате с продаж» эта продажа не попадёт
+    sale.sharePaid   = true;
+    sale.sharePaidAt = sale.soldAt;
+    sale.shareAuto   = true;
+    sale.shareAmount = share;
+  }
+
   save(db);
   if (notifyTeam) notifyTeamSale(sale, req.user?.name || req.user?.login);
   res.json(sale);
@@ -2367,6 +2403,9 @@ app.delete('/api/sales/:id', (req, res) => {
   // Удаление записи продажи возвращает товар на склад
   if (sale && sale.itemId) adjustStock(db, sale.itemId, sale.size, Math.max(1, parseInt(sale.qty) || 1));
   db.sales = (db.sales || []).filter(s => s.id !== req.params.id);
+  // …и откатывает автоначисление доли владельца (обе связанные записи)
+  db.employeePayments = (db.employeePayments || []).filter(p => p.saleId !== req.params.id);
+  db.payments         = (db.payments || []).filter(p => p.saleId !== req.params.id);
   save(db);
   res.json({ ok: true });
 });

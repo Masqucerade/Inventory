@@ -2420,8 +2420,8 @@ class App {
               <div class="sale-entry-meta">${this.fmtDate(s.soldAt)} · продано за ${fmtMoney(s.salePrice || 0)}</div>
             </div>
             <div class="sale-entry-right">
-              <div class="sale-entry-profit pos">+${fmtMoney(Math.round(shareOf(s)))}</div>
-              <div class="sale-entry-revenue">${s.sharePaid ? 'выплачено ✓' : 'моя доля'}</div>
+              <div class="sale-entry-profit pos">+${fmtMoney(s.shareAmount || Math.round(shareOf(s)))}</div>
+              <div class="sale-entry-revenue">${s.shareAuto ? 'начислено ✓' : s.sharePaid ? 'рассчитано ✓' : 'моя доля'}</div>
             </div>
           </div>`).join('')}</div>`
         : `<div class="plan-empty">Ваши вещи ещё не продавались</div>`}` : ''}
@@ -4699,9 +4699,8 @@ class App {
              <div class="emp-bal-avatar" style="background:${o.color}">${o.name[0].toUpperCase()}</div>
              <div class="emp-bal-info">
                <div class="emp-bal-name">${this.esc(o.name)}</div>
-               ${dueSum > 0 ? `<div class="emp-bal-due">К выплате с продаж: <b>${fmtMoney(dueSum)}</b> · ${due.cnt} прод.</div>` : ''}
+               ${dueSum > 0 ? `<div class="emp-bal-due" title="Старые продажи, сделанные до автоначисления — откройте карточку сотрудника">Не начислено со старых продаж: <b>${fmtMoney(dueSum)}</b> · ${due.cnt} прод.</div>` : ''}
              </div>
-             ${dueSum > 0 ? `<button class="emp-settle-btn" data-settle="${o.id}" data-settle-sum="${dueSum}" data-settle-cnt="${due.cnt}">Рассчитать</button>` : ''}
              <div class="emp-bal-amount ${ep ? 'pos' : 'neg'}">${ep ? '+' : '−'}${fmtMoney(Math.abs(bal))}</div>
              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--text3);flex-shrink:0">
                <polyline points="9 18 15 12 9 6"/>
@@ -4953,29 +4952,6 @@ class App {
       card.addEventListener('click', () => this.openEmpModal(card.dataset.ownerId))
     );
 
-    /* «Рассчитать» — вывод доли сотрудника с нерассчитанных продаж одной операцией */
-    el.querySelectorAll('.emp-settle-btn').forEach(btn =>
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const ownerId = btn.dataset.settle;
-        const owner   = this.owners.find(o => o.id === ownerId);
-        const sum     = parseInt(btn.dataset.settleSum) || 0;
-        const cnt     = btn.dataset.settleCnt;
-        if (!await this.confirm(
-          `Рассчитать ${owner?.name}: вывести ${fmtMoney(sum)} со счёта компании — доля с ${cnt} прод.?`,
-          'Рассчитать', false)) return;
-        if (this._settling) return;
-        this._settling = true;
-        try {
-          const r = await this.db.settleOwner(ownerId);
-          this.toast(`${owner?.name}: выплачено ${fmtMoney(r.total)} за ${r.count} прод. ✓`);
-          this.renderFinance();
-        } catch (err) {
-          this.toast(err.message || 'Ошибка — проверьте соединение');
-        } finally { this._settling = false; }
-      })
-    );
-
     el.querySelectorAll('.pay-del[data-sale-id]').forEach(btn =>
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -5087,8 +5063,6 @@ class App {
     const pct     = owner?.profitPercent || 0;
     const shareOf = s => Math.round(((s.buyPrice || 0) + (s.deliveryCost || 0)) * (s.qty || 1) +
       (s.netProfit || 0) * pct / 100);
-    // Выбор продаж для расчёта: по умолчанию все нерассчитанные
-    this._empSaleSel = new Set(empSales.filter(s => !s.sharePaid).map(s => s.id));
 
     const salary   = payments.reduce((s, p) => p.type === 'credit' && !p.isExpense ? s + (p.amount || 0) : s, 0);
     const debits   = payments.reduce((s, p) => p.type === 'debit'                  ? s + (p.amount || 0) : s, 0);
@@ -5158,76 +5132,31 @@ class App {
         </button>
       </div>
       ${empSales.length ? (() => {
-        const unpaid = empSales.filter(s => !s.sharePaid);
-        const paid   = empSales.filter(s => s.sharePaid);
+        const pending = empSales.filter(s => !s.sharePaid);   // старые продажи до автоначисления
+        const done    = empSales.filter(s => s.sharePaid);
         const row = s => `
-          <div class="emp-sale-row${s.sharePaid ? ' settled' : (this._empSaleSel.has(s.id) ? ' selected' : '')}" data-sale="${s.id}">
-            ${!s.sharePaid ? `<div class="debt-select-check">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                <polyline points="20 6 9 17 4 12"/></svg></div>` : ''}
+          <div class="emp-sale-row${s.sharePaid ? ' settled' : ''}" data-sale="${s.id}">
             <div class="emp-sale-info">
               <div class="emp-sale-name">${this.esc(s.itemName)}${s.size ? ` · ${this.esc(s.size)}` : ''}</div>
-              <div class="emp-sale-meta">${this.fmtDate(s.soldAt)} · за ${fmtMoney(s.salePrice || 0)}${s.sharePaid ? ' · выплачено ✓' : ''}</div>
+              <div class="emp-sale-meta">${this.fmtDate(s.soldAt)} · за ${fmtMoney(s.salePrice || 0)}${
+                s.shareAuto ? ' · начислено ✓' : s.sharePaid ? ' · рассчитано ✓' : ' · не начислено'}</div>
             </div>
-            <div class="emp-sale-share">${fmtMoney(shareOf(s))}</div>
-            <button class="emp-sale-mark" data-mark="${s.id}" data-paid="${s.sharePaid ? 0 : 1}"
-              title="${s.sharePaid ? 'Вернуть в «к выплате» (снять отметку расчёта)' : 'Пометить рассчитанной без выплаты — если уже платили вне панели'}">
+            <div class="emp-sale-share">${fmtMoney(s.shareAmount || shareOf(s))}</div>
+            ${s.shareAuto ? '' : `<button class="emp-sale-mark" data-mark="${s.id}" data-paid="${s.sharePaid ? 0 : 1}"
+              title="${s.sharePaid ? 'Вернуть в «не начислено»' : 'Пометить рассчитанной — если за эту продажу уже платили вне панели'}">
               ${s.sharePaid ? '↺' : '✓'}
-            </button>
+            </button>`}
           </div>`;
         return `
-      <div class="section-title" style="margin-top:16px">Продажи и расчёты${pct ? ` <em style="font-style:normal;font-size:11px;color:var(--text3)">· доля: закуп + ${pct}% прибыли</em>` : ''}</div>
+      <div class="section-title" style="margin-top:16px">Продажи${pct ? ` <em style="font-style:normal;font-size:11px;color:var(--text3)">· доля: закуп + ${pct}% прибыли</em>` : ''}</div>
       <div class="emp-sale-list">
-        ${unpaid.map(row).join('')}
-        ${unpaid.length ? `
-        <button class="emp-settle-btn emp-settle-selected" id="empSettleSel" style="width:100%;margin-top:8px"></button>` : ''}
-        ${paid.length ? `<div class="emp-sale-divider">рассчитанные</div>${paid.map(row).join('')}` : ''}
+        ${pending.length ? `<div class="emp-sale-hint">Старые продажи (до автоначисления): доля не попала на счёт — отметьте ✓, если уже платили вне панели</div>` : ''}
+        ${pending.map(row).join('')}
+        ${done.length ? `<div class="emp-sale-divider">начислено</div>${done.map(row).join('')}` : ''}
       </div>` ;
       })() : ''}
       ${histHtml}
     `;
-
-    /* Кнопка «Рассчитать выбранные»: сумма пересчитывается от галочек */
-    const updSettleBtn = () => {
-      const btn = document.getElementById('empSettleSel');
-      if (!btn) return;
-      const sel = empSales.filter(s => this._empSaleSel.has(s.id));
-      const sum = sel.reduce((a, s) => a + shareOf(s), 0);
-      btn.textContent = sel.length
-        ? `Рассчитать выбранные · ${fmtMoney(sum)} (${sel.length} прод.)`
-        : 'Выберите продажи для расчёта';
-      btn.disabled = !sel.length;
-      btn.style.opacity = sel.length ? '' : '.45';
-    };
-    updSettleBtn();
-
-    el.querySelectorAll('.emp-sale-row:not(.settled)').forEach(rowEl =>
-      rowEl.addEventListener('click', (e) => {
-        if (e.target.closest('.emp-sale-mark')) return;
-        const id = rowEl.dataset.sale;
-        if (this._empSaleSel.has(id)) { this._empSaleSel.delete(id); rowEl.classList.remove('selected'); }
-        else { this._empSaleSel.add(id); rowEl.classList.add('selected'); }
-        updSettleBtn();
-      })
-    );
-
-    document.getElementById('empSettleSel')?.addEventListener('click', async () => {
-      const sel = empSales.filter(s => this._empSaleSel.has(s.id));
-      const sum = sel.reduce((a, s) => a + shareOf(s), 0);
-      if (!sel.length) return;
-      if (!await this.confirm(
-        `Рассчитать ${owner?.name}: вывести ${fmtMoney(sum)} со счёта компании — доля с ${sel.length} прод.?`,
-        'Рассчитать', false)) return;
-      if (this._settling) return;
-      this._settling = true;
-      try {
-        const r = await this.db.settleOwner(ownerId, sel.map(s => s.id));
-        this.toast(`${owner?.name}: выплачено ${fmtMoney(r.total)} за ${r.count} прод. ✓`);
-        await this.renderEmpModal(ownerId);
-        this.renderFinance();
-      } catch (err) { this.toast(err.message || 'Ошибка — проверьте соединение'); }
-      finally { this._settling = false; }
-    });
 
     el.querySelectorAll('.emp-sale-mark').forEach(btn =>
       btn.addEventListener('click', async (e) => {
