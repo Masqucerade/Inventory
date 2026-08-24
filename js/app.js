@@ -2368,6 +2368,9 @@ class App {
         dt.getMonth() !== m ? 'other' : '',
         day === today ? 'today' : '',
         day === this._calSel ? 'sel' : '',
+        // Обводка дня: есть незакрытые дела (или оплата подписки)
+        (undone.length || perksOn.length) ? 'has' : '',
+        (undone.length && day < today) ? 'has-over' : '',
       ].filter(Boolean).join(' ');
       cells += `<button type="button" class="cal-cell ${cls}" data-day="${day}">
         <span class="cal-num">${dt.getDate()}</span>
@@ -2457,9 +2460,13 @@ class App {
               <div class="cal-summary">${todayCnt ? `${todayCnt} ${this._plural(todayCnt, 'дело', 'дела', 'дел')} сегодня` : 'на сегодня дел нет'}${overdue ? ` · <b class="cal-over">${overdue} просрочено</b>` : ''}</div>
             </div>
             <div class="cal-nav">
-              <button type="button" class="cal-nav-btn" id="calPrev" aria-label="Прошлый месяц">‹</button>
+              <button type="button" class="cal-nav-btn" id="calPrev" aria-label="Прошлый месяц">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
               <button type="button" class="cal-today-btn" id="calToday">Сегодня</button>
-              <button type="button" class="cal-nav-btn" id="calNext" aria-label="Следующий месяц">›</button>
+              <button type="button" class="cal-nav-btn" id="calNext" aria-label="Следующий месяц">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
             </div>
           </div>
           <div class="cal-grid">
@@ -5434,7 +5441,9 @@ class App {
             <div class="emp-sale-share">${fmtMoney(s.shareAmount || shareOf(s))}</div>
             ${s.shareAuto ? '' : `<button class="emp-sale-mark" data-mark="${s.id}" data-paid="${s.sharePaid ? 0 : 1}"
               title="${s.sharePaid ? 'Вернуть в «не начислено»' : 'Пометить рассчитанной — если за эту продажу уже платили вне панели'}">
-              ${s.sharePaid ? '↺' : '✓'}
+              ${s.sharePaid
+                ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2.1-9.4L1 10"/></svg>'
+                : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'}
             </button>`}
           </div>`;
         return `
