@@ -1866,6 +1866,7 @@ class App {
       case 'stats':     this.renderStats();         break;
       case 'finance':   this.renderFinance();       break;
       case 'project':   this.renderProject();       break;
+      case 'calendar':  this.renderCalendar();      break;
       case 'site':      this.renderSiteView();      break;
       case 'promos':    this.renderPromos();        break;
       case 'tg':        this.renderTgView();        break;
