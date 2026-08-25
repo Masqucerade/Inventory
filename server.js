@@ -2978,6 +2978,109 @@ app.delete('/api/reminders/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── ПОДПИСКА НА КАЛЕНДАРЬ (.ics) ───
+   Ссылка вида webcal://…/calendar.ics?key=… — iPhone/Mac/Google подписываются
+   и показывают дела в системном календаре (и в его виджете на экране «Домой»).
+   Ключ личный: выводится из id пользователя и соли в db.meta, перевыпуск —
+   сменой соли (кнопка в панели). */
+function calKeyFor(db, user) {
+  if (!db.meta) db.meta = {};
+  if (!db.meta.calSalt) { db.meta.calSalt = uid() + uid(); save(db); }
+  return crypto.createHash('sha1').update(`mq-cal:${user.id}:${db.meta.calSalt}`).digest('hex').slice(0, 24);
+}
+
+const icsEsc = s => String(s || '')
+  .replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+// Длинные строки в ics принято складывать по 75 октетов
+const icsFold = line => line.length <= 74 ? line
+  : line.match(/.{1,73}/g).join('\r\n ');
+const icsDate = d => d.replace(/-/g, '');                    // 2026-08-24 → 20260824
+const icsNextDay = d => {
+  const [y, m, dd] = d.split('-').map(Number);
+  const n = new Date(Date.UTC(y, m - 1, dd + 1));
+  return n.toISOString().slice(0, 10).replace(/-/g, '');
+};
+
+app.get('/calendar.ics', (req, res) => {
+  const db  = load();
+  const key = String(req.query.key || '');
+  const user = (db.users || []).find(u => key && key === calKeyFor(db, u));
+  if (!user) return res.status(404).end();
+
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const host  = CANONICAL_HOST || req.get('host');
+  const L = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Masqucerade INC//Panel//RU',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'X-WR-CALNAME:Masqucerade — дела', 'X-WR-TIMEZONE:Europe/Moscow',
+    'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',
+  ];
+
+  (db.reminders || []).filter(r => r.createdBy === user.id && r.date).forEach(r => {
+    const repeating = r.repeat && r.repeat !== 'none';
+    if (!repeating && r.done) return;                        // разовое выполненное не показываем
+    L.push('BEGIN:VEVENT', `UID:rem-${r.id}@${host}`, `DTSTAMP:${stamp}`,
+      icsFold(`SUMMARY:${icsEsc(r.title)}`));
+    if (r.note) L.push(icsFold(`DESCRIPTION:${icsEsc(r.note)}`));
+    if (r.time) {
+      const [hh, mm] = r.time.split(':').map(Number);
+      const end = new Date(Date.UTC(2000, 0, 1, hh, mm + 30));   // дело длится полчаса
+      L.push(`DTSTART:${icsDate(r.date)}T${r.time.replace(':', '')}00`,
+        `DTEND:${icsDate(r.date)}T${String(end.getUTCHours()).padStart(2, '0')}${String(end.getUTCMinutes()).padStart(2, '0')}00`);
+      // Напоминание за 15 минут — как в Telegram
+      L.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER:-PT15M',
+        icsFold(`DESCRIPTION:${icsEsc(r.title)}`), 'END:VALARM');
+    } else {
+      L.push(`DTSTART;VALUE=DATE:${icsDate(r.date)}`, `DTEND;VALUE=DATE:${icsNextDay(r.date)}`);
+    }
+    if (repeating) {
+      L.push(`RRULE:FREQ=${r.repeat === 'weekly' ? 'WEEKLY' : 'MONTHLY'}`);
+      // Выполненные повторы исключаем из серии
+      const skipped = (r.doneDates || []).map(d => r.time
+        ? `${icsDate(d)}T${r.time.replace(':', '')}00`
+        : `${icsDate(d)}`);
+      if (skipped.length) L.push(r.time
+        ? `EXDATE:${skipped.join(',')}`
+        : `EXDATE;VALUE=DATE:${skipped.join(',')}`);
+    }
+    L.push('END:VEVENT');
+  });
+
+  // Подписки из «Корпоративных ресурсов» — днём окончания оплаты
+  (db.perks || []).filter(pk => pk.paidUntil).forEach(pk => {
+    L.push('BEGIN:VEVENT', `UID:perk-${pk.id}@${host}`, `DTSTAMP:${stamp}`,
+      icsFold(`SUMMARY:Оплата: ${icsEsc(pk.title)}`),
+      `DTSTART;VALUE=DATE:${icsDate(pk.paidUntil)}`,
+      `DTEND;VALUE=DATE:${icsNextDay(pk.paidUntil)}`,
+      'END:VEVENT');
+  });
+
+  L.push('END:VCALENDAR');
+  res.type('text/calendar; charset=utf-8')
+    .set('Cache-Control', 'no-cache')
+    .send(L.join('\r\n') + '\r\n');
+});
+
+/* Ссылка на подписку для панели (и её перевыпуск) */
+app.get('/api/calendar-link', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  const host = CANONICAL_HOST || req.get('host');
+  const url = `https://${host}/calendar.ics?key=${calKeyFor(db, req.user)}`;
+  res.json({ url, webcal: url.replace(/^https:/, 'webcal:') });
+});
+
+app.post('/api/calendar-link/reset', (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const db = load();
+  if (!db.meta) db.meta = {};
+  db.meta.calSalt = uid() + uid();          // старые ссылки перестают работать
+  save(db);
+  const host = CANONICAL_HOST || req.get('host');
+  const url = `https://${host}/calendar.ics?key=${calKeyFor(db, req.user)}`;
+  res.json({ url, webcal: url.replace(/^https:/, 'webcal:') });
+});
+
 /* ─── НАПОМИНАНИЯ В TELEGRAM ───
    Утром в 9:00 МСК — сводка дел на день (+ подписки, у которых кончается
    оплата); за 15 минут до времени дела — отдельный пуш. Отметки о доставке

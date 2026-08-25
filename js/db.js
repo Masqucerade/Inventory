@@ -359,6 +359,13 @@ class InventoryDB {
     return d;
   }
 
+  async getCalendarLink(reset = false) {
+    const r = await fetch('/api/calendar-link' + (reset ? '/reset' : ''), { method: reset ? 'POST' : 'GET' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось получить ссылку');
+    return d;
+  }
+
   async getReminders() {
     try { const r = await fetch('/api/reminders'); return r.ok ? r.json() : []; }
     catch { return []; }

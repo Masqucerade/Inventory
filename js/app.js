@@ -2474,7 +2474,18 @@ class App {
             ${cells}
           </div>
         </div>
-        <div class="cal-side">${dayCard}${freeCard}</div>
+        <div class="cal-side">${dayCard}${freeCard}
+          <div class="cal-card cal-sub" id="calSubCard">
+            <div class="cal-card-head">
+              <div>
+                <div class="cal-card-title">Календарь на телефоне</div>
+                <div class="cal-card-sub">Подписка для iPhone, Mac и Google — дела появятся в системном календаре и его виджете</div>
+              </div>
+              <button class="ov-add" id="calSubToggle" title="Показать ссылку">＋</button>
+            </div>
+            <div id="calSubBody" class="hidden"></div>
+          </div>
+        </div>
       </div>`;
 
     /* ── Бинды ── */
@@ -2513,6 +2524,43 @@ class App {
       const rem = (this._reminders || []).find(r => r.id === row.dataset.rem);
       if (rem) this.openReminderModal(rem);
     }));
+    /* Подписка на календарь: ссылка + QR для телефона */
+    document.getElementById('calSubToggle')?.addEventListener('click', async () => {
+      const body = document.getElementById('calSubBody');
+      if (!body.classList.contains('hidden')) { body.classList.add('hidden'); return; }
+      body.classList.remove('hidden');
+      body.innerHTML = `<div class="cal-empty">Готовим ссылку…</div>`;
+      try {
+        const { url, webcal } = await this.db.getCalendarLink();
+        this._calSubUrl = { url, webcal };
+        body.innerHTML = `
+          <div class="cal-sub-steps">
+            1. Отсканируйте QR камерой iPhone (или откройте ссылку на телефоне)<br>
+            2. iOS предложит подписаться на календарь — согласитесь<br>
+            3. На экране «Домой» добавьте виджет «Календарь» любого размера
+          </div>
+          <img class="cal-sub-qr" src="/qr.svg?d=${encodeURIComponent(webcal)}" alt="QR подписки">
+          <div class="cal-sub-url">${this.esc(url)}</div>
+          <div class="cal-sub-acts">
+            <button class="chip" id="calSubCopy">Скопировать ссылку</button>
+            <button class="chip" id="calSubReset">Перевыпустить</button>
+          </div>`;
+        document.getElementById('calSubCopy').addEventListener('click', async () => {
+          try { await navigator.clipboard.writeText(this._calSubUrl.url); this.toast('Ссылка скопирована ✓'); }
+          catch { this.toast(this._calSubUrl.url); }
+        });
+        document.getElementById('calSubReset').addEventListener('click', async () => {
+          if (!await this.confirm('Перевыпустить ссылку? Старая перестанет работать — подписку на телефоне придётся добавить заново.', 'Перевыпустить', false)) return;
+          try {
+            await this.db.getCalendarLink(true);
+            this.toast('Ссылка перевыпущена ✓');
+            body.classList.add('hidden');
+            document.getElementById('calSubToggle').click();
+          } catch (e) { this.toast(e.message || 'Ошибка'); }
+        });
+      } catch (e) { body.innerHTML = `<div class="cal-empty">${this.esc(e.message || 'Ошибка')}</div>`; }
+    });
+
     el.querySelectorAll('.cal-item[data-perk]').forEach(row => row.addEventListener('click', () => {
       const pk = (this._calPerks || []).find(x => x.id === row.dataset.perk);
       if (pk) this.openPerkModal(pk);
