@@ -5121,3 +5121,5 @@ body.select-mode .row-check { display: block; }
   font-family: ui-monospace, 'SF Mono', Menlo, monospace; margin-bottom: 10px;
 }
 .cal-sub-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.cal-sub-divider { height: 1px; background: var(--sep2); margin: 14px 0 12px; }
+.cal-sub-acts .chip { text-decoration: none; }

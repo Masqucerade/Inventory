@@ -3061,6 +3061,70 @@ app.get('/calendar.ics', (req, res) => {
     .send(L.join('\r\n') + '\r\n');
 });
 
+/* ─── ДАННЫЕ ДЛЯ ВИДЖЕТА SCRIPTABLE (iPhone) ───
+   Тот же личный ключ, что у подписки .ics. Отдаём компактную сводку:
+   сетка месяца с количеством дел по дням, дела на сегодня и ближайшие. */
+app.get('/widget.json', (req, res) => {
+  const db  = load();
+  const key = String(req.query.key || '');
+  const user = (db.users || []).find(u => key && key === calKeyFor(db, u));
+  if (!user) return res.status(404).json({ error: 'not found' });
+
+  const now   = mskNow();                       // сегодня по Москве
+  const today = now.date;
+  const [ty, tm] = today.split('-').map(Number);
+  const mine  = (db.reminders || []).filter(r => r.createdBy === user.id);
+  const dstr  = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+  // Сколько незакрытых дел в каждый день текущего месяца
+  const daysIn = new Date(Date.UTC(ty, tm, 0)).getUTCDate();
+  const days = {}, overdueDays = [];
+  for (let d = 1; d <= daysIn; d++) {
+    const day = dstr(ty, tm, d);
+    const cnt = mine.filter(r => remOccursOn(r, day) && !remDone(r, day)).length;
+    if (cnt) { days[d] = cnt; if (day < today) overdueDays.push(d); }
+  }
+
+  const list = day => mine.filter(r => remOccursOn(r, day) && !remDone(r, day))
+    .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
+    .map(r => ({ title: r.title, time: r.time || null }));
+
+  // Ближайшие дела на 14 дней вперёд (без сегодняшних)
+  const upcoming = [];
+  for (let i = 1; i <= 14 && upcoming.length < 4; i++) {
+    const dt  = new Date(Date.UTC(ty, tm - 1, Number(today.slice(8)) + i));
+    const day = dt.toISOString().slice(0, 10);
+    list(day).forEach(x => upcoming.length < 4 && upcoming.push({ ...x, date: day }));
+  }
+
+  const overdue = mine.filter(r => r.date && r.date < today &&
+    (!r.repeat || r.repeat === 'none') && !r.done).length;
+
+  res.json({
+    date: today,
+    month: { y: ty, m: tm, days, overdueDays },
+    today: list(today),
+    upcoming,
+    free: mine.filter(r => !r.date && !r.done).length,
+    overdue,
+    orders: (db.orders || []).filter(o => o.status === 'new').length,
+    perks: (db.perks || []).filter(pk => pk.paidUntil && pk.paidUntil >= today &&
+      (Date.parse(pk.paidUntil) - Date.parse(today)) / 86400000 <= 7)
+      .map(pk => ({ title: pk.title, date: pk.paidUntil })),
+  });
+});
+
+/* Готовый скрипт для Scriptable — с уже вшитым ключом */
+const WIDGET_TPL = fs.readFileSync(path.join(__dirname, 'widget-scriptable.js'), 'utf8');
+app.get('/widget.js', (req, res) => {
+  const db  = load();
+  const key = String(req.query.key || '');
+  const user = (db.users || []).find(u => key && key === calKeyFor(db, u));
+  if (!user) return res.status(404).end();
+  res.type('text/plain; charset=utf-8').set('Cache-Control', 'no-cache').send(
+    WIDGET_TPL.replace(/__KEY__/g, key).replace(/__HOST__/g, CANONICAL_HOST || req.get('host')));
+});
+
 /* Ссылка на подписку для панели (и её перевыпуск) */
 app.get('/api/calendar-link', (req, res) => {
   if (!requireRoot(req, res)) return;

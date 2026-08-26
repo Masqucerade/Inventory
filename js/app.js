@@ -2544,10 +2544,33 @@ class App {
           <div class="cal-sub-acts">
             <button class="chip" id="calSubCopy">Скопировать ссылку</button>
             <button class="chip" id="calSubReset">Перевыпустить</button>
+          </div>
+          <div class="cal-sub-divider"></div>
+          <div class="cal-card-title" style="font-size:13px">Свой виджет · Scriptable</div>
+          <div class="cal-sub-steps">
+            1. Поставьте бесплатное приложение <b>Scriptable</b> из App Store<br>
+            2. Откройте эту страницу на телефоне и нажмите «Скопировать скрипт»<br>
+            3. В Scriptable: «+» → вставьте скрипт → назовите «Masqucerade»<br>
+            4. На экране «Домой»: удержание → «＋» → Scriptable → размер → в настройках виджета выберите скрипт
+          </div>
+          <div class="cal-sub-acts">
+            <button class="chip" id="calWidgetCopy">Скопировать скрипт</button>
+            <a class="chip" id="calWidgetOpen" href="/widget.js?key=${encodeURIComponent(new URL(url).searchParams.get('key') || '')}" target="_blank" rel="noopener">Открыть текстом</a>
           </div>`;
         document.getElementById('calSubCopy').addEventListener('click', async () => {
           try { await navigator.clipboard.writeText(this._calSubUrl.url); this.toast('Ссылка скопирована ✓'); }
           catch { this.toast(this._calSubUrl.url); }
+        });
+        document.getElementById('calWidgetCopy').addEventListener('click', async (ev) => {
+          const b = ev.currentTarget;
+          b.textContent = 'Готовлю…';
+          try {
+            const key  = new URL(this._calSubUrl.url).searchParams.get('key') || '';
+            const code = await fetch('/widget.js?key=' + encodeURIComponent(key)).then(r => r.ok ? r.text() : Promise.reject());
+            await navigator.clipboard.writeText(code);
+            this.toast('Скрипт скопирован ✓ — вставьте в Scriptable');
+          } catch { this.toast('Не удалось скопировать — откройте «Открыть текстом» и скопируйте вручную'); }
+          finally { b.textContent = 'Скопировать скрипт'; }
         });
         document.getElementById('calSubReset').addEventListener('click', async () => {
           if (!await this.confirm('Перевыпустить ссылку? Старая перестанет работать — подписку на телефоне придётся добавить заново.', 'Перевыпустить', false)) return;
