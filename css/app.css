@@ -5131,3 +5131,4 @@ body.select-mode .row-check { display: block; }
   transition: color .13s;
 }
 .cal-phone-link:hover { color: var(--text2); }
+.cal-foot-links { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }

@@ -2475,7 +2475,10 @@ class App {
           </div>
         </div>
         <div class="cal-side">${dayCard}${freeCard}
-          <button class="cal-phone-link" id="calSubToggle">Календарь на телефоне и виджет →</button>
+          <div class="cal-foot-links">
+            <button class="cal-phone-link" id="calSubToggle">Календарь на телефоне и виджет →</button>
+            <button class="cal-phone-link" id="calTestNotify" title="Отправить тестовое напоминание в Telegram">Проверить напоминания</button>
+          </div>
         </div>
       </div>`;
 
@@ -2515,6 +2518,17 @@ class App {
       const rem = (this._reminders || []).find(r => r.id === row.dataset.rem);
       if (rem) this.openReminderModal(rem);
     }));
+    document.getElementById('calTestNotify')?.addEventListener('click', async (e) => {
+      const b = e.currentTarget; b.textContent = 'Отправляю…';
+      try {
+        const r = await this.db.testReminderNotify();
+        this.toast(r.viaFallback
+          ? 'Отправлено в общий чат панели ✓ — свой Chat ID можно указать в «Ролях и правах»'
+          : 'Отправлено вам в Telegram ✓');
+      } catch (err) { this.toast(err.message || 'Ошибка'); }
+      finally { b.textContent = 'Проверить напоминания'; }
+    });
+
     /* Подписка на календарь: ссылка + QR для телефона */
     document.getElementById('calSubToggle')?.addEventListener('click', async () => {
       const body = document.getElementById('calPhoneBody');

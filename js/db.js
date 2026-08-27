@@ -359,6 +359,13 @@ class InventoryDB {
     return d;
   }
 
+  async testReminderNotify() {
+    const r = await fetch('/api/reminders/test-notify', { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Не удалось отправить');
+    return d;
+  }
+
   async getCalendarLink(reset = false) {
     const r = await fetch('/api/calendar-link' + (reset ? '/reset' : ''), { method: reset ? 'POST' : 'GET' });
     const d = await r.json().catch(() => ({}));

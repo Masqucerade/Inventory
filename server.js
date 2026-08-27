@@ -3161,6 +3161,12 @@ function mskNow() {
            hour: parseInt(g('hour'), 10), minute: parseInt(g('minute'), 10) };
 }
 
+/* Куда слать напоминания: личный чат пользователя, а если он не указан —
+   общий чат панели (TG_LOG_CHAT). Иначе root'у без Chat ID ничего не приходит. */
+function remChatOf(u) {
+  return u.tgChatId || (u.role === 'root' ? (process.env.TG_LOG_CHAT || '') : '');
+}
+
 async function sendRemindersTick() {
   const token = process.env.TG_LOG_TOKEN;
   if (!token) return;
@@ -3170,7 +3176,7 @@ async function sendRemindersTick() {
   let dirty = false;
 
   for (const u of (db.users || [])) {
-    if (!u.tgChatId) continue;
+    if (!remChatOf(u)) continue;
     const mine = (db.reminders || []).filter(r => r.createdBy === u.id);
     if (!mine.length) continue;
     const today = mine.filter(r => remOccursOn(r, now.date) && !remDone(r, now.date));
@@ -3187,7 +3193,7 @@ async function sendRemindersTick() {
         return diff >= 0 && diff <= 3;
       });
       if (today.length || soon.length) {
-        const chatId = await resolveTgChat(token, u.tgChatId);
+        const chatId = await resolveTgChat(token, remChatOf(u));
         if (chatId) tgSend(token, chatId,
           `<b>MASQUCERADE INC.</b>\n<i>Напоминания · ${escAttr(dateStr)}</i>\n` +
           (today.length ? '\n' + today
@@ -3207,7 +3213,7 @@ async function sendRemindersTick() {
       const left = hh * 60 + mm - nowMin;
       if (left > 15 || left < -5) continue;      // окно: за 15 мин до и 5 мин после
       r.notifiedFor = stamp; dirty = true;
-      const chatId = await resolveTgChat(token, u.tgChatId);
+      const chatId = await resolveTgChat(token, remChatOf(u));
       if (chatId) tgSend(token, chatId,
         `⏰ <b>${escAttr(r.title)}</b>\n${escAttr(r.time)}${left > 0 ? ` — через ${left} мин` : ''}` +
         (r.note ? `\n\n${escAttr(r.note)}` : ''));
@@ -3215,6 +3221,30 @@ async function sendRemindersTick() {
   }
   if (dirty) save(db);
 }
+
+/* Проверка напоминаний: шлём тестовое прямо сейчас и говорим, куда ушло */
+app.post('/api/reminders/test-notify', async (req, res) => {
+  if (!requireRoot(req, res)) return;
+  const token = process.env.TG_LOG_TOKEN;
+  if (!token) return res.status(400).json({ error: 'Бот не настроен: нет TG_LOG_TOKEN в Railway' });
+  const target = remChatOf(req.user);
+  if (!target) return res.status(400).json({
+    error: 'Не указан чат: откройте «Роли и права» → ваш пользователь → Chat ID (или задайте TG_LOG_CHAT в Railway)' });
+  const chatId = await resolveTgChat(token, target);
+  if (!chatId) return res.status(400).json({
+    error: `Чат ${target} не найден — напишите боту любое сообщение и попробуйте снова` });
+  const db  = load();
+  const now = mskNow();
+  const mine = (db.reminders || []).filter(r => r.createdBy === req.user.id);
+  const todayList = mine.filter(r => remOccursOn(r, now.date) && !remDone(r, now.date));
+  tgSend(token, chatId,
+    '<b>MASQUCERADE INC.</b>\n<i>Проверка напоминаний</i>\n\n' +
+    (todayList.length
+      ? 'Дела на сегодня:\n' + todayList.map(r => `•  ${r.time ? `<b>${escAttr(r.time)}</b>  ` : ''}${escAttr(r.title)}`).join('\n')
+      : 'На сегодня дел нет — сводка придёт, когда они появятся.') +
+    `\n\nСводка приходит в ${REM_DIGEST_HOUR}:00 МСК, напоминание о деле — за 15 минут.`);
+  res.json({ ok: true, chat: String(chatId), viaFallback: !req.user.tgChatId });
+});
 
 function scheduleReminders() {
   setInterval(() => sendRemindersTick().catch(e => console.error('reminders:', e.message)), 2 * 60 * 1000);
