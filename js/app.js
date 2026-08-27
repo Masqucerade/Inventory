@@ -5272,6 +5272,7 @@ class App {
         </div>
         <div class="section-title">Продажи</div>
         ${salesStatsHtml}
+        <div class="fin-emp-slot">${empSectionHtml}</div>
       </div>
       </div>
       <div class="fin-cols">
@@ -5283,7 +5284,6 @@ class App {
           ${payHistHtml || '<div class="section-title">Операции</div><div class="plan-empty">Операций пока нет</div>'}
         </div>
         <div class="fin-col">
-          ${empSectionHtml}
           ${plansSectionHtml}
         </div>
       </div>
