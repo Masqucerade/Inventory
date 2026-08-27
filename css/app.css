@@ -5132,3 +5132,9 @@ body.select-mode .row-check { display: block; }
 }
 .cal-phone-link:hover { color: var(--text2); }
 .cal-foot-links { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+
+/* Аккаунт без сотрудника на «Счёте» */
+.section-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.emp-missing .emp-bal-name { color: var(--text2); }
+.emp-missing .emp-bal-due  { color: var(--text3); }
+.emp-missing .emp-bal-due b { color: inherit; }

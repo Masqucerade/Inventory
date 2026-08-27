@@ -5064,9 +5064,25 @@ class App {
     const empOwed  = Object.values(empBals).reduce((s, v) => s + Math.max(0, v), 0);
     const dueTotal = Math.round(Object.values(dueByOwner).reduce((s, d) => s + d.sum, 0));
 
-    const empSectionHtml = this.owners.length
-      ? `<div class="section-title">Сотрудники</div>
-         <div class="emp-bal-list">${this.owners.map(o => {
+    // Аккаунты, для которых сотрудник на «Счёте» ещё не заведён (связь по имени)
+    const noOwner = (this.users || []).filter(u => u.role !== 'root' &&
+      !this.owners.some(o => (o.name || '').trim().toLowerCase() === (u.name || '').trim().toLowerCase()));
+    const missingHtml = noOwner.map(u => `
+      <div class="emp-bal-card emp-missing" data-add-owner="${this.esc(u.name)}">
+        <div class="emp-bal-avatar" style="background:var(--fill2);color:var(--text3)">${this.esc((u.name || '?')[0].toUpperCase())}</div>
+        <div class="emp-bal-info">
+          <div class="emp-bal-name">${this.esc(u.name)}</div>
+          <div class="emp-bal-due">Есть аккаунт, но на счёте не заведён</div>
+        </div>
+        <button class="emp-settle-btn" data-add-owner-btn="${this.esc(u.name)}">Завести</button>
+      </div>`).join('');
+
+    const empSectionHtml = (this.owners.length || noOwner.length)
+      ? `<div class="section-title section-title-row">
+           <span>Сотрудники</span>
+           <button class="ov-add" id="empAddBtn" title="Новый сотрудник">＋</button>
+         </div>
+         <div class="emp-bal-list">${missingHtml}${this.owners.map(o => {
            const bal = empBals[o.id] || 0;
            const ep  = bal >= 0;
            const due = dueByOwner[o.id];
@@ -5324,9 +5340,17 @@ class App {
       })
     );
 
-    el.querySelectorAll('.emp-bal-card').forEach(card =>
+    el.querySelectorAll('.emp-bal-card[data-owner-id]').forEach(card =>
       card.addEventListener('click', () => this.openEmpModal(card.dataset.ownerId))
     );
+    // Завести сотрудника под существующий аккаунт — имя подставляем, чтобы связка сработала
+    el.querySelectorAll('[data-add-owner]').forEach(card =>
+      card.addEventListener('click', () => this.openOwnerModal(null, card.dataset.addOwner))
+    );
+    document.getElementById('empAddBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.openOwnerModal();
+    });
 
     el.querySelectorAll('.pay-del[data-sale-id]').forEach(btn =>
       btn.addEventListener('click', async (e) => {
@@ -5674,7 +5698,7 @@ class App {
   /* ──────────────────────────────────────────
      OWNER FORM
      ────────────────────────────────────────── */
-  async openOwnerModal(id = null) {
+  async openOwnerModal(id = null, prefillName = '') {
     this.editingOwnerId = id;
     this._selColor      = DEFAULT_COLOR;
 
@@ -5700,6 +5724,11 @@ class App {
           d.classList.toggle('selected', d.dataset.color === this._selColor)
         );
       }
+    } else if (prefillName) {
+      // Заводим сотрудника под существующий аккаунт — имя должно совпасть,
+      // по нему связываются «Мой счёт» сотрудника и его продажи
+      document.getElementById('ownerName').value                = prefillName;
+      document.getElementById('ownerAvatarPreview').textContent = prefillName[0].toUpperCase();
     }
     this.openModal('ownerModal');
   }
@@ -5725,7 +5754,9 @@ class App {
     this.closeModal('ownerModal');
     this.renderOwners('menuOwnersList');
     this.renderOwnerFilterChips();
-    this.toast(isNew ? 'Участник добавлен ✓' : 'Участник обновлён ✓');
+    // Открыт «Счёт» — сразу показываем нового сотрудника в списке
+    if (this.currentView === 'finance') this.renderFinance();
+    this.toast(isNew ? 'Сотрудник добавлен ✓' : 'Сотрудник обновлён ✓');
   }
 
   async deleteOwner(id) {
