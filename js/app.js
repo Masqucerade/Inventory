@@ -2475,16 +2475,7 @@ class App {
           </div>
         </div>
         <div class="cal-side">${dayCard}${freeCard}
-          <div class="cal-card cal-sub" id="calSubCard">
-            <div class="cal-card-head">
-              <div>
-                <div class="cal-card-title">Календарь на телефоне</div>
-                <div class="cal-card-sub">Подписка для iPhone, Mac и Google — дела появятся в системном календаре и его виджете</div>
-              </div>
-              <button class="ov-add" id="calSubToggle" title="Показать ссылку">＋</button>
-            </div>
-            <div id="calSubBody" class="hidden"></div>
-          </div>
+          <button class="cal-phone-link" id="calSubToggle">Календарь на телефоне и виджет →</button>
         </div>
       </div>`;
 
@@ -2526,9 +2517,12 @@ class App {
     }));
     /* Подписка на календарь: ссылка + QR для телефона */
     document.getElementById('calSubToggle')?.addEventListener('click', async () => {
-      const body = document.getElementById('calSubBody');
-      if (!body.classList.contains('hidden')) { body.classList.add('hidden'); return; }
-      body.classList.remove('hidden');
+      const body = document.getElementById('calPhoneBody');
+      this.openModal('calPhoneModal');
+      if (!this._calPhoneBound) {
+        this._calPhoneBound = true;
+        document.getElementById('calPhoneClose').addEventListener('click', () => this.closeModal('calPhoneModal'));
+      }
       body.innerHTML = `<div class="cal-empty">Готовим ссылку…</div>`;
       try {
         const { url, webcal } = await this.db.getCalendarLink();
@@ -2577,8 +2571,8 @@ class App {
           try {
             await this.db.getCalendarLink(true);
             this.toast('Ссылка перевыпущена ✓');
-            body.classList.add('hidden');
-            document.getElementById('calSubToggle').click();
+            this.closeModal('calPhoneModal');
+            document.getElementById('calSubToggle')?.click();
           } catch (e) { this.toast(e.message || 'Ошибка'); }
         });
       } catch (e) { body.innerHTML = `<div class="cal-empty">${this.esc(e.message || 'Ошибка')}</div>`; }

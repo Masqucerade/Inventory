@@ -5123,3 +5123,11 @@ body.select-mode .row-check { display: block; }
 .cal-sub-acts { display: flex; gap: 8px; flex-wrap: wrap; }
 .cal-sub-divider { height: 1px; background: var(--sep2); margin: 14px 0 12px; }
 .cal-sub-acts .chip { text-decoration: none; }
+
+/* Ссылка «Календарь на телефоне» — незаметная строка под колонкой */
+.cal-phone-link {
+  align-self: flex-start; padding: 2px 0; background: none; border: none;
+  color: var(--hint); font-size: 11.5px; font-family: inherit; cursor: pointer;
+  transition: color .13s;
+}
+.cal-phone-link:hover { color: var(--text2); }
