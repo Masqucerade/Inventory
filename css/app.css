@@ -5138,3 +5138,20 @@ body.select-mode .row-check { display: block; }
 .emp-missing .emp-bal-name { color: var(--text2); }
 .emp-missing .emp-bal-due  { color: var(--text3); }
 .emp-missing .emp-bal-due b { color: inherit; }
+
+/* Детали продажи */
+.sale-info-head { margin-bottom: 14px; }
+.sale-info-name { font-size: 17px; font-weight: 700; letter-spacing: -0.4px; color: var(--text); line-height: 1.3; }
+.sale-info-date { font-size: 12px; color: var(--text3); margin-top: 3px; }
+#saleInfoBody .detail-card { margin-bottom: 12px; }
+#saleInfoBody .detail-val.pos { color: #4ade80; font-weight: 700; }
+#saleInfoBody .detail-val.neg { color: #f87171; font-weight: 700; }
+[data-theme="light"] #saleInfoBody .detail-val.pos { color: #16a34a; }
+.modal-open-btn {
+  width: 100%; margin-top: 2px; padding: 13px; border-radius: 13px;
+  background: var(--fill); color: var(--text); font-size: 14px; font-weight: 600;
+  transition: background .12s;
+}
+.modal-open-btn:active { background: var(--fill2); }
+.sale-clickable { cursor: pointer; }
+.sale-clickable:active { background: var(--fill); }

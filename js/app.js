@@ -5082,7 +5082,7 @@ class App {
            <span>Сотрудники</span>
            <button class="ov-add" id="empAddBtn" title="Новый сотрудник">＋</button>
          </div>
-         <div class="emp-bal-list">${missingHtml}${this.owners.map(o => {
+         <div class="emp-bal-list">${this.owners.map(o => {
            const bal = empBals[o.id] || 0;
            const ep  = bal >= 0;
            const due = dueByOwner[o.id];
@@ -5098,7 +5098,7 @@ class App {
                <polyline points="9 18 15 12 9 6"/>
              </svg>
            </div>`;
-         }).join('')}</div>`
+         }).join('')}${missingHtml}</div>`
       : '';
 
     const pending  = plans.filter(p => !p.done);
@@ -5148,7 +5148,7 @@ class App {
 
     const salesListHtml = sales.length
       ? `<div class="sales-list">${sales.map(s => `
-          <div class="sale-entry">
+          <div class="sale-entry sale-clickable" data-sale="${s.id}">
             <div class="sale-entry-info">
               <div class="sale-entry-name">${this.esc(s.itemName)}${s.size ? ` · ${this.esc(s.size)}` : ''}</div>
               <div class="sale-entry-meta">${this.fmtDate(s.soldAt)}${s.note ? ` · ${this.esc(s.note)}` : ''}</div>
@@ -5351,6 +5351,13 @@ class App {
       e.stopPropagation();
       this.openOwnerModal();
     });
+
+    el.querySelectorAll('.sale-entry[data-sale]').forEach(row =>
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.pay-del')) return;   // крестик удаляет, а не открывает
+        this.openSaleInfo(row.dataset.sale, sales);
+      })
+    );
 
     el.querySelectorAll('.pay-del[data-sale-id]').forEach(btn =>
       btn.addEventListener('click', async (e) => {
@@ -8291,6 +8298,71 @@ class App {
         <div class="site-item-price">${it.price ? fmtMoney(it.price) : '—'}</div>
       </button>`;
     }).join('')}</div>`;
+  }
+
+  /* ── Детали продажи: что почём, кому доля и начислена ли она ── */
+  openSaleInfo(id, sales) {
+    const s = (sales || []).find(x => x.id === id);
+    if (!s) return;
+    const body  = document.getElementById('saleInfoBody');
+    const owner = this.owners.find(o => o.id === s.ownerId);
+    const item  = (this.items || []).find(i => i.id === s.itemId);
+    const cat   = this.categories.find(c => c.id === (s.categoryId ?? item?.categoryId));
+    const qty   = Math.max(1, parseInt(s.qty) || 1);
+    const costs = (s.buyPrice || 0) + (s.deliveryCost || 0);
+    const profit = s.netProfit || 0;
+    const share  = s.shareAmount != null ? s.shareAmount
+      : owner ? Math.round(costs * qty + profit * (owner.profitPercent || 0) / 100) : 0;
+    const row = (k, v, cls) => `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val ${cls || ''}">${v}</span></div>`;
+
+    body.innerHTML = `
+      <div class="sale-info-head">
+        <div class="sale-info-name">${this.esc(s.itemName || 'Товар')}${s.size ? ` · ${this.esc(s.size)}` : ''}</div>
+        <div class="sale-info-date">${this.fmtDate(s.soldAt)}${qty > 1 ? ` · ${qty} шт` : ''}</div>
+      </div>
+
+      <div class="detail-card">
+        ${row('Цена продажи', fmtMoney(s.salePrice || 0))}
+        ${row('Закуп', s.buyPrice ? fmtMoney(s.buyPrice) : '—')}
+        ${row('Доставка', s.deliveryCost ? fmtMoney(s.deliveryCost) : '—')}
+        ${row('Издержки', costs ? fmtMoney(costs) : '—')}
+        ${row('Чистая прибыль', `${profit >= 0 ? '+' : '−'}${fmtMoney(Math.abs(profit))}`, profit >= 0 ? 'pos' : 'neg')}
+      </div>
+
+      ${owner ? `<div class="detail-card">
+        ${row('Владелец вещи', `<span class="owner-dot" style="background:${owner.color}"></span>${this.esc(owner.name)}`)}
+        ${row('Его доля', `${fmtMoney(share)}`, 'pos')}
+        ${row('Формула', `закуп+доставка${owner.profitPercent ? ` + ${owner.profitPercent}% прибыли` : ''}`)}
+        ${row('Начислено', s.shareAuto ? 'да, автоматически ✓' : s.sharePaid ? 'отмечено вручную ✓' : 'ещё нет')}
+        ${row('Компании остаётся', fmtMoney(Math.round(profit - (share - costs * qty))), 'pos')}
+      </div>` : `<div class="detail-card">${row('Владелец вещи', 'вещь компании — прибыль целиком наша')}</div>`}
+
+      <div class="detail-card">
+        ${cat ? row('Категория', this.esc(cat.name)) : ''}
+        ${item?.brand ? row('Бренд', this.esc(item.brand)) : ''}
+        ${s.note ? row('Заметка', this.esc(s.note)) : ''}
+        ${row('Товар в панели', item ? 'на месте' : 'запись удалена')}
+      </div>
+
+      ${item ? `<button class="modal-open-btn" id="saleInfoItem">Открыть карточку товара</button>` : ''}
+      <button class="modal-delete-btn" id="saleInfoDel">Удалить запись продажи</button>`;
+
+    if (!this._saleInfoBound) {
+      this._saleInfoBound = true;
+      document.getElementById('saleInfoClose').addEventListener('click', () => this.closeModal('saleInfoModal'));
+    }
+    document.getElementById('saleInfoItem')?.addEventListener('click', () => {
+      this.closeModal('saleInfoModal');
+      this.openDetailModal(s.itemId);
+    });
+    document.getElementById('saleInfoDel').addEventListener('click', async () => {
+      if (!await this.confirm('Удалить запись продажи? Товар вернётся на склад, начисление сотруднику откатится.')) return;
+      await this.db.deleteSale(s.id);
+      this.closeModal('saleInfoModal');
+      this.toast('Запись удалена');
+      this.renderFinance();
+    });
+    this.openModal('saleInfoModal');
   }
 
   /* ── Вкладка «Языки»: английские версии текстов витрины ──
